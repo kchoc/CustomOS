@@ -1,0 +1,6 @@
+# Tell bochs to use our boot sector code as though it were
+# a floppy disk inserted into a computer at boot time .
+floppya : 1 _44 = my-kernel.iso , status = inserted
+boot : a
+log: bochsout.txt
+logprefix: %t%e%d
