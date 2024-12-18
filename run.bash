@@ -1,12 +1,18 @@
 mkdir build
 
-nasm -f elf32 src/boot.asm -o build/boot.o
-
 for file in $(find src -name '*.c'); do
-    gcc -m32 -Iinclude -c $file -o build/$(basename $file .c).o
+    gcc -m32 -ffreestanding -fno-stack-protector -Iinclude -c $file -o build/$(basename $file .c).o
 done
 
-OBJECTS="build/boot.o build/kernel.o $(ls build/*.o | grep -v boot.o | grep -v kernel.o)"
+for file in $(find src -name '*.asm'); do
+    nasm -f elf32 $file -o build/$(basename $file .asm).o
+done
+
+for file in $(find src -name '*.s'); do
+    as --32 $file -o build/$(basename $file .s).o
+done
+
+OBJECTS=$(find build -name '*.o')
 ld -m elf_i386 -T linker.ld -o kernel $OBJECTS
 
 cp kernel iso/boot/

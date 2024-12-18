@@ -7,25 +7,24 @@
 #define IDT_SIZE 256
 
 // IDT entry structure
-typedef struct {
-    uint16_t base_low;
-    uint16_t base_high;
-    uint16_t selector;
-    uint8_t zero;
-    uint8_t type_attr;
-} __attribute__((packed)) idt_entry_t;
+struct idt_entry_t {
+    uint16_t offset_low;      // Offset bits 0-15
+    uint16_t selector;       // Code segment selector
+    uint8_t zero;            // Unused, Always 0
+    uint8_t type_attributes; // Gate type and attributes
+    uint16_t offset_high;    // Offset bits 16-31
+} __attribute__((packed));
 
 // IDT pointer structure
-typedef struct {
+struct idt_ptr_t {
     uint16_t limit;
     uint32_t base;
-} __attribute__((packed)) idt_ptr_t;
+} __attribute__((packed));
+
+extern void keyboard_isr_wrapper(); // Declare external ISR wrapper
 
 void set_idt_entry(int index, uint32_t base, uint16_t selector, uint8_t type_attr);
 void load_idt(void);
 void initialize_idt(void);
-
-extern void keyboard_isr_handler(void);
-extern void isr_default_handler(void);
 
 #endif // IDT_H

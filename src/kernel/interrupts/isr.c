@@ -1,6 +1,7 @@
 #include "kernel/interrupts/isr.h"
 #include "kernel/drivers/port_io.h"
 #include "kernel/drivers/keyboard.h"
+#include "kernel/terminal.h"
 
 // The default handler for unhanded interrupts
 void isr_default_handler() {

@@ -1,17 +1,33 @@
+#include "kernel/drivers/port_io.h"
 #include "kernel/terminal.h"
+#include "kernel/commands.h"
 #include "string.h"
+#include "itoa.h"
 #include <stddef.h>
 
 // Global terminal variables
 static size_t terminal_row = 0;
 static size_t terminal_column = 0;
 static uint16_t *video_memory = (uint16_t *)0xB8000;
+static uint8_t command_mode = 1;
 
 // Initialize the terminal
-void terminal_initialize(void) {
-    terminal_row = 0;
-    terminal_column = 0;
+void terminal_initialize() {
     terminal_clear();
+    terminal_putchar('>');
+}
+
+// Set the cursor position
+void set_cursor_position(size_t row, size_t column) {
+    uint16_t position = (row * 80) + column;
+
+    // Send the high byte
+    outb(0x3D4, 0x0E);
+    outb(0x3D5, (position >> 8) & 0xFF);
+
+    // Send the low byte
+    outb(0x3D4, 0x0F);
+    outb(0x3D5, position & 0xFF);
 }
 
 // Put a character on the terminal
@@ -31,11 +47,84 @@ void terminal_putchar(char c) {
     }
 }
 
+// Test in terminal for assembly
+void terminal_test(void) {
+    terminal_print("test\n");
+    for (int i = 0; i < 100000000; i++) { }
+}
+
+// Input handler for the terminal
+void terminal_input(uint8_t scancode, char c) {
+    if (!command_mode) {
+		if (c == '\n') {
+			command_mode = 1;
+			terminal_clear();
+			terminal_putchar('>');
+		}
+        return;
+    }
+    if (c == 0) {
+        if (scancode == 0x0E) { // Backspace
+            terminal_backspace();
+        } else if (scancode == 0x48) { // Up Arrow
+            if (terminal_row > 0) {
+                terminal_row--;
+            }
+        } else if (scancode == 0x50) { // Down Arrow
+            if (terminal_row < 24) {
+                terminal_row++;
+            }
+        } else if (scancode == 0x4B) { // Left Arrow
+            if (terminal_column > 0) {
+                terminal_column--;
+            }
+        } else if (scancode == 0x4D) { // Right Arrow
+            if (terminal_column < 79) {
+                terminal_column++;
+            }
+        }
+    } else if (c == '\n') {
+        char command_buffer[160] = { 0 };
+		for (int i = 0; i < 160; i++) {
+			command_buffer[i] = (char)(video_memory[i + 1] & 0x00FF);
+		}
+		command_mode = 0;
+		terminal_clear();
+		process_command(command_buffer);
+	}
+	else {
+		terminal_putchar(c);
+	}
+    set_cursor_position(terminal_row, terminal_column);
+}
+
 // Put a string on the terminal
 void terminal_print(const char *str) {
     while (*str) {
         terminal_putchar(*str++);
     }
+}
+
+// Print an integer to the terminal
+void terminal_print_int(int num) {
+    char str[16];
+    itoa(num, str, 10);
+    terminal_print(str);
+}
+
+// Print a hexadecimal number to the terminal
+void terminal_print_hex(const void *object, size_t size) {
+    const uint8_t *byte = (const uint8_t *)object;
+    char str[size * 2 + 3];
+    str[0] = '0';
+    str[1] = 'x';
+    for (size_t i = 0; i < size; i++) {
+        uint8_t value = byte[size - 1 - i];
+        str[2 + i * 2] = (value >> 4) < 10 ? '0' + (value >> 4) : 'A' + (value >> 4) - 10;
+        str[3 + i * 2] = (value & 0xF) < 10 ? '0' + (value & 0xF) : 'A' + (value & 0xF) - 10;
+    }
+    str[size * 2 + 2] = '\0';
+    terminal_print(str);
 }
 
 // Clear the terminal screen
@@ -57,4 +146,13 @@ void terminal_backspace(void) {
     }
     size_t index = terminal_row * 80 + terminal_column;
     video_memory[index] = ' ' | 0x0700;
+}
+
+void terminal_print_register_value(const char* reg_name, uint32_t value) {
+    terminal_print(reg_name);
+    terminal_print(": ");
+    terminal_print_hex(&value, sizeof(value));
+    terminal_print("\n");
+
+    for (int i = 0; i < 1000000000; i++) {}
 }
