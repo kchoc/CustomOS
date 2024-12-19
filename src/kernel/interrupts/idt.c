@@ -1,7 +1,6 @@
 #include "kernel/interrupts/idt.h"
 #include "kernel/interrupts/isr.h"
 #include "kernel/drivers/port_io.h"
-#include "kernel/terminal.h"
 
 // The IDT and IDT pointer
 struct idt_entry_t idt[IDT_SIZE];
@@ -39,7 +38,7 @@ void load_idt() {
 }
 
 // Initialize the IDT with the keyboard ISR and default handlers
-void initialize_idt() {
+void idt_init() {
     // Set up the default handler for all interrupts (for unused vectors)
     for (int i = 0; i < IDT_SIZE; ++i) {
         set_idt_entry(i, 0, 0x08, 0x8E);  // Interrupt gate, present
@@ -47,6 +46,8 @@ void initialize_idt() {
 
     // Set up the keyboard ISR (IRQ1 -> Interrupt vector 33)
     set_idt_entry(0x21, (uint32_t)keyboard_isr_wrapper, 0x08, 0x8E);  // Interrupt gate, present
+	// Set up the page fault ISR (Interrupt vector 14)
+	set_idt_entry(0x0E, (uint32_t)page_fault_isr_wrapper, 0x08, 0x8E);  // Interrupt gate, present
 
     // Load the IDT into the CPU
     load_idt();

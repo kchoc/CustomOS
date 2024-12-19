@@ -8,10 +8,6 @@ for file in $(find src -name '*.asm'); do
     nasm -f elf32 $file -o build/$(basename $file .asm).o
 done
 
-for file in $(find src -name '*.s'); do
-    as --32 $file -o build/$(basename $file .s).o
-done
-
 OBJECTS=$(find build -name '*.o')
 ld -m elf_i386 -T linker.ld -o kernel $OBJECTS
 

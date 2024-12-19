@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 // Initialize the terminal
-void terminal_initialize(void);
+void terminal_init(void);
 
 // Put a character on the terminal
 void terminal_putchar(char c);
@@ -15,6 +15,9 @@ void terminal_test(void);
 
 // Set the cursor position
 void set_cursor_position(size_t row, size_t column);
+
+// Print a formatted string to the terminal
+void printf(const char *s, ...);
 
 // Input handler for the terminal
 void terminal_input(uint8_t scancode, char c);

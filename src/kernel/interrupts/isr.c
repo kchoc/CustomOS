@@ -20,3 +20,8 @@ void keyboard_isr_handler() {
     outb(0x20, 0x20); // Send EOI to PIC1
     outb(0xA0, 0x20); // Send EOI to PIC2
 }
+
+// The page fault ISR handler
+void page_fault_isr_handler() {
+    printf("Page fault\n");
+}

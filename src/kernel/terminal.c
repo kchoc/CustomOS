@@ -4,17 +4,17 @@
 #include "string.h"
 #include "itoa.h"
 #include <stddef.h>
+#include <stdarg.h>
 
 // Global terminal variables
 static size_t terminal_row = 0;
 static size_t terminal_column = 0;
 static uint16_t *video_memory = (uint16_t *)0xB8000;
-static uint8_t command_mode = 1;
+static uint8_t command_mode = 0;
 
 // Initialize the terminal
-void terminal_initialize() {
+void terminal_init() {
     terminal_clear();
-    terminal_putchar('>');
 }
 
 // Set the cursor position
@@ -51,6 +51,55 @@ void terminal_putchar(char c) {
 void terminal_test(void) {
     terminal_print("test\n");
     for (int i = 0; i < 100000000; i++) { }
+}
+
+// Print a formatted string to the terminal
+void printf(const char *s, ...) {
+    va_list args;
+
+    uint32_t u;
+    int32_t i;
+    char *str;
+
+    va_start(args, s);
+
+    while (*s) {
+        if (*s != '%') {
+            terminal_putchar(*s++);
+            continue;
+        }
+        s++;
+        switch (*s) {
+            case 'd':
+                i = va_arg(args, int32_t);
+                terminal_print_int(i);
+                break;
+            case 'u':
+                u = va_arg(args, uint32_t);
+                terminal_print_int(u);
+                break;
+            case 'x':
+                u = va_arg(args, uint32_t);
+                terminal_print_hex(&u, sizeof(u));
+                break;
+            case 's':
+                str = va_arg(args, char *);
+                terminal_print(str);
+                break;
+            case 'c':
+                u = va_arg(args, int32_t);
+                terminal_putchar(u);
+                break;
+            case 0:
+                return;
+            default:
+                terminal_putchar(*s);
+                break;
+        }
+        s++;
+    }
+    va_end(args);
+    set_cursor_position(terminal_row, terminal_column);
 }
 
 // Input handler for the terminal

@@ -22,9 +22,10 @@ struct idt_ptr_t {
 } __attribute__((packed));
 
 extern void keyboard_isr_wrapper(); // Declare external ISR wrapper
+extern void page_fault_isr_wrapper(); // Declare external ISR wrapper
 
 void set_idt_entry(int index, uint32_t base, uint16_t selector, uint8_t type_attr);
 void load_idt(void);
-void initialize_idt(void);
+void idt_init(void);
 
 #endif // IDT_H

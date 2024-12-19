@@ -1,5 +1,4 @@
 #include "kernel/memory/gdt.h"
-#include "kernel/terminal.h"
 
 #define GDT_ENTRIES 5
 struct gdt_entry gdt[GDT_ENTRIES];
@@ -24,7 +23,7 @@ void load_gdt(struct gdt_ptr *gdt_desc) {
 }
 
 // Initialize GDT
-void initialize_gdt(void) {
+void gdt_init(void) {
     gp.limit = (sizeof(struct gdt_entry) * GDT_ENTRIES) - 1;
     gp.base = (uint32_t)&gdt;
 

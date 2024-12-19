@@ -20,6 +20,6 @@ struct gdt_ptr {
 
 void gdt_set_gate(int num, uint32_t base, uint32_t limit, uint8_t access, uint8_t grandularity);
 
-void initialize_gdt(void);
+void gdt_init(void);
 
 #endif // GDT_H
