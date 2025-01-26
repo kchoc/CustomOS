@@ -17,4 +17,4 @@ grub-mkrescue -o my-kernel.iso iso/
 
 rm $OBJECTS kernel
 
-qemu-system-i386 -cdrom my-kernel.iso
+qemu-system-i386 -cdrom my-kernel.iso -no-reboot

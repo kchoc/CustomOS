@@ -37,6 +37,9 @@ void terminal_putchar(char c) {
         terminal_column = 0;
     } else {
         const size_t index = terminal_row * 80 + terminal_column;
+        if (index >= 1920) {
+            return;
+        }
         video_memory[index] = (uint16_t)c | 0x0700; // White on black
         terminal_column++;
     }

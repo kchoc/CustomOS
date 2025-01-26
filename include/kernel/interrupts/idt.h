@@ -21,8 +21,27 @@ struct idt_ptr_t {
     uint32_t base;
 } __attribute__((packed));
 
-extern void keyboard_isr_wrapper(); // Declare external ISR wrapper
-extern void page_fault_isr_wrapper(); // Declare external ISR wrapper
+// Declare external ISR wrappers
+extern void isr_divide_by_zero_wrapper();
+extern void isr_debug_wrapper();
+extern void isr_non_maskable_interrupt_wrapper();
+extern void isr_breakpoint_wrapper();
+extern void isr_overflow_wrapper();
+extern void isr_bound_range_exceeded_wrapper();
+extern void isr_invalid_opcode_wrapper();
+extern void isr_device_not_available_wrapper();
+extern void isr_double_fault_wrapper();
+extern void isr_invalid_tss_wrapper();
+extern void isr_segment_not_present_wrapper();
+extern void isr_stack_segment_fault_wrapper();
+extern void isr_general_protection_fault_wrapper();
+extern void isr_page_fault_wrapper();
+extern void isr_fpu_error_wrapper();
+extern void isr_alignment_check_wrapper();
+extern void isr_machine_check_wrapper();
+extern void isr_simd_floating_point_wrapper();
+
+extern void isr_keyboard_wrapper();
 
 void set_idt_entry(int index, uint32_t base, uint16_t selector, uint8_t type_attr);
 void load_idt(void);
