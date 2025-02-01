@@ -30,7 +30,7 @@ void *allocate_blocks(uint32_t blocks) {
             // Increment count and check if we have enough blocks
             count++;
             if (count == blocks) {
-                void *position = (void *)MAIN_MEMORY_START + (i_position * 32 + j_position) * PAGE_SIZE;
+                void *position = (void *)BLOCK_START_ADDRESS + (i_position * 32 + j_position) * PAGE_SIZE;
                 if (j_position + count >= 32) {
                     memory_map[i_position] |= ~(1 << j_position - 1);
                     count -= 32 - j_position;
@@ -56,7 +56,7 @@ void *allocate_blocks(uint32_t blocks) {
 }
 
 void free_blocks(void *address, uint32_t blocks) {
-    uint32_t position = ((uint32_t)address - MAIN_MEMORY_START) / PAGE_SIZE;
+    uint32_t position = ((uint32_t)address - BLOCK_START_ADDRESS) / PAGE_SIZE;
     for (uint32_t i = 0; i < blocks; i++) {
         memory_map[position + i / 32] &= ~(1 << (i % 32));
     }

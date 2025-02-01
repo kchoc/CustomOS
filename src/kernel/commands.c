@@ -3,6 +3,7 @@
 #include "kernel/memory/kmalloc.h"
 #include "kernel/memory/page.h"
 #include "kernel/task.h"
+#include "kernel/drivers/port_io.h"
 #include "string.h"
 
 void process_command(char *command) {
@@ -15,7 +16,7 @@ void process_command(char *command) {
     }
 
     if (strcmp(command, "help") == 0) {
-        printf("Available commands: fizz, help, kmalloc, memory, pages, task, cpumode\n");
+        printf("Available commands: fizz, help, kmalloc, memory, pages, task, cpumode, reboot\n");
     } else if (strcmp(command, "fizz") == 0) {
         for (int i = 1; i <= 20; i++) {
             if (i % 3 == 0 && i % 5 == 0) {
@@ -41,13 +42,13 @@ void process_command(char *command) {
     } else if (strcmp(command, "kmalloc") == 0) {
         memory_usage();
     } else if (strcmp(command, "pages") == 0) {
-        //show_pages();
+        check_page_directory(current_page_directory, args[1] ? str2int(args[1]) : 0);
     } else if (strcmp(command, "memory") == 0) {
         int i = 0;
-        printf("Current: %d\n\n", &i);
+        printf("Current: %x\n\n", &i);
+        check_page_directory(current_page_directory, args[1] ? str2int(args[1]) : 0);
         memory_usage();
         printf("\n");
-        //show_pages();
     } else if (strcmp(command, "cpumode") == 0) {
         uint32_t mode;
         asm volatile("mov %%cr0, %0" : "=r" (mode));
@@ -56,6 +57,9 @@ void process_command(char *command) {
         } else {
             printf("CPU is in real mode\n");
         }
+    } else if (strcmp(command, "reboot") == 0) {
+        printf("Rebooting...\n");
+        outb(0x64, 0xFE); // Send reboot command to the keyboard controller
     } else {
         printf("Command not found: %s. Use help for a list of commands\n", command);
     }

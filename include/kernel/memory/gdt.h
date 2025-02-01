@@ -14,12 +14,12 @@ struct gdt_entry {
 } __attribute__((packed));
 
 struct gdt_ptr {
-    uint16_t limit;
-    uintptr_t base;
+    uint16_t size;
+    uintptr_t offset;
 } __attribute__((packed));
 
-void gdt_set_gate(int num, uint32_t base, uint32_t limit, uint8_t access, uint8_t grandularity);
+void gdt_init();
 
-void gdt_init(void);
+extern void load_gdt(void*);
 
 #endif // GDT_H

@@ -12,13 +12,17 @@ void init() {
 	terminal_init();
 	printf("Terminal: OK\n");
 
-	kmalloc_init((char*)KMALLOC_START, KMALLOC_SIZE);
-	printf("kmalloc: OK\n");
+	gdt_init();
+	printf("GDT: OK\n");
 
 	if (initialize_paging())
 		printf("Paging: OK\n");
 	else
 		printf("Paging: ERROR\n");
+
+
+	kmalloc_init((char*)KMALLOC_START, KMALLOC_SIZE);
+	printf("kmalloc: OK\n");
 
 	gdt_init();
 	printf("GDT: OK\n");

@@ -1,6 +1,7 @@
 #include "kernel/drivers/port_io.h"
 #include "kernel/terminal.h"
 #include "kernel/commands.h"
+#include "kernel/memory/layout.h"
 #include "string.h"
 #include "itoa.h"
 #include <stddef.h>
@@ -9,7 +10,7 @@
 // Global terminal variables
 static size_t terminal_row = 0;
 static size_t terminal_column = 0;
-static uint16_t *video_memory = (uint16_t *)0xB8000;
+static uint16_t *video_memory = (uint16_t *)VGA_ADDRESS;
 static uint8_t command_mode = 0;
 
 // Initialize the terminal

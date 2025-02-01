@@ -8,6 +8,10 @@ for file in $(find src -name '*.asm'); do
     nasm -f elf32 $file -o build/$(basename $file .asm).o
 done
 
+for file in $(find src -name '*.s'); do
+    gcc -m32 -ffreestanding -fno-stack-protector -Iinclude -c $file -o build/$(basename $file .s).o
+done
+
 OBJECTS=$(find build -name '*.o')
 ld -m elf_i386 -T linker.ld -o kernel $OBJECTS
 
@@ -17,4 +21,4 @@ grub-mkrescue -o my-kernel.iso iso/
 
 rm $OBJECTS kernel
 
-qemu-system-i386 -cdrom my-kernel.iso -no-reboot
+qemu-system-i386 -cdrom my-kernel.iso -m 4G

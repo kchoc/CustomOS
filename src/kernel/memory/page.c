@@ -1,11 +1,11 @@
 #include "kernel/memory/page.h"
-#include "kernel/memory/pagetable.h"
 #include "kernel/memory/layout.h"
 #include "kernel/terminal.h"
 #include "string.h"
 #include "kernel/memory/physical_memory.h"
 
-page_directory *current_page_directory = 0;
+page_directory initial_pd __attribute__((aligned(4096)));
+page_table kernel_tables[256] __attribute__((aligned(4096)));
 
 pt_entry *get_pt_entry(page_table *pt, virtual_address address) {
 	if (pt) return &pt->entries[PT_INDEX(address)];
@@ -49,35 +49,31 @@ int set_page_directory(page_directory *pd) {
 
 	current_page_directory = pd;
 
-	asm volatile("movl %0, %%cr3" :: "r"(current_page_directory));
-
+	asm volatile("movl %0, %%cr3" :: "r"((physical_address)current_page_directory & 0x3FFFF000));
+	
 	return 1;
 }
 
 void check_page_directory(page_directory *pd, uint32_t table) {
 	if (!pd) {
 		printf("No page directory\n");
-		for (int32_t i = 0; i < 1000000000; i++);
 		return;
 	}
 
 	printf("Page Directory: %x\n", pd);
-
+	page_table *table_ptr = (page_table *)(&pd->entries[table] + 0xC0000000);
+	for (uint32_t i = 0; i < 4; i++)
+		printf("Directory Entry[%d]:    %x    Table %d Entry[%d]:    %x\n", i, pd->entries[i], table, i, table_ptr->entries[i]);
+	printf("...\n");
 	for (uint32_t i = 1020; i < 1024; i++)
-		printf("Directory Entry[%d]: %x\n", i, pd->entries[i]);
-
-	page_table *table_ptr = (page_table *)PAGE_PHYS_ADDRESS(&pd->entries[table]);
-	printf("Table %x\n", pd->entries[table]);
-	printf("Table %x\n", table_ptr);
-
-	for (uint32_t i = 1020; i < 1024; i++)
-		printf("Table %d Entry[%d] %x\n", table, i, table_ptr->entries[i]);
-
-	for (int i = 0; i < 1000000000; i++);
+		printf("Directory Entry[%d]: %x    Table %d Entry[%d]: %x\n", i, pd->entries[i], table, i, table_ptr->entries[i]);
 }
 
 void flush_tlb_entry(virtual_address address) {
-	asm volatile("cli; invlpg (%0); sti" :: "r"(address));
+	asm volatile(
+		"cli\n"
+		"invlpg (%0)\n"
+		"sti" :: "r"(address));
 }
 
 int map_page(void *phys_address, void *virt_address)
@@ -127,65 +123,37 @@ void unmap_page(void *virt_address) {
 
 // Initialize virtual memory manager
 int initialize_paging(void) {
-	// Create a default page directory
-	page_directory *pd = (page_directory *)allocate_blocks(1);
-	if (!pd) return 0; // ERROR: OUT OF MEMORY
-
 	// Clear page directory and set as current
-	memset(pd, 0, sizeof(page_directory));
+	memset(&initial_pd, 0, sizeof(page_directory));
 	for (uint32_t i = 0; i < 1024; i++)
-		pd->entries[i] = 0;
+		initial_pd.entries[i] = 0;
+	
+	memset(&kernel_tables, 0, sizeof(kernel_tables));
 
-	// Allocate a default page table
-	page_table *table = (page_table *)allocate_blocks(1);
-	if (!table) return 0; // ERROR: OUT OF MEMORY
+	uint32_t frame = 0x00000000;
+	for (uint32_t i = 0; i < 256; i++) {
+		page_table *table = &kernel_tables[i];
 
-	// Allocate a 3GB page table
-	page_table *table3G = (page_table *)allocate_blocks(1);
-	if (!table3G) return 0; // ERROR: OUT OF MEMORY
+		for (uint32_t j = 0; j < 1024; j++) {
 
-	// Clear page tables
-	memset(table,   0, sizeof(page_table));
-	memset(table3G, 0, sizeof(page_table));
+			pt_entry page = PTE_PRESENT | PTE_READ_WRITE;
+			SET_FRAME(&page, frame);
 
-	// Identity map first 4MB of memory for kernel
-	for (uint32_t i = 0, frame = 0x0, virt = 0x0; i < 1024; i++, frame += PAGE_SIZE, virt+= PAGE_SIZE) {
-		// Create new page
-		pt_entry page = 0;
-		SET_ATTRIBUTE(&page, PTE_PRESENT);
-		SET_ATTRIBUTE(&page, PTE_READ_WRITE);
-		SET_FRAME(&page, frame);
+			table->entries[j] = page;
+			frame += PAGE_SIZE;
+		}
 
-		// Add page to 3GB page table
-		table3G->entries[PT_INDEX(virt)] = page;
+		initial_pd.entries[i + 768] = ((physical_address)table & 0x3FFFF000) | PDE_PRESENT | PDE_READ_WRITE;
 	}
 
-	// Map Kernel to 3GB+ addresses (higher half kernel)
-	for (uint32_t i = 0, frame = KERNEL_ADDRESS, virt = 0xC0000000; i < 1024; i++, frame += PAGE_SIZE, virt += PAGE_SIZE) {
-		pt_entry page = 0;
-		SET_ATTRIBUTE(&page, PTE_PRESENT);
-		SET_ATTRIBUTE(&page, PTE_READ_WRITE);
-		SET_FRAME(&page, frame);
+	// Map VGA memory
+	kernel_tables[0].entries[1023] = 0x000B8000 | PTE_PRESENT | PTE_READ_WRITE;
 
-		// Add page to 3GB+ page table
-		table->entries[PT_INDEX(virt)] = page;
-	}
 
-	pd_entry *entry = &pd->entries[PD_INDEX(0xC0000000)];
-	SET_ATTRIBUTE(entry, PDE_PRESENT);
-	SET_ATTRIBUTE(entry, PDE_READ_WRITE);
-	SET_FRAME(entry, (physical_address)table); // 3GB directory entry points to default page table
-
-	pd_entry *entry2 = &pd->entries[PD_INDEX(0x00000000)];
-	SET_ATTRIBUTE(entry2, PDE_PRESENT);
-	SET_ATTRIBUTE(entry2, PDE_READ_WRITE);
-	SET_FRAME(entry2, (physical_address)table3G); // Default directory entry points to 3GB page table
+	// check_page_directory(&initial_pd, 768);
 
 	// Switch to page directory
-	set_page_directory(pd);
-
-	// Enable paging: Set Paging Bit
-	asm volatile("movl %CR0, %EAX; orl $0x80000001, %EAX; movl %EAX, %CR0");
+	set_page_directory(&initial_pd);
 
 	return 1;
 }

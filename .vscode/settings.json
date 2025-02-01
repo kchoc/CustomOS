@@ -7,6 +7,11 @@
         "commands.h": "c",
         "page.h": "c",
         "kmalloc.h": "c",
-        "pagetable.h": "c"
+        "pagetable.h": "c",
+        "task.h": "c",
+        "string.h": "c",
+        "layout.h": "c",
+        "gdt.h": "c",
+        "physical_memory.h": "c"
     }
 }

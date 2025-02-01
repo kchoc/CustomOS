@@ -20,8 +20,6 @@ void main() {
 	create_task(&task1);
 	create_task(&task2);
 
-	for (uint32_t i = 0; i < 1000000000; i++);
-
 	while (1) {
         	// Do nothing
 	}
