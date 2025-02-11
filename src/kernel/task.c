@@ -56,7 +56,7 @@ int create_task() {
     if (!pd) return 0;
 
     for (int i = 0; i < 256; i++) {
-        pd->entries[i + 758] = kernel_tables[i].entries[i];
+        //pd->entries[i + 758] = kernel_tables[i].entries[i];
     }
 
     // Allocate space for the new task

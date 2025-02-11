@@ -66,9 +66,6 @@ typedef struct {
 
 static page_directory *current_page_directory = 0;
 
-// Global variables
-static page_table kernel_tables[256] __attribute__((aligned(4096)));
-
 // Functions
 
 pt_entry *get_pt_entry(page_table *pt,		virtual_address address);
