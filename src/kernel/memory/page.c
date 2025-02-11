@@ -1,11 +1,14 @@
 #include "kernel/memory/page.h"
 #include "kernel/memory/layout.h"
 #include "kernel/terminal.h"
-#include "string.h"
-#include "kernel/memory/physical_memory.h"
 
-page_directory initial_pd __attribute__((aligned(4096)));
-page_table kernel_tables[256] __attribute__((aligned(4096)));
+#include "types/string.h"
+#include "types/bitmap.h"
+
+static page_directory initial_pd __attribute__((aligned(4096)));
+
+bitmap *page_table_bitmap = 0;
+bitmap *page_bitmap = 0;
 
 pt_entry *get_pt_entry(page_table *pt, virtual_address address) {
 	if (pt) return &pt->entries[PT_INDEX(address)];
@@ -17,8 +20,7 @@ pd_entry *get_pd_entry(page_directory *pd, virtual_address address) {
 	return 0;
 }
 
-pt_entry *get_page(virtual_address address) {
-	page_directory *pd = current_page_directory;
+pt_entry *get_page(page_directory *pd, virtual_address address) {
 	pd_entry *entry = &pd->entries[PD_INDEX(address)];
 	page_table *table = (page_table *)PAGE_PHYS_ADDRESS(entry);
 
@@ -27,21 +29,35 @@ pt_entry *get_page(virtual_address address) {
 	return page;
 }
 
-void *allocate_page(pt_entry *page) {
-	void *block = allocate_blocks(1);
-	if (block) {
-		SET_FRAME(page, (physical_address)block);
-		SET_ATTRIBUTE(page, PTE_PRESENT);
+void allocate_page_table(page_directory *pd) {
+	// Iterate through page directory entries
+	for (uint32_t i = 0; i < 1023; i++) {
+		// If page table is present
+		if (pd->entries[i] & PDE_PRESENT)
+			continue;
+
+		// Allocate page table
+		page_table *table = (page_table *)(allocate_blocks(page_table_bitmap, 1) * PAGE_SIZE + BLOCK_VIRT_START_ADDRESS);
+		if (!table) return; // ERROR: OUT OF MEMORY
+
+		// Clear page table
+		memset(table, 0, sizeof(page_table));
+
+		// Create new entries
+		for (uint32_t j = 0; j < 1024; j++) {
+			pt_entry page = PTE_PRESENT | PTE_READ_WRITE;
+			SET_FRAME(&page, (uint32_t)table + j * PAGE_SIZE);
+
+			table->entries[j] = page;
+		}
+
+		// Set page directory entry
+		pd->entries[i] = ((physical_address)table & 0x3FFFF000) | PDE_PRESENT | PDE_READ_WRITE;
 	}
-	return block;
 }
 
-void *free_page(pt_entry *page) {
-	void *address = (void *)PAGE_PHYS_ADDRESS(page);
-	if (address)
-		free_blocks(address, 1);
-
-	CLEAR_ATTRIBUTE(page, PTE_PRESENT);
+void free_page_table(page_directory *pd, pt_entry *page) {
+	//TODO: Implement
 }
 
 int set_page_directory(page_directory *pd) {
@@ -76,17 +92,14 @@ void flush_tlb_entry(virtual_address address) {
 		"sti" :: "r"(address));
 }
 
-int map_page(void *phys_address, void *virt_address)
-{
-	// Get page directory
-	page_directory *pd = current_page_directory;
-
+int map_page(page_directory *pd, void *phys_address, void *virt_address)
+{	
 	// Get page table
 	pd_entry *entry = &pd->entries[PD_INDEX((uint32_t)virt_address)];
 
 	// If page table is not present allocate it
 	if ((*entry & PTE_PRESENT) != PTE_PRESENT) {
-		page_table *table = allocate_blocks(1);
+		page_table *table = (page_table *)(allocate_blocks(page_table_bitmap, 1) * PAGE_SIZE + BLOCK_VIRT_START_ADDRESS);
 		if (!table) return 0; // ERROR: OUT OF MEMORY
 
 		// Clear page table
@@ -113,15 +126,13 @@ int map_page(void *phys_address, void *virt_address)
 	SET_FRAME(page, (uint32_t)phys_address);
 }
 
-// Unmap a page
-void unmap_page(void *virt_address) {
-	pt_entry *page = get_page((uint32_t)virt_address);
+void unmap_page(page_directory *pd, void *virt_address) {
+	pt_entry *page = get_page(pd, (uint32_t)virt_address);
 
 	SET_FRAME(page, 0); // Set physical address to 0 (effectively this is now a null pointer)
 	CLEAR_ATTRIBUTE(page, PTE_PRESENT); // Set as not present
 }
 
-// Initialize virtual memory manager
 int initialize_paging(void) {
 	// Clear page directory and set as current
 	memset(&initial_pd, 0, sizeof(page_directory));
@@ -130,7 +141,7 @@ int initialize_paging(void) {
 	
 	memset(&kernel_tables, 0, sizeof(kernel_tables));
 
-	uint32_t frame = 0x00000000;
+	uint32_t frame = 0xC0000000;
 	for (uint32_t i = 0; i < 256; i++) {
 		page_table *table = &kernel_tables[i];
 
@@ -154,6 +165,14 @@ int initialize_paging(void) {
 
 	// Switch to page directory
 	set_page_directory(&initial_pd);
+
+	return 1;
+}
+
+int init_page_bitmaps(void) {
+	page_bitmap = create_bitmap(PAGE_COUNT);
+
+	page_table_bitmap = create_bitmap(PAGE_COUNT / 1024);
 
 	return 1;
 }

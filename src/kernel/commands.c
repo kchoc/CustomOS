@@ -4,7 +4,8 @@
 #include "kernel/memory/page.h"
 #include "kernel/task.h"
 #include "kernel/drivers/port_io.h"
-#include "string.h"
+
+#include "types/string.h"
 
 void process_command(char *command) {
     char *args[10];
@@ -31,7 +32,7 @@ void process_command(char *command) {
         }
     } else if (strcmp(command, "task") == 0) {
         if (strcmp(args[1], "list") == 0) {
-            list_tasks();
+            // list_tasks();
         } else if (strcmp(args[1], "switch") == 0) {
             switch_task();
         } else if (strcmp(args[1], "help") == 0) {

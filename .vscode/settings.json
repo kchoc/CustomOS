@@ -12,6 +12,8 @@
         "string.h": "c",
         "layout.h": "c",
         "gdt.h": "c",
-        "physical_memory.h": "c"
+        "physical_memory.h": "c",
+        "idt.h": "c",
+        "bitmap.h": "c"
     }
 }

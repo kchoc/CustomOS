@@ -18,7 +18,7 @@
 #define SET_ATTRIBUTE(entry, attr) (*entry |= attr)
 #define CLEAR_ATTRIBUTE(entry, attr) (*entry &= ~attr)
 #define TEST_ATTRIBUTE(entry, attr) (*entry & attr)
-#define SET_FRAME(entry, address) (*entry = (*entry & ~0xFFFFF000) | address)
+#define SET_FRAME(entry, address) (*entry = (*entry & ~0xFFFFF000) | (address - 0xC0000000))
 
 // Typedefs
 
@@ -66,23 +66,27 @@ typedef struct {
 
 static page_directory *current_page_directory = 0;
 
+// Global variables
+static page_table kernel_tables[256] __attribute__((aligned(4096)));
+
 // Functions
 
-pt_entry *get_pt_entry(page_table* pt,	   virtual_address address);
-pd_entry *get_pd_entry(page_directory* pd, virtual_address address);
-pt_entry *get_page(const virtual_address address);
+pt_entry *get_pt_entry(page_table *pt,		virtual_address address);
+pd_entry *get_pd_entry(page_directory *pd,	virtual_address address);
+pt_entry *get_page(page_directory *pd, 		virtual_address address);
 
-void *allocate_page(pt_entry *page);
-void *free_page(pt_entry *page);
+void allocate_page_table(page_directory *pd);
+void free_page_table(page_directory *pd, pt_entry *page);
 
 int set_page_directory(page_directory *pd);
 void flush_tlb_entry(virtual_address address);
 
 void check_page_directory(page_directory *pd, uint32_t table);
 
-int map_page(void *phys_address, void *virt_address);
-void unmap_page(void *virt_address);
+int map_page(page_directory *pd, void *phys_address, void *virt_address);
+void unmap_page(page_directory *pd, void *virt_address);
 
 int initialize_paging(void);
+int init_page_bitmaps(void);
 
 #endif // PAGE_H

@@ -2,8 +2,9 @@
 #include "kernel/terminal.h"
 #include "kernel/commands.h"
 #include "kernel/memory/layout.h"
-#include "string.h"
+#include "types/string.h"
 #include "itoa.h"
+
 #include <stddef.h>
 #include <stdarg.h>
 
