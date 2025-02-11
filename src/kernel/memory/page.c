@@ -5,7 +5,8 @@
 #include "types/string.h"
 #include "types/bitmap.h"
 
-static page_directory initial_pd __attribute__((aligned(4096)));
+page_directory initial_pd __attribute__((aligned(4096)));
+page_table kernel_tables[256] __attribute__((aligned(4096)));
 
 bitmap *page_table_bitmap = 0;
 bitmap *page_bitmap = 0;
