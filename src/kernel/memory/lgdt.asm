@@ -1,5 +1,6 @@
 section .text
 global load_gdt
+global load_tss
 
 load_gdt:
     mov eax, [esp + 4]   ; Load GDT descriptor argument from stack
@@ -17,3 +18,8 @@ load_gdt:
     mov ss, ax
 
     ret                  ; Return to caller
+
+load_tss:
+    mov ax, [esp + 4]   ; Load TSS segment selector argument from stack
+    ltr ax              ; Load the TSS segment selector into TR register
+    ret

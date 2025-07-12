@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 
+#define NULL ((void *)0)
+
 // Copy a string
 void strcpy(char *dest, const char *src);
 // Copy n characters of a string
@@ -27,15 +29,17 @@ char *strdup(const char *s);
 // Duplicate n characters of a string
 char *strndup(const char *s, unsigned n);
 // Convert a string to uppercase
-void *strtoupper(char *str);
+void strtoupper(char *str);
 // Convert a string to lowercase
-void *strtolower(char *str);
+void strtolower(char *str);
 
 // Convert a string to an integer
 int str2int(const char *str);
 
 // Find the first occurrence of a character in a string
 const char *strchr(const char *s, int c);
+// Find the last occurrence of a character in a string
+const char* strrchr(const char *s, int c);
 
 // Fill a block of memory with a value
 void memset(void *dest, char val, unsigned len);

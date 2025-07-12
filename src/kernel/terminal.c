@@ -35,6 +35,9 @@ void set_cursor_position(size_t row, size_t column) {
 // Put a character on the terminal
 void terminal_putchar(char c) {
     if (c == '\n') {
+        for (size_t i = terminal_column + terminal_row * 80; i < terminal_row * 80 + 80; i++) {
+            video_memory[i] = ' ' | 0x0700;
+        }
         terminal_row++;
         terminal_column = 0;
     } else {
@@ -50,12 +53,18 @@ void terminal_putchar(char c) {
         terminal_column = 0;
         terminal_row++;
     }
+
+    if (terminal_row >= 25) {
+        terminal_row = 0;
+    }
 }
 
 // Test in terminal for assembly
 void terminal_test(void) {
-    terminal_print("test\n");
-    for (int i = 0; i < 100000000; i++) { }
+    uint32_t esp;
+    asm volatile("mov %%esp, %0" : "=r"(esp));
+    printf("test esp: %x\n", esp);
+    delay(200);
 }
 
 // Print a formatted string to the terminal
@@ -117,10 +126,10 @@ void terminal_input(uint8_t scancode, char c) {
 		}
         return;
     }
-    if (c == 0) {
-        if (scancode == 0x0E) { // Backspace
-            terminal_backspace();
-        } else if (scancode == 0x48) { // Up Arrow
+    if (c == '\b')
+        terminal_backspace();
+    else if (c == 0) {
+        if (scancode == 0x48) { // Up Arrow
             if (terminal_row > 0) {
                 terminal_row--;
             }
@@ -202,11 +211,16 @@ void terminal_backspace(void) {
     video_memory[index] = ' ' | 0x0700;
 }
 
-void terminal_print_register_value(const char* reg_name, uint32_t value) {
-    terminal_print(reg_name);
-    terminal_print(": ");
+void terminal_print_register_value(uint32_t value) {
+    terminal_print("Register Value: ");
     terminal_print_hex(&value, sizeof(value));
     terminal_print("\n");
 
-    for (int i = 0; i < 1000000000; i++) {}
+    delay(400);
+}
+
+void delay(uint32_t ms) {
+    for (uint32_t i = 0; i < ms; i++) {
+        for (uint32_t j = 0; j < 1000000; j++) {}
+    }
 }

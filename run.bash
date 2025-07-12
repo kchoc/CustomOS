@@ -1,5 +1,3 @@
-mkdir build
-
 for file in $(find src -name '*.c'); do
     gcc -m32 -ffreestanding -fno-stack-protector -Iinclude -c $file -o build/$(basename $file .c).o
 done
@@ -21,4 +19,8 @@ grub-mkrescue -o my-kernel.iso iso/
 
 rm $OBJECTS kernel
 
-qemu-system-i386 -cdrom my-kernel.iso -m 4G
+qemu-system-i386 \
+  -boot d \
+  -cdrom my-kernel.iso \
+  -drive file=fs.img,format=raw,index=0,media=disk \
+  -m 4G

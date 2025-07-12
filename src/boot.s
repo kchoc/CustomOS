@@ -27,7 +27,8 @@ boot_page_directory:
 	.skip 4096
 boot_page_table1:
 	.skip 4096
-# Further page tables may be required if the kernel grows beyond 3 MiB.
+boot_page_table2:
+	.skip 4096
 
 # The kernel entry point.
 .section .multiboot.text, "a"
@@ -48,10 +49,8 @@ _start:
 	movl $1023, %ecx
 
 1:
-	# Only map the kernel.
-	cmpl $_kernel_start, %esi
-	jl 2f
-	cmpl $(_kernel_end - 0xC0000000), %esi
+	# Map the entire 0xC0000000 - 0xC0400000 range and 0xC1000000 - 0xC1400000
+	cmpl $0x00400000, %esi
 	jge 3f
 
 	# Map physical address as "present, writable". Note that this maps
@@ -60,6 +59,10 @@ _start:
 	orl $0x003, %edx
 	movl %edx, (%edi)
 
+	movl %esi, %edx
+	orl $0x003, %edx
+	addl $0x01000000, %edx
+	movl %edx, 0x1000(%edi)
 2:
 	# Size of page is 4096 bytes.
 	addl $4096, %esi
@@ -79,9 +82,13 @@ _start:
 	# not change the next instruction, which continues to be physical. The CPU
 	# would instead page fault if there was no identity mapping.
 
-	# Map the page table to both virtual addresses 0x00000000 and 0xC0000000.
+	# Map the page table to both virtual addresses 0x00000000 and 0xC0000000
 	movl $(boot_page_table1 - 0xC0000000 + 0x003), boot_page_directory - 0xC0000000 + 0
 	movl $(boot_page_table1 - 0xC0000000 + 0x003), boot_page_directory - 0xC0000000 + 768 * 4
+	movl $(boot_page_table2 - 0xC0000000 + 0x003), boot_page_directory - 0xC0000000 + 772 * 4
+
+	# Add recursive mapping to the page directory
+	movl $(boot_page_directory - 0xC0000000 + 0x003), boot_page_directory - 0xC0000000 + 1023 * 4
 
 	# Set cr3 to the address of the boot_page_directory.
 	movl $(boot_page_directory - 0xC0000000), %ecx

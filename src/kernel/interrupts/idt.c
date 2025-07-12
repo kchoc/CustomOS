@@ -1,6 +1,7 @@
 #include "kernel/interrupts/idt.h"
 #include "kernel/interrupts/isr.h"
 #include "kernel/drivers/port_io.h"
+#include <stdint.h>
 
 // The IDT and IDT pointer
 struct idt_entry_t idt[IDT_SIZE];
@@ -44,27 +45,68 @@ void idt_init() {
         	set_idt_entry(i, 0, 0x08, 0x8E);  // Interrupt gate, present
 	}
 
-	set_idt_entry(0x00, (uint32_t)isr_debug_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x01, (uint32_t)isr_debug_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x02, (uint32_t)isr_non_maskable_interrupt_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x03, (uint32_t)isr_breakpoint_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x04, (uint32_t)isr_overflow_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x05, (uint32_t)isr_bound_range_exceeded_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x06, (uint32_t)isr_invalid_opcode_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x07, (uint32_t)isr_device_not_available_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x08, (uint32_t)isr_double_fault_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x0A, (uint32_t)isr_invalid_tss_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x0B, (uint32_t)isr_segment_not_present_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x0C, (uint32_t)isr_stack_segment_fault_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x0D, (uint32_t)isr_general_protection_fault_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x0E, (uint32_t)isr_page_fault_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x0F, (uint32_t)isr_fpu_error_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x10, (uint32_t)isr_alignment_check_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x11, (uint32_t)isr_machine_check_wrapper, 0x08, 0x8E);
-	set_idt_entry(0x13, (uint32_t)isr_simd_floating_point_wrapper, 0x08, 0x8E);
+	set_idt_entry( 0, (uint32_t)isr0 , 0x08, 0x8E);
+    set_idt_entry( 1, (uint32_t)isr1 , 0x08, 0x8E);
+    set_idt_entry( 2, (uint32_t)isr2 , 0x08, 0x8E);
+    set_idt_entry( 3, (uint32_t)isr3 , 0x08, 0x8E);
+    set_idt_entry( 4, (uint32_t)isr4 , 0x08, 0x8E);
+    set_idt_entry( 5, (uint32_t)isr5 , 0x08, 0x8E);
+    set_idt_entry( 6, (uint32_t)isr6 , 0x08, 0x8E);
+    set_idt_entry( 7, (uint32_t)isr7 , 0x08, 0x8E);
+    set_idt_entry( 8, (uint32_t)isr8 , 0x08, 0x8E);
+    set_idt_entry( 9, (uint32_t)isr9 , 0x08, 0x8E);
+    set_idt_entry(10, (uint32_t)isr10, 0x08, 0x8E);
+    set_idt_entry(11, (uint32_t)isr11, 0x08, 0x8E);
+    set_idt_entry(12, (uint32_t)isr12, 0x08, 0x8E);
+    set_idt_entry(13, (uint32_t)isr13, 0x08, 0x8E);
+    set_idt_entry(14, (uint32_t)isr14, 0x08, 0x8E);
+    set_idt_entry(15, (uint32_t)isr15, 0x08, 0x8E);
+    set_idt_entry(16, (uint32_t)isr16, 0x08, 0x8E);
+    set_idt_entry(17, (uint32_t)isr17, 0x08, 0x8E);
+    set_idt_entry(18, (uint32_t)isr18, 0x08, 0x8E);
+    set_idt_entry(19, (uint32_t)isr19, 0x08, 0x8E);
+    set_idt_entry(20, (uint32_t)isr20, 0x08, 0x8E);
+    set_idt_entry(21, (uint32_t)isr21, 0x08, 0x8E);
+    set_idt_entry(22, (uint32_t)isr22, 0x08, 0x8E);
+    set_idt_entry(23, (uint32_t)isr23, 0x08, 0x8E);
+    set_idt_entry(24, (uint32_t)isr24, 0x08, 0x8E);
+    set_idt_entry(25, (uint32_t)isr25, 0x08, 0x8E);
+    set_idt_entry(26, (uint32_t)isr26, 0x08, 0x8E);
+    set_idt_entry(27, (uint32_t)isr27, 0x08, 0x8E);
+    set_idt_entry(28, (uint32_t)isr28, 0x08, 0x8E);
+    set_idt_entry(29, (uint32_t)isr29, 0x08, 0x8E);
+    set_idt_entry(30, (uint32_t)isr30, 0x08, 0x8E);
+    set_idt_entry(31, (uint32_t)isr31, 0x08, 0x8E);
+    set_idt_entry(32, (uint32_t)isr32, 0x08, 0x8E);
+    set_idt_entry(33, (uint32_t)isr33, 0x08, 0x8E);
+    set_idt_entry(128,(uint32_t)isr128,0x08, 0x8E);
 
-	// Set up the keyboard ISR (IRQ1 -> Interrupt vector 33)
-	set_idt_entry(0x21, (uint32_t)isr_keyboard_wrapper, 0x08, 0x8E);  // Interrupt gate, present
+
+    interrupt_register( 0, isr_divide_by_zero);
+    interrupt_register( 1, isr_debug);
+    interrupt_register( 2, isr_non_maskable_interrupt);
+    interrupt_register( 3, isr_breakpoint);
+    interrupt_register( 4, isr_overflow);
+    interrupt_register( 5, isr_bound_range_exceeded);
+    interrupt_register( 6, isr_invalid_opcode);
+    interrupt_register( 7, isr_device_not_available);
+    interrupt_register( 8, isr_double_fault);
+    interrupt_register( 9, isr_coprocessor_segment_overrun);
+    interrupt_register(10, isr_invalid_tss);
+    interrupt_register(11, isr_segment_not_present);
+    interrupt_register(12, isr_stack_segment_fault);
+    interrupt_register(13, isr_general_protection_fault);
+    interrupt_register(14, isr_page_fault_handler);
+
+    interrupt_register(16, isr_fpu_error);
+    interrupt_register(17, isr_alignment_check);
+    interrupt_register(18, isr_machine_check);
+    interrupt_register(19, isr_simd_floating_point);
+
+
+    interrupt_register(33, isr_keyboard_handler);
+
+    interrupt_register(128,isr_syscall);
 
 	// Load the IDT into the CPU
 	load_idt();

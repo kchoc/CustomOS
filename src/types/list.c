@@ -1,6 +1,6 @@
 #include "types/list.h"
 
-void list_push_head(struct list *list, struct list_node *node) {
+void list_push_head(list_t *list, list_node_t *node) {
     node->next = list->head;
     node->prev = 0;
     node->priority = 0;
@@ -15,7 +15,7 @@ void list_push_head(struct list *list, struct list_node *node) {
     list->size++;
 }
 
-void list_push_tail(struct list *list, struct list_node *node) {
+void list_push_tail(list_t *list, list_node_t *node) {
     node->next = 0;
     node->prev = list->tail;
     node->priority = 0;
@@ -30,12 +30,12 @@ void list_push_tail(struct list *list, struct list_node *node) {
     list->size++;
 }
 
-void list_push_priority(struct list *list, struct list_node *node, int priority) {
+void list_push_priority(list_t *list, list_node_t *node, int priority) {
     node->next = 0;
     node->prev = 0;
     node->priority = priority;
     node->list = list;
-    struct list_node *current = list->head;
+    list_node_t *current = list->head;
     while (current && current->priority >= priority) {
         current = current->next;
     }
@@ -56,8 +56,8 @@ void list_push_priority(struct list *list, struct list_node *node, int priority)
     list->size++;
 }
 
-struct list_node *list_pop_head(struct list *list) {
-    struct list_node *node = list->head;
+list_node_t *list_pop_head(list_t *list) {
+    list_node_t *node = list->head;
     if (node) {
         list->head = node->next;
         if (list->head) {
@@ -73,8 +73,8 @@ struct list_node *list_pop_head(struct list *list) {
     return node;
 }
 
-struct list_node *list_pop_tail(struct list *list) {
-    struct list_node *node = list->tail;
+list_node_t *list_pop_tail(list_t *list) {
+    list_node_t *node = list->tail;
     if (node) {
         list->tail = node->prev;
         if (list->tail) {
@@ -90,7 +90,7 @@ struct list_node *list_pop_tail(struct list *list) {
     return node;
 }
 
-void list_remove(struct list_node *node) {
+void list_remove(list_node_t *node) {
     if (node->prev) {
         node->prev->next = node->next;
     } else {
@@ -108,6 +108,6 @@ void list_remove(struct list_node *node) {
     node->list->size--;
 }
 
-int list_size(struct list *list) {
+int list_size(list_t *list) {
     return list->size;
 }

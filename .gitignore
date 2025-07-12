@@ -1,3 +1,7 @@
 .vs
 .vscode
 bochsout.txt
+./micro
+compile_commands.json
+build
+.cache

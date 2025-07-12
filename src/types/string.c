@@ -29,13 +29,14 @@ int strcmp(const char *str1, const char *str2) {
 }
 
 int strncmp(const char *a, const char *b, unsigned n) {
-    while (*a && *b && n--) {
+    while (*a && *b && n) {
         if (*a != *b)
             return *a - *b;
         a++;
         b++;
+        n--;
     }
-    return *a - *b;
+    return 0;
 }
 
 unsigned strlen(const char *s) {
@@ -171,7 +172,7 @@ char *strndup(const char *s, unsigned n) {
     return new;
 }
 
-void *strtoupper(char *str) {
+void strtoupper(char *str) {
     while (*str) {
         if (*str >= 'a' && *str <= 'z')
             *str -= 32;
@@ -179,7 +180,7 @@ void *strtoupper(char *str) {
     }
 }
 
-void *strtolower(char *str) {
+void strtolower(char *str) {
     while (*str) {
         if (*str >= 'A' && *str <= 'Z')
             *str += 32;
@@ -219,6 +220,24 @@ const char *strchr(const char *s, int c) {
         s++;
     }
     return NULL;
+}
+
+const char* strrchr(const char* s, int c) {
+    const char* last = NULL;
+
+    while (*s) {
+        if (*s == (char)c) {
+            last = s;
+        }
+        s++;
+    }
+
+    // Also check if c is '\0' (valid per standard)
+    if (c == '\0') {
+        return (char*)s;
+    }
+
+    return (char*)last;
 }
 
 void memset(void *dest, char val, unsigned len) {

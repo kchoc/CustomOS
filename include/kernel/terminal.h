@@ -38,6 +38,9 @@ void terminal_clear(void);
 void terminal_backspace(void);
 
 // Terminal print register value
-void terminal_print_register_value(const char* reg_name, uint32_t value);
+void terminal_print_register_value(uint32_t value);
+
+// Delay function
+void delay(uint32_t ms);
 
 #endif // TERMINAL_H

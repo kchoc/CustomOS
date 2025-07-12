@@ -1,78 +1,110 @@
 #include "kernel/task.h"
 #include "kernel/memory/kmalloc.h"
+#include "kernel/memory/gdt.h"
+#include "kernel/filesystem/fs.h"
 #include "kernel/memory/page.h"
 #include "kernel/terminal.h"
+#include <stdint.h>
 
-task_t *current_task;
-task_t *ready_queue;
-uint32_t next_task_id = 1;
+#define STACK_SIZE 4096
+#define MAX_PROGRAM_SIZE (1024 * 1024) // 1 MB
+#define PROGRAM_ENTRY (void (*)(void))0x00001000
 
-void init_tasking() {
-    // Allocate space for the first task
-    current_task = (task_t *)kmalloc(sizeof(task_t));
-    current_task->id = next_task_id++;
-    current_task->esp = 0;
-    current_task->ebp = 0;
-    current_task->eip = 0;
-	current_task->cr3 = (uint32_t)current_page_directory;
-    current_task->next = current_task;
-    ready_queue = current_task;
+task_t* current_task = 0;
+static task_t* task_list = 0;
+static uint32_t next_pid = 0;
+
+void tasking_init() {
+    task_t* kernel = kmalloc(sizeof(task_t));
+    tcb_t* tcb = kmalloc(sizeof(tcb_t));
+    kernel->id = 0;
+    tcb->esp = 0;
+    tcb->esp0 = 0;
+    tcb->cr3 = get_current_page_table_phys();
+
+    kernel->tcb = tcb;
+    kernel->next = kernel;
+
+    current_task = kernel;
+    task_list = kernel;
 }
 
-int switch_task() {
-	// If we haven't initialized tasking yet, return
-	if (!current_task) return 0;
+task_t* create_task(void (*entry)(void)) {
+    task_t *task = kmalloc(sizeof(task_t));
+    tcb_t *tcb = kmalloc(sizeof(tcb_t));
 
-	task_t *next_task = current_task->next;
-	if (next_task == current_task) return 0;
+    uint8_t *stack = kmalloc(STACK_SIZE);
+    uint32_t *esp = (uint32_t *)(stack + STACK_SIZE);
 
-	// Save the current task's state
-	asm volatile(
-        "mov %%esp, %0\n"
-        "mov %%ebp, %1\n"
-        : "=r"(current_task->esp),
-		"=r"(current_task->ebp)
-	);
+    *(--esp) = (uint32_t)entry; // Fake return address (EIP)
+    *(--esp) = 0; // EBP
+    *(--esp) = 0; // EDI
+    *(--esp) = 0; // ESI
+    *(--esp) = 0; // EBX
 
-	// Switch to the next task
-	current_task = next_task;
+    tcb->esp = esp;
+    tcb->esp0 = (uint32_t)(stack + STACK_SIZE);
+    tcb->cr3 = new_task_page_table();
 
-	// Restore the next task's state
-	asm volatile(
-		"mov %0, %%cr3\n"
-		"mov %1, %%ebp\n"
-        "mov %2, %%esp\n"
-        :: "r"(current_task->cr3),
-		"r"(current_task->ebp),
-		"r"(current_task->esp)
-	);
+    task->id = next_pid++;
+    task->tcb = tcb;
+    task->next = task_list;
+    task_list = task;
 
-	return 1;
+    return task;
 }
 
-int create_task() {
-    // Create a new page directory
-    page_directory *pd = current_page_directory;
-    if (!pd) return 0;
+void create_task_from_binary(const char* path) {
+    task_t *task = create_task(PROGRAM_ENTRY);
+    page_table_load(task->tcb->cr3);
+    // Read the binary file
+    if (fat16_read_file_to_buffer(path, (uint8_t *)PROGRAM_ENTRY, MAX_PROGRAM_SIZE) != 0)
+        return;
+}
 
-    for (int i = 0; i < 256; i++) {
-        //pd->entries[i + 758] = kernel_tables[i].entries[i];
-    }
+void switch_task() {
+    if (!current_task || !current_task->next) return;
 
-    // Allocate space for the new task
-    task_t *new_task = (task_t *)kmalloc(sizeof(task_t));
-    new_task->id = next_task_id++;
-    new_task->esp = 0;
-    new_task->ebp = 0;
-    new_task->eip = 0;
-    new_task->cr3 = (uint32_t)pd;
+    task_t *next = current_task->next ? current_task->next : task_list;
+
+    if (next == current_task) return; // Only one task
+
+    write_tss(5, 0x10, next->tcb->esp0);
+    switch_to(next->tcb);
+}
+
+int exit_task(task_t *task) {
     
-    // Add the new task to the ready queue
-    task_t *temp = ready_queue;
-    while (temp->next != ready_queue) {
-        temp = temp->next;
-    }
-    temp->next = new_task;
-
-    return new_task->id;
 }
+
+void switch_to_user_mode(uint32_t entry_point, uint32_t user_stack) {
+    asm volatile (
+        "cli\n"
+        "mov $0x23, %%ax\n"     // USER_DS
+        "mov %%ax, %%ds\n"
+        "mov %%ax, %%es\n"
+        "mov %%ax, %%fs\n"
+        "mov %%ax, %%gs\n"
+
+        "pushl $0x23\n"         // SS
+        "pushl %0\n"            // ESP
+        "pushf\n"
+        "pushl $0x1B\n"         // CS
+        "pushl %1\n"            // EIP
+        "iret\n"
+        :
+        : "r"(user_stack), "r"(entry_point)
+        : "ax"
+    );
+}
+
+// void switch_to_kernel_mode() {
+//     asm volatile (
+//         "cli\n"
+//         "mov %0, %%esp\n" // Switch to kernel stack
+//         "jmp kernel_entry\n"
+//         :
+//         : "r"(current_task->TCB->ESP0)
+//     );
+// }
+

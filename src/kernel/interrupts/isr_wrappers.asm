@@ -1,213 +1,88 @@
-bits 32
+; NASM macro
+%macro ISR_ERROR_CODE 1
+  global isr%1
+  isr%1:
+    push dword %1         ; push the interrupt number
+    jmp handle_isr_common
+%endmacro
 
-global isr_keyboard_wrapper
-extern isr_keyboard_handler
+; NASM macro
+%macro ISR_NO_ERROR_CODE 1
+  global isr%1
+  isr%1:
+    push dword 0          ; push a dummy error code just because to keep struct Registers the same as the above macro
+    push dword %1         ; push the interrupt number
+    jmp handle_isr_common
+%endmacro
 
-isr_keyboard_wrapper:
-    cli                         ; Disable interrupts    
-    push 0                      ; Push error code (if none exists)
-    push 0                      ; Push interrupt number
-    call isr_keyboard_handler   ; Call the ISR
-    add esp, 8                  ; Clean up stack
-    sti                         ; Re-enable interrupts
-    iret                        ; Return from interrupt
+        
+ISR_NO_ERROR_CODE  0
+ISR_NO_ERROR_CODE  1
+ISR_NO_ERROR_CODE  2
+ISR_NO_ERROR_CODE  3
+ISR_NO_ERROR_CODE  4
+ISR_NO_ERROR_CODE  5
+ISR_NO_ERROR_CODE  6
+ISR_NO_ERROR_CODE  7
+ISR_ERROR_CODE     8
+ISR_NO_ERROR_CODE  9
+ISR_ERROR_CODE     10
+ISR_ERROR_CODE     11
+ISR_ERROR_CODE     12
+ISR_ERROR_CODE     13
+ISR_ERROR_CODE     14
+ISR_NO_ERROR_CODE  15
+ISR_NO_ERROR_CODE  16
+ISR_NO_ERROR_CODE  17
+ISR_NO_ERROR_CODE  18
+ISR_NO_ERROR_CODE  19
+ISR_NO_ERROR_CODE  20
+ISR_NO_ERROR_CODE  21
+ISR_NO_ERROR_CODE  22
+ISR_NO_ERROR_CODE  23
+ISR_NO_ERROR_CODE  24
+ISR_NO_ERROR_CODE  25
+ISR_NO_ERROR_CODE  26
+ISR_NO_ERROR_CODE  27
+ISR_NO_ERROR_CODE  28
+ISR_NO_ERROR_CODE  29
+ISR_NO_ERROR_CODE  30
+ISR_NO_ERROR_CODE  31
+ISR_NO_ERROR_CODE  32
+ISR_NO_ERROR_CODE  33
+ISR_NO_ERROR_CODE 128
 
-global isr_divide_by_zero_wrapper
-global isr_debug_wrapper
-global isr_non_maskable_interrupt_wrapper
-global isr_breakpoint_wrapper
-global isr_overflow_wrapper
-global isr_bound_range_exceeded_wrapper
-global isr_invalid_opcode_wrapper
-global isr_device_not_available_wrapper
-global isr_double_fault_wrapper
-global isr_invalid_tss_wrapper
-global isr_segment_not_present_wrapper
-global isr_stack_segment_fault_wrapper
-global isr_general_protection_fault_wrapper
-global isr_page_fault_wrapper
-global isr_fpu_error_wrapper
-global isr_alignment_check_wrapper
-global isr_machine_check_wrapper
-global isr_simd_floating_point_wrapper
+%macro  SAVE_REGS 0
+        pushad
+        push ds ;those registers are 16 bit but they are pushed as 32 bits here
+        push es
+        push fs
+        push gs
 
-extern isr_divide_by_zero
-extern isr_debug
-extern isr_non_maskable_interrupt
-extern isr_breakpoint
-extern isr_overflow
-extern isr_bound_range_exceeded
-extern isr_invalid_opcode
-extern isr_device_not_available
-extern isr_double_fault
-extern isr_invalid_tss
-extern isr_segment_not_present
-extern isr_stack_segment_fault
-extern isr_general_protection_fault
-extern isr_page_fault
-extern isr_fpu_error
-extern isr_alignment_check
-extern isr_machine_check
-extern isr_simd_floating_point
+        push ebx
+        mov bx, 0x10 ; load the kernel data segment descriptor
+        mov ds, bx
+        mov es, bx
+        mov fs, bx
+        mov gs, bx
+        pop ebx
+%endmacro
 
-isr_divide_by_zero_wrapper:
-    cli
-    push 0
-    push 0
-    call isr_divide_by_zero
-    add esp, 8
-    sti
-    iret
+%macro  RESTORE_REGS 0
+        pop gs
+        pop fs
+        pop es
+        pop ds
+        popad
+%endmacro
 
-isr_debug_wrapper:
-    cli
-    push 0
-    push 1
-    call isr_debug
-    add esp, 8
-    sti
-    iret
 
-isr_non_maskable_interrupt_wrapper:
-    cli
-    push 0
-    push 2
-    call isr_non_maskable_interrupt
-    add esp, 8
-    sti
-    iret
+extern handle_isr
 
-isr_breakpoint_wrapper:
-    cli
-    push 0
-    push 3
-    call isr_breakpoint
-    add esp, 8
-    sti
-    iret
-
-isr_overflow_wrapper:
-    cli
-    push 0
-    push 4
-    call isr_overflow
-    add esp, 8
-    sti
-    iret
-
-isr_bound_range_exceeded_wrapper:
-    cli
-    push 0
-    push 5
-    call isr_bound_range_exceeded
-    add esp, 8
-    sti
-    iret
-
-isr_invalid_opcode_wrapper:
-    cli
-    push 0
-    push 6
-    call isr_invalid_opcode
-    add esp, 8
-    sti
-    iret
-
-isr_device_not_available_wrapper:
-    cli
-    push 0
-    push 7
-    call isr_device_not_available
-    add esp, 8
-    sti
-    iret
-
-isr_double_fault_wrapper:
-    cli
-    push 0
-    push 8
-    call isr_double_fault
-    add esp, 8
-    sti
-    iret
-
-isr_invalid_tss_wrapper:
-    cli
-    push 0
-    push 10
-    call isr_invalid_tss
-    add esp, 8
-    sti
-    iret
-
-isr_segment_not_present_wrapper:
-    cli
-    push 0
-    push 11
-    call isr_segment_not_present
-    add esp, 8
-    sti
-    iret
-
-isr_stack_segment_fault_wrapper:
-    cli
-    push 0
-    push 12
-    call isr_stack_segment_fault
-    add esp, 8
-    sti
-    iret
-
-isr_general_protection_fault_wrapper:
-    cli
-    push 0
-    push 13
-    call isr_general_protection_fault
-    add esp, 8
-    sti
-    iret
-
-isr_page_fault_wrapper:
-    cli
-    push 0
-    push 14
-    call isr_page_fault
-    add esp, 8
-    sti
-    iret
-
-isr_fpu_error_wrapper:
-    cli
-    push 0
-    push 16
-    call isr_fpu_error
-    add esp, 8
-    sti
-    iret
-
-isr_alignment_check_wrapper:
-    cli
-    push 0
-    push 17
-    call isr_alignment_check
-    add esp, 8
-    sti
-    iret
-
-isr_machine_check_wrapper:
-    cli
-    push 0
-    push 18
-    call isr_machine_check
-    add esp, 8
-    sti
-    iret
-
-isr_simd_floating_point_wrapper:
-    cli
-    push 0
-    push 19
-    call isr_simd_floating_point
-    add esp, 8
-    sti
-    iret
+handle_isr_common:
+    SAVE_REGS
+    call handle_isr
+    RESTORE_REGS
+    add esp, 8     ; deallocate the error code and the interrupt number
+    iret           ; pops CS, EIP, EFLAGS and also SS, and ESP if privilege change occurs
+    

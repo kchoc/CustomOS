@@ -1,19 +1,38 @@
 #include "types/bitmap.h"
 #include "kernel/memory/kmalloc.h"
+#include "kernel/terminal.h"
 
-bitmap *create_bitmap(uint32_t blocks) {
-    bitmap *bm = (bitmap *)kmalloc(sizeof(bitmap));
-    bm->blocks = blocks;
+bitmap_t *create_bitmap(uint32_t blocks) {
+    bitmap_t *bm = (bitmap_t *)kmalloc(sizeof(bitmap_t));
+    bm->total_blocks = blocks;
+    bm->free_blocks = blocks;
     bm->memory_map = (uint32_t *)kmalloc(blocks >> 3);
     return bm;
 }
 
-uint32_t allocate_blocks(bitmap *bm, uint32_t blocks) {
+uint32_t allocate_block(bitmap_t *bm) {
+    for (uint32_t i = 0; i < bm->total_blocks >> 5; i++) {
+        if (bm->memory_map[i] == 0xFFFFFFFF)
+            continue;
+
+        for (uint8_t j = 0; j < 32; j++) {
+            if (!(bm->memory_map[i] & (1 << j))) {
+                bm->memory_map[i] |= 1 << j;
+                bm->free_blocks--;
+                return (i << 5) | j;
+            }
+        }
+    }
+    return 0;
+}
+
+uint32_t allocate_blocks(bitmap_t *bm, uint32_t blocks) {
     uint32_t i_position = 0;
     uint8_t j_position = 0;
     uint32_t count = 0;
-
-    for (uint32_t i = 0; i < bm->blocks >> 5; i++) {
+    
+    bm->free_blocks -= blocks;
+    for (uint32_t i = 0; i < bm->total_blocks >> 5; i++) {
         if (bm->memory_map[i] == 0xFFFFFFFF)
             continue;
 
@@ -54,18 +73,27 @@ uint32_t allocate_blocks(bitmap *bm, uint32_t blocks) {
             }
         }
     }
+    bm->free_blocks += blocks;
     return 0;
 }
 
-void free_bitmap(bitmap *bm) {
+void free_bitmap(bitmap_t *bm) {
     kfree(bm->memory_map);
     kfree(bm);
 }
 
-void free_blocks(bitmap* bm, uint32_t address, uint32_t blocks) {
+void free_block(bitmap_t *bm, uint32_t address) {
     uint32_t section = address >> 5;
     uint32_t offset = address & 0x1F;
+    bm->memory_map[section] &= ~(1 << offset);
+    bm->free_blocks++;
+}
 
+void free_blocks(bitmap_t* bm, uint32_t address, uint32_t blocks) {
+    uint32_t section = address >> 5;
+    uint32_t offset = address & 0x1F;
+    bm->free_blocks += blocks;
+    
     if (offset + blocks < 32) {
         bm->memory_map[section] &= ~(((1 << blocks) - 1) << offset);
         return;

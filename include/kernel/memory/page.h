@@ -3,87 +3,52 @@
 
 #include <stdint.h>
 
-// Constants
-#define PAGE_DIRECTORY_SIZE 1024
-#define PAGE_TABLE_SIZE 1024
 #define PAGE_SIZE 4096
 
-// Macros
+#define PAGE_FLAG_PRESENT		0x1
+#define PAGE_FLAG_READWRITE		0x2
+#define PAGE_FLAG_USER			0x4
+#define PAGE_FLAG_WRITETHROUGH	0x8
+#define PAGE_FLAG_NOCACHE		0x10
+#define PAGE_FLAG_ACCESSED		0x20
+#define PAGE_FLAG_DIRTY			0x40
+#define PAGE_FLAG_LARGE			0x80
+#define PAGE_FLAG_GLOBAL		0x100
 
-#define PD_INDEX(virt_address) ((virt_address) >> 22)
-#define PT_INDEX(virt_address) ((virt_address) >> 12) & 0x3FF
+#define PAGE_FLAG_ALLOCATE      0x1000
+#define PAGE_FLAG_CLEAR         0x2000
 
-#define PAGE_PHYS_ADDRESS(dir_entry) ((*dir_entry) & 0xFFFFF000)
+typedef uint32_t page_entry_t;
 
-#define SET_ATTRIBUTE(entry, attr) (*entry |= attr)
-#define CLEAR_ATTRIBUTE(entry, attr) (*entry &= ~attr)
-#define TEST_ATTRIBUTE(entry, attr) (*entry & attr)
-#define SET_FRAME(entry, address) (*entry = (*entry & ~0xFFFFF000) | (address - 0xC0000000))
+typedef struct page_table {
+    page_entry_t entries[1024];
+} page_table_t;
 
-// Typedefs
+// Creates a page table
+page_table_t *page_table_create(void);
 
-typedef uint32_t pt_entry;
-typedef uint32_t pd_entry;
-typedef uint32_t virtual_address;
-typedef uint32_t physical_address;
+// Gets the physical address and flags for a virtual address
+int page_table_get_map(uint32_t virt, uint32_t *phys, uint32_t *flags);
 
-typedef enum {
-	PTE_PRESENT			= 0x01,
-	PTE_READ_WRITE		= 0x02,
-	PTE_USER	  		= 0x04,
-	PTE_WRITE_THROUGH	= 0x08,
-	PTE_CACHE_DISABLE	= 0x10,
-	PTE_ACCESSED		= 0x20,
-	PTE_DIRTY			= 0x40,
-	PTE_PAT				= 0x80,
-	PTE_GLOBAL			= 0x100,
-	PTE_FRAME			= 0x7FFFF000	// Bits 12+
-} PAGE_TABLE_FLAGS;
+// Maps a virtual address to a physical addresss
+int page_table_map(uint32_t virt, uint32_t *phys, uint32_t  flags);
 
-typedef enum {
-	PDE_PRESENT			= 0x01,
-	PDE_READ_WRITE		= 0x02,
-	PDE_USER			= 0x04,
-	PDE_WRITE_THROUGH	= 0x08,
-	PDE_CACHE_DISABLE	= 0x10,
-	PDE_ACCESSED		= 0x20,
-	PDE_DIRTY			= 0x40,		// 4MB entries only
-	PDE_PAGE_SIZE		= 0x80,		// 0 = 4KB page, 1 = 4MB page
-	PDE_GLOBAL			= 0x100,	// 4MB entries only
-	PDE_PAT				= 0x200,	// 4MB entries only
-	PDE_FRAME			= 0x7FFFF000	// Bits 12+
-} PAGE_DIRECTORY_FLAGS;
+// Unmaps a virtual address
+int page_table_unmap(uint32_t virt);
 
-// Page Table: 4MB, 1024 entries
-typedef struct {
-	pt_entry entries[PAGE_TABLE_SIZE];
-} page_table;
+// Allocates a range of virtual addresses
+void page_table_alloc(page_table_t *pd, uint32_t virt, uint32_t length, uint32_t flags);
 
-// Page Directory: 4GB, 1024 tables
-typedef struct {
-	pd_entry entries[PAGE_TABLE_SIZE];
-} page_directory;
+// Frees a range of virtual addresses
+void page_table_free(page_table_t *pd, uint32_t virt, uint32_t length);
 
-static page_directory *current_page_directory = 0;
+// Duplicates a page table
+page_table_t *new_task_page_table();
 
-// Functions
-
-pt_entry *get_pt_entry(page_table *pt,		virtual_address address);
-pd_entry *get_pd_entry(page_directory *pd,	virtual_address address);
-pt_entry *get_page(page_directory *pd, 		virtual_address address);
-
-void allocate_page_table(page_directory *pd);
-void free_page_table(page_directory *pd, pt_entry *page);
-
-int set_page_directory(page_directory *pd);
-void flush_tlb_entry(virtual_address address);
-
-void check_page_directory(page_directory *pd, uint32_t table);
-
-int map_page(page_directory *pd, void *phys_address, void *virt_address);
-void unmap_page(page_directory *pd, void *virt_address);
-
-int initialize_paging(void);
-int init_page_bitmaps(void);
+page_table_t *page_table_load(page_table_t *pd);
+void page_table_enable();
+void page_table_refresh();
+page_table_t *get_current_page_table_phys();
+page_table_t *get_current_page_table_virt();
 
 #endif // PAGE_H
