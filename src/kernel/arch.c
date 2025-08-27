@@ -7,7 +7,7 @@
 #include "kernel/terminal.h"
 #include "kernel/syscalls/syscalls.h"
 #include "kernel/interrupts/idt.h"
-#include "kernel/task.h"
+#include "kernel/process/process.h"
 #include "kernel/drivers/port_io.h"
 #include "kernel/filesystem/fs.h"
 

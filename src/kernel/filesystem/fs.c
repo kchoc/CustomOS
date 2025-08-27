@@ -430,6 +430,81 @@ int fat16_read_file(const char* filename, uint8_t** buffer, uint32_t* size) {
     return 0; // Success
 }
 
+fat16_file_t* fat16_open_file(const char* filename) {
+    if (!filename) return NULL; // Invalid parameters
+
+    dir_t* dir_sector = NULL;
+    dir_entry_t* entry = fat16_find_in_directory(format_filename_83(filename), &dir_sector);
+    if (!entry) return NULL; // File not found
+
+    if (!(entry->attr & ATTR_ARCHIVE)) return NULL; // Not a file
+
+    fat16_file_t* file = kmalloc(sizeof(fat16_file_t));
+    if (!file) return NULL; // Memory allocation failed
+
+    file->filename = filename;
+    file->size = entry->file_size;
+    file->start_cluster = entry->start_cluster;
+    file->current_cluster = entry->start_cluster;
+    file->cluster_offset = 0;
+
+    return file; // Success
+}
+
+int fat16_file_read(fat16_file_t* file, uint8_t* buffer, uint32_t size) {
+    if (!file || !buffer || size == 0) return -1; // Invalid parameters
+    if (file->cluster_offset >= file->size) return 0; // EOF
+
+    uint32_t bytes_read = 0;
+    while (bytes_read < size && file->cluster_offset < file->size) {
+        uint32_t to_read = SECTOR_SIZE - (file->cluster_offset % SECTOR_SIZE);
+        if (to_read > (size - bytes_read))
+            to_read = size - bytes_read;
+        if (to_read > (file->size - file->cluster_offset))
+            to_read = file->size - file->cluster_offset;
+
+        uint8_t sector_buffer[SECTOR_SIZE];
+        ide_read_sector(cluster_to_lba(file->current_cluster), sector_buffer);
+
+        memcpy(buffer + bytes_read, sector_buffer + (file->cluster_offset % SECTOR_SIZE), to_read);
+
+        bytes_read += to_read;
+        file->cluster_offset += to_read;
+
+        if ((file->cluster_offset % SECTOR_SIZE) == 0) {
+            // Move to the next cluster if we've read the entire current cluster
+            uint16_t next_cluster = fat16_get_next_cluster(file->current_cluster);
+            if (next_cluster >= FAT16_CLUSTER_EOF) break; // End of file
+            file->current_cluster = next_cluster;
+        }
+    }
+
+    return bytes_read; // Return number of bytes read
+}
+
+int fat16_file_seek(fat16_file_t* file, uint32_t position) {
+    if (!file || position > file->size) return -1; // Invalid parameters
+
+    file->current_cluster = file->start_cluster;
+    file->cluster_offset = 0;
+
+    while (file->cluster_offset + SECTOR_SIZE <= position) {
+        uint16_t next_cluster = fat16_get_next_cluster(file->current_cluster);
+        if (next_cluster >= FAT16_CLUSTER_EOF) break; // End of file
+        file->current_cluster = next_cluster;
+        file->cluster_offset += SECTOR_SIZE;
+    }
+
+    file->cluster_offset = position;
+    return 0; // Success
+}
+
+int fat16_file_close(fat16_file_t* file) {
+    if (!file) return -1; // Invalid parameters
+    kfree(file);
+    return 0; // Success
+}
+
 int fat16_read_file_to_buffer(const char* filename, uint8_t* buffer, uint32_t size) {
     if (!filename || !buffer || size == 0) return -1; // Invalid parameters
 

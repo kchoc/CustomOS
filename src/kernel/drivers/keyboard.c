@@ -1,8 +1,6 @@
 #include "kernel/drivers/keyboard.h"  
 #include "kernel/terminal.h"
-#include "kernel/drivers/port_io.h"
-#include "kernel/interrupts/isr.h"
-#include <stdbool.h>
+#include "kernel/panic.h"
 
 // Base keyboard map
 static const char keyboard_map[128] = {
@@ -29,8 +27,8 @@ static const char keyboard_shift_map[128] = {
 };
 
 // Key state bitmask
-static bool shift = false;
-static bool ctrl = false;
+static uint8_t shift = 0;
+static uint8_t ctrl = 0;
 
 static uint64_t keys[2] = {0};
 
@@ -50,7 +48,7 @@ char scancode_to_ascii(uint8_t scancode) {
 
 // Handle key press/release
 void handle_keypress(uint8_t scancode) {
-    bool is_release = scancode & 0x80;
+    uint8_t is_release = scancode & 0x80 ? 1 : 0;
     uint8_t clean = scancode & 0x7F;
 
     keys[(scancode >> 6) & 0x01] ^= 1UL << (scancode & 0x3F);
@@ -68,6 +66,7 @@ void handle_keypress(uint8_t scancode) {
 
     if (is_release) return; // Ignore key releases for characters
 
+    if (hasPanicOccurred) reboot_system();
     char c = scancode_to_ascii(scancode);
     terminal_input(scancode, c);
 }

@@ -77,6 +77,14 @@ typedef struct path {
     path_t* subdir;
 } __attribute__((packed)) path_t;
 
+typedef struct fat16_file {
+    const char* filename;       // Original filename
+    uint32_t size;              // File size in bytes
+    uint16_t start_cluster;     // Starting cluster of the file
+    uint16_t current_cluster;   // Current cluster being read
+    uint16_t cluster_offset;    // Offset within the current cluster
+} fat16_file_t;
+
 // Paths
 path_t* parse_path(const char* path);
 void destroy_path(path_t* path);
@@ -90,6 +98,11 @@ int fat16_write_file(const char* filename, const uint8_t* data, uint32_t size);
 int fat16_read_file(const char* filename, uint8_t** buffer, uint32_t* size);
 int fat16_read_file_to_buffer(const char* filename, uint8_t* buffer, uint32_t size);
 int fat16_delete_file(const char* path);
+
+fat16_file_t* fat16_open_file(const char* filename);
+int fat16_file_read(fat16_file_t* file, uint8_t* buffer, uint32_t size);
+int fat16_file_seek(fat16_file_t* file, uint32_t position);
+int fat16_file_close(fat16_file_t* file);
 
 // Directory operations
 int fat16_free_directory(dir_t* dir);

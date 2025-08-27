@@ -2,7 +2,8 @@
 #include "kernel/terminal.h"
 #include "kernel/memory/kmalloc.h"
 #include "kernel/memory/page.h"
-#include "kernel/task.h"
+#include "kernel/process/process.h"
+#include "kernel/process/elf.h"
 #include "kernel/drivers/port_io.h"
 #include "kernel/filesystem/fs.h"
 
@@ -50,9 +51,9 @@ void process_command(char *input) {
     // Task commands
     if (strcmp(cmd, "task") == 0) {
         if (arg_count > 1 && strcmp(args[1], "switch") == 0) {
-            switch_task();
+            schedule();
         } else if (arg_count > 1 && strcmp(args[1], "list") == 0) {
-            // list_tasks(); // Uncomment when implemented
+            list_tasks();
         } else {
             printf("Usage: task [list|switch]\n");
         }
@@ -211,7 +212,9 @@ void process_command(char *input) {
             printf("Usage: exec <binary>\n");
             return;
         }
-        create_task_from_binary(args[1]);
+        create_process_from_elf(args[1]);
+        printf("Executing Task!\n");
+        yeild();
         return;
     }
 

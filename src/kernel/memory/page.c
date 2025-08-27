@@ -4,9 +4,9 @@
 #include "kernel/terminal.h"
 #include "types/string.h"
 #include <stdint.h>
-#include <stdio.h>
 
 page_table_t* current_pd = (page_table_t *)PAGE_DIRECTORY_ADDRESS;
+page_table_t* current_pts = (page_table_t *)PAGE_TABLES_ADDRESS;
 
 page_table_t *page_table_create() {
     return page_alloc(0);
@@ -46,8 +46,6 @@ int page_table_map(uint32_t virt, uint32_t *phys, uint32_t flags) {
 	uint32_t table_idx = virt >> 22;
 	uint32_t entry_idx = (virt >> 12) & 0x3FF;
 
-	printf("Let find the issue\n");
-
 	// Use recursive mapping to get the page table virtual address
 	// Explanation: The last page directory entry maps the page directory as a page table,
 	// then this table maps all the page tables as page frames including the page directory
@@ -61,10 +59,10 @@ int page_table_map(uint32_t virt, uint32_t *phys, uint32_t flags) {
 			return -1;
 
 		*entry = (page_entry_t)table | PAGE_FLAG_PRESENT | PAGE_FLAG_READWRITE | PAGE_FLAG_USER;
-		table = (page_table_t *)(PAGE_TABLES_ADDRESS + (table_idx << 12));
+		table = &current_pts[table_idx];
 		memset(table, 0, PAGE_SIZE);
 	} else {
-		table = (page_table_t *)(PAGE_TABLES_ADDRESS + (table_idx << 12));
+		table = &current_pts[table_idx];
 	}
 
 	entry = &table->entries[entry_idx];
@@ -72,12 +70,15 @@ int page_table_map(uint32_t virt, uint32_t *phys, uint32_t flags) {
 		return -1;
 
 	if (flags & PAGE_FLAG_ALLOCATE) {
-		*phys = (uint32_t)page_alloc(flags & PAGE_FLAG_CLEAR);
+		*phys = (uint32_t)page_alloc(0);
 		if (!*phys)
 			return -1;
 	}
 
 	*entry = *phys | PAGE_FLAG_PRESENT | PAGE_FLAG_USER | PAGE_FLAG_READWRITE;
+
+	if (flags & PAGE_FLAG_CLEAR)
+		memset((void *)(virt & 0xFFFFF000), 0, PAGE_SIZE);
 
 	return 0;
 }
@@ -152,6 +153,13 @@ void page_table_free(page_table_t *pd, uint32_t virt, uint32_t length) {
 }
 
 void page_table_destroy(page_table_t *pd) {
+	// Unmap the current working page table from the current page directory
+    page_table_unmap((uint32_t)PAGE_TABLE_EDIT_ADDRESS);
+
+    // Map the new page directory into the current working page table
+     if (page_table_map(PAGE_TABLE_EDIT_ADDRESS, (uint32_t *)&pd, PAGE_FLAG_PRESENT | PAGE_FLAG_READWRITE))
+     	return;
+
 	page_table_t *table;
 	page_entry_t *entry;
 

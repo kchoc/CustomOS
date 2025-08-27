@@ -15,6 +15,7 @@ typedef struct list_node {
     list_node_t *prev;
     list_t *list;
     int priority;
+    void *data;
 } list_node_t;
 
 #define LIST_INIT { 0, 0 }

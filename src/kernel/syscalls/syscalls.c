@@ -1,5 +1,5 @@
 #include "kernel/syscalls/syscalls.h"
-#include "kernel/task.h"
+#include "kernel/process/process.h"
 #include "kernel/terminal.h"
 #include "types/string.h"
 
@@ -16,7 +16,9 @@ void syscalls_init() {
 
 int syscall_exit() {
 	printf("Exiting!\n");
-    return exit_task(current_task);
+    delay(300);
+    thread_exit();
+    return 0; // Success
 }
 
 int syscall_print(const char* str) {

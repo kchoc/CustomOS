@@ -42,6 +42,9 @@ void page_table_alloc(page_table_t *pd, uint32_t virt, uint32_t length, uint32_t
 // Frees a range of virtual addresses
 void page_table_free(page_table_t *pd, uint32_t virt, uint32_t length);
 
+// Destroys a page table and frees all associated pages
+void page_table_destroy(page_table_t *pd);
+
 // Duplicates a page table
 page_table_t *new_task_page_table();
 

@@ -1,8 +1,6 @@
-bits 32
-org 0x00001000
+global _start
 
 section .text
-global _start
 
 _start:
     mov eax, 1          ; syscall_print

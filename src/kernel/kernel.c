@@ -1,5 +1,4 @@
 #include "kernel/arch.h"
-#include "kernel/task.h"
 
 void spindle() {
 	while (1);

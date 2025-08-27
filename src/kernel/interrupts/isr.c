@@ -2,6 +2,7 @@
 #include "kernel/drivers/port_io.h"
 #include "kernel/drivers/keyboard.h"
 #include "kernel/terminal.h"
+#include "kernel/panic.h"
 #include "kernel/memory/page.h"
 #include "types/common.h"
 #include "kernel/syscalls/syscalls.h"
@@ -23,7 +24,7 @@ void handle_isr(Registers regs) {
     }
     else
     {
-        printf("unhandled interrupt: %d\n", int_no);
+        PANIC("Unhandled interrupt");
     }
 }
 
@@ -43,16 +44,17 @@ void isr_keyboard_handler(Registers *regs) {
 // The page fault ISR handler
 void isr_page_fault_handler(Registers *regs) {
     uint32_t faulting_address;
+    uint32_t new_phys;
     asm volatile("movl %%cr2, %0" : "=r" (faulting_address));
 
-    printf("===== Page Fault =====\n");
-    printf("Return Address: %x\n", &regs->eip);
-    printf("Fault Address: %x\n", faulting_address);
-    delay(300);
+    // printf("===== Page Fault =====\n");
+    // printf("Return Address: %x\n", &regs->eip);
+    // printf("Fault Address: %x\n", faulting_address);
+    // delay(300);
 
 
     // Map the page
-    if (page_table_map(faulting_address, 0, PAGE_FLAG_ALLOCATE | PAGE_FLAG_READWRITE)) {
+    if (page_table_map(faulting_address, &new_phys, PAGE_FLAG_ALLOCATE | PAGE_FLAG_READWRITE)) {
         printf("Failed to map page at %x\n", faulting_address);
         asm volatile("hlt");
     }
@@ -65,9 +67,8 @@ void isr_page_fault_handler(Registers *regs) {
 }
 
 void isr_syscall(Registers *regs) {
-
     if (regs->eax >= SYSCALL_COUNT) {
-        printf("Unknown syscall!\n");
+        printf("Invalid syscall number: %d\n", regs->eax);
         regs->eax = -1;
         return;
     }
@@ -75,7 +76,7 @@ void isr_syscall(Registers *regs) {
     void *syscall = g_syscalls[regs->eax];
 
     if (syscall == NULL) {
-        printf("Syscall not defined!\n");
+        printf("Unimplemented syscall number: %d\n", regs->eax);
         regs->eax = -1;
         return;
     }
@@ -166,7 +167,7 @@ void isr_stack_segment_fault(Registers *regs) {
 
 void isr_general_protection_fault(Registers *regs) {
     printf("General protection fault\n");
-    asm volatile("hlt");
+    PANIC_DUMP_REGISTERS(regs);
 }
 
 void isr_fpu_error(Registers *regs) {

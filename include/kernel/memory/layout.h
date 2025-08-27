@@ -15,3 +15,5 @@
 #define KERNEL_VIRTUAL_BASE 0xC0000000
 
 #define BLOCK_PHYS_START_ADDRESS 0x01000000
+
+#define LAPIC_BASE     0xFEE00000U   // typical xAPIC base (physical)
