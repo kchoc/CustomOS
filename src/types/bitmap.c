@@ -1,6 +1,6 @@
 #include "types/bitmap.h"
 #include "kernel/memory/kmalloc.h"
-#include "kernel/terminal.h"
+#include <stdint.h>
 
 bitmap_t *create_bitmap(uint32_t blocks) {
     bitmap_t *bm = (bitmap_t *)kmalloc(sizeof(bitmap_t));
@@ -10,7 +10,8 @@ bitmap_t *create_bitmap(uint32_t blocks) {
     return bm;
 }
 
-uint32_t allocate_block(bitmap_t *bm) {
+/* Allocate a single block and return its index, or -1 if none are available */
+int allocate_block(bitmap_t *bm) {
     for (uint32_t i = 0; i < bm->total_blocks >> 5; i++) {
         if (bm->memory_map[i] == 0xFFFFFFFF)
             continue;
@@ -23,10 +24,11 @@ uint32_t allocate_block(bitmap_t *bm) {
             }
         }
     }
-    return 0;
+    return -1;
 }
 
-uint32_t allocate_blocks(bitmap_t *bm, uint32_t blocks) {
+/* Allocate multiple contiguous blocks and return the starting index, or -1 if none are available */
+int allocate_blocks(bitmap_t *bm, uint32_t blocks) {
     uint32_t i_position = 0;
     uint8_t j_position = 0;
     uint32_t count = 0;
@@ -51,7 +53,7 @@ uint32_t allocate_blocks(bitmap_t *bm, uint32_t blocks) {
                 uint32_t position = (i_position << 5) | j_position;
                 // If we need to move to the next section
                 if (j_position + count >= 32) {
-                    bm->memory_map[i_position] |= ~(1 << j_position - 1);
+                    bm->memory_map[i_position] |= ~((1 << j_position) - 1);
                     count -= 32 - j_position;
                     j_position = 0;
                     i_position++;
@@ -74,7 +76,7 @@ uint32_t allocate_blocks(bitmap_t *bm, uint32_t blocks) {
         }
     }
     bm->free_blocks += blocks;
-    return 0;
+    return -1;
 }
 
 void free_bitmap(bitmap_t *bm) {
@@ -82,29 +84,41 @@ void free_bitmap(bitmap_t *bm) {
     kfree(bm);
 }
 
-void free_block(bitmap_t *bm, uint32_t address) {
+void set_block(bitmap_t *bm, uint32_t address, uint8_t state) {
     uint32_t section = address >> 5;
     uint32_t offset = address & 0x1F;
-    bm->memory_map[section] &= ~(1 << offset);
-    bm->free_blocks++;
+    bm->free_blocks += state ? -1 : 1;
+    if (state)
+        bm->memory_map[section] |= 1 << offset;
+    else
+        bm->memory_map[section] &= ~(1 << offset);
 }
 
-void free_blocks(bitmap_t* bm, uint32_t address, uint32_t blocks) {
+void set_blocks(bitmap_t* bm, uint32_t address, uint32_t blocks, uint8_t state) {
     uint32_t section = address >> 5;
     uint32_t offset = address & 0x1F;
-    bm->free_blocks += blocks;
+    bm->free_blocks += state ? -blocks : blocks;
     
     if (offset + blocks < 32) {
-        bm->memory_map[section] &= ~(((1 << blocks) - 1) << offset);
+        if (state)
+            bm->memory_map[section] |= ((1 << blocks) - 1) << offset;
+        else
+            bm->memory_map[section] &= ~(((1 << blocks) - 1) << offset);
         return;
     }
-    bm->memory_map[section] &= (1 << offset) - 1;
+    if (state)
+        bm->memory_map[section] |= 0xFFFFFFFF << offset;
+    else
+        bm->memory_map[section] &= (1 << offset) - 1;
     blocks -= 32 - offset;
     section++;
     while (blocks >= 32) {
-        bm->memory_map[section] = 0;
+        bm->memory_map[section] = state ? 0xFFFFFFFF : 0;
         section++;
         blocks -= 32;
     }
-    bm->memory_map[section] &= ~((1 << blocks) - 1);
+    if (state)
+        bm->memory_map[section] |= (1 << blocks) - 1;
+    else
+        bm->memory_map[section] &= ~((1 << blocks) - 1);
 }

@@ -3,7 +3,7 @@
 #include "kernel/drivers/keyboard.h"
 #include "kernel/terminal.h"
 #include "kernel/panic.h"
-#include "kernel/memory/page.h"
+#include "kernel/memory/vm.h"
 #include "types/common.h"
 #include "kernel/syscalls/syscalls.h"
 #include <string.h>
@@ -43,24 +43,20 @@ void isr_keyboard_handler(Registers *regs) {
 
 // The page fault ISR handler
 void isr_page_fault_handler(Registers *regs) {
-    uint32_t faulting_address;
-    uint32_t new_phys;
+    uint32_t* faulting_address;
     asm volatile("movl %%cr2, %0" : "=r" (faulting_address));
 
     // printf("===== Page Fault =====\n");
+    // printf("CR3: %x\n", get_current_page_directory_phys());
     // printf("Return Address: %x\n", &regs->eip);
     // printf("Fault Address: %x\n", faulting_address);
-    // delay(300);
-
 
     // Map the page
-    if (page_table_map(faulting_address, &new_phys, PAGE_FLAG_ALLOCATE | PAGE_FLAG_READWRITE)) {
+    if (!vmm_map(faulting_address, 0, PAGE_SIZE, VM_PROT_READWRITE, VM_MAP_ZERO)) {
         printf("Failed to map page at %x\n", faulting_address);
-        asm volatile("hlt");
+        PANIC_DUMP_REGISTERS(regs);
     }
-
-    page_table_refresh();
-
+    
     // Update PIC
     outb(0x20, 0x20); // Send EOI to PIC1
     outb(0xA0, 0x20); // Send EOI to PIC2

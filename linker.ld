@@ -38,4 +38,10 @@ SECTIONS
 	}
 	/* Add a symbol that indicates the end address of the kernel. */
 	_kernel_end = .;
+
+	.trampoline : {
+        _binary_trampoline_bin_start = .;
+        KEEP(*(.trampoline))
+        _binary_trampoline_bin_end = .;
+    }
 }

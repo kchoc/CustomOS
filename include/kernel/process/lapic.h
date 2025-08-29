@@ -20,4 +20,13 @@
 #define ICR_PHYSICAL        0x00000000U // physical dest mode
 #define ICR_FIXED           0x00000000U /* fixed delivery (for SIPI vector we still set SIPI) */
 
+void delay_ms(int ms);
+void delay_us(int us);
+
+uint32_t get_local_apic_id(void);
+
+void lapic_init(void);
+void send_init_ipi(uint32_t apic_id);
+void send_startup_ipi(uint32_t apic_id, uint32_t trampoline_paddr);
+
 #endif // LAPIC_H

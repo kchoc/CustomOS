@@ -1,5 +1,5 @@
 #include "kernel/process/elf.h"
-#include "kernel/memory/page.h"
+#include "kernel/memory/vmspace.h"
 #include "kernel/process/process.h"
 #include "kernel/memory/kmalloc.h"
 #include "kernel/filesystem/fs.h"
@@ -8,7 +8,7 @@
 
 proc_t *create_process_from_elf(const char *filename) {
   	proc_t* p = create_process(strchr(filename, '/') ? strrchr(filename, '/') + 1 : filename);
-    page_table_load((page_table_t *)p->mm->page_directory);
+    vm_space_switch(p->vmspace);
 
     fat16_file_t* file = fat16_open_file(filename);
     if (!file) {

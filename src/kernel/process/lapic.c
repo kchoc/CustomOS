@@ -1,5 +1,5 @@
 #include "kernel/process/lapic.h"
-#include "kernel/memory/page.h"
+#include "kernel/memory/vm.h"
 
 //TODO: use proper timing functions
 void delay_ms(int ms) {
@@ -27,7 +27,7 @@ static inline void lapic_write(uint32_t reg, uint32_t value) {
 }
 
 /* Read local APIC ID (bits 31:24 of ID register) */
-static inline uint32_t get_local_apic_id(void) {
+uint32_t get_local_apic_id(void) {
     uint32_t val = lapic_read(LAPIC_ID);
     return (val >> 24) & 0xFF;
 }
@@ -51,10 +51,10 @@ static void lapic_send_ipi(uint32_t apic_id, uint32_t icr_low) {
     lapic_wait_for_delivery();
 }
 
-static void lapic_init() {
+void lapic_init() {
 	// Map LAPIC base
-	uint32_t lapic_base = LAPIC_BASE;
-	page_table_map(LAPIC_BASE, &lapic_base, PAGE_FLAG_PRESENT | PAGE_FLAG_READWRITE);
+    vmm_map((void*)LAPIC_BASE, LAPIC_BASE, PAGE_SIZE, VM_PROT_READWRITE, VM_MAP_PHYS | VM_MAP_ZERO);
+
 
 	// Enable APIC by setting the spurious interrupt vector register (SVR)
 	// Set bit 8 (APIC enabled) and set vector to 0xFF (example)

@@ -11,12 +11,12 @@ typedef struct bitmap {
 
 bitmap_t *create_bitmap(uint32_t blocks);
 
-uint32_t allocate_block(bitmap_t *bm);
-uint32_t allocate_blocks(bitmap_t *bm, uint32_t blocks);
+int allocate_block(bitmap_t *bm);
+int allocate_blocks(bitmap_t *bm, uint32_t blocks);
 
 void free_bitmap(bitmap_t *bm);
 
-void free_block(bitmap_t *bm, uint32_t address);
-void free_blocks(bitmap_t *bm, uint32_t address, uint32_t blocks);
+void set_block(bitmap_t *bm, uint32_t address, uint8_t state);
+void set_blocks(bitmap_t *bm, uint32_t address, uint32_t blocks, uint8_t state);
 
 #endif // BITMAP_H

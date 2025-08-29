@@ -1,5 +1,5 @@
 for file in $(find src -name '*.c'); do
-    gcc -m32 -ffreestanding -fno-stack-protector -Iinclude -c $file -o build/$(basename $file .c).o
+    gcc -m32 -march=i686 -ffreestanding -fno-stack-protector -Iinclude -c $file -o build/$(basename $file .c).o
 done
 
 for file in $(find src -name '*.asm'); do
@@ -7,7 +7,7 @@ for file in $(find src -name '*.asm'); do
 done
 
 for file in $(find src -name '*.s'); do
-    gcc -m32 -ffreestanding -fno-stack-protector -Iinclude -c $file -o build/$(basename $file .s).o
+    gcc -m32 -march=i686 -ffreestanding -fno-stack-protector -Iinclude -c $file -o build/$(basename $file .s).o
 done
 
 OBJECTS=$(find build -name '*.o')
@@ -20,6 +20,7 @@ grub-mkrescue -o my-kernel.iso iso/
 rm $OBJECTS kernel
 
 qemu-system-i386 \
+  -cpu pentium3 \
   -boot d \
   -cdrom my-kernel.iso \
   -drive file=fs.img,format=raw,index=0,media=disk \

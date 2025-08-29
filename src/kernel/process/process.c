@@ -1,8 +1,8 @@
-#include "kernel/process/process.h"
 #include "kernel/memory/kmalloc.h"
-#include "kernel/memory/page.h"
-#include "kernel/terminal.h"
+#include "kernel/memory/vmspace.h"
+#include "kernel/process/process.h"
 #include "kernel/process/elf.h"
+#include "kernel/terminal.h"
 #include "kernel/panic.h"
 #include "types/string.h"
 #include "types/list.h"
@@ -133,7 +133,8 @@ void tasking_init() {
 
     // bootstrap "idle" thread representing the kernel at startup
     proc_t *p = create_process("idle");
-    page_table_load((page_table_t*)p->mm->page_directory);
+
+    vm_space_t* old = vm_space_switch(p->vmspace);
 
     thread_t *t = create_task(idle_task, p);
 
@@ -143,6 +144,8 @@ void tasking_init() {
     // set globals
     current_thread = t;
     t->next_in_proc = NULL;
+
+    vm_space_switch(old);
 }
 
 thread_t* create_task(void (*entry)(void), proc_t *p) {
@@ -169,7 +172,7 @@ thread_t* create_task(void (*entry)(void), proc_t *p) {
 
     t->tcb.esp = (uint32_t)stk;
     t->tcb.esp0 = (uint32_t)(stack + STACK_SIZE);
-    t->tcb.cr3 = (uint32_t)p->mm->page_directory;
+    t->tcb.cr3 = (uint32_t)p->vmspace->page_directory;
 
     t->next_in_proc = p->threads;
     p->threads = t;
@@ -185,9 +188,7 @@ proc_t* create_process(const char* name) {
     p->pid = next_pid++;
     strncpy(p->name, name, 11);
 
-    p->mm = kmalloc(sizeof(mm_t));
-    memset(p->mm, 0, sizeof(mm_t));
-    p->mm->page_directory = (uint32_t)new_task_page_table();
+    p->vmspace = vm_space_create();
 
     proc_list_add(p);
     return p;
@@ -227,11 +228,9 @@ void free_process(proc_t *p) {
         t = next;
     }
 
-    if (p->mm && p->mm->page_directory) {
-        page_table_destroy((page_table_t*)p->mm->page_directory);
-    }
+    if (p->vmspace)
+        vm_space_destroy(p->vmspace);
 
-    kfree(p->mm); // Free memory management info if any
     kfree(p);
 }
 

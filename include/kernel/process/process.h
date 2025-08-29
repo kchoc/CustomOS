@@ -13,17 +13,6 @@ typedef enum {
     TASK_ZOMBIE
 } task_state_t;
 
-typedef struct memory_management {
-    uint32_t  page_directory; // Page directory base
-    uintptr_t start_code;   // Start of code segment
-    uintptr_t end_code;     // End of code segment
-    uintptr_t start_data;   // Start of data segment
-    uintptr_t end_data;     // End of data segment
-    uintptr_t start_brk;    // Start of heap
-    uintptr_t brk;          // Current end of heap
-    uintptr_t start_stack;  // Start of stack
-} mm_t;
-
 typedef struct fxsave_state {
     uint8_t fx_region[512] __attribute__((aligned(16)));
 } fxss_t;
@@ -55,12 +44,14 @@ typedef struct thread {
     struct thread *next_in_proc; // Next thread in the same process
 } thread_t;
 
+typedef struct vm_space vm_space_t;
+
 typedef struct process {
     uint32_t pid;       // Process ID
     uint32_t ppid;      // Parent process ID
     char name[32];      // Process name
 
-    mm_t *mm;           // Memory management info
+    vm_space_t *vmspace;    // Memory management info
     // ... other process-specific information
 
     thread_t* main_thread;  // Main thread of the process

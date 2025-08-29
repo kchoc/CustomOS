@@ -29,7 +29,7 @@ int strcmp(const char *str1, const char *str2) {
 }
 
 int strncmp(const char *a, const char *b, unsigned n) {
-    while (*a && *b && n) {
+    while (n) {
         if (*a != *b)
             return *a - *b;
         a++;

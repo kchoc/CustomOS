@@ -1,7 +1,7 @@
 #include "kernel/commands.h"
 #include "kernel/terminal.h"
 #include "kernel/memory/kmalloc.h"
-#include "kernel/memory/page.h"
+#include "kernel/memory/vm.h"
 #include "kernel/process/process.h"
 #include "kernel/process/elf.h"
 #include "kernel/drivers/port_io.h"
@@ -32,6 +32,7 @@ void process_command(char *input) {
         printf("  help                 - Show this help message\n");
         printf("  kmalloc              - Display memory usage\n");
         printf("  memdump ADDR         - Dump memory contents\n");
+        printf("  page ADDR            - Show page table entry for address\n");
         printf("  task                 - Manage tasks (list, switch)\n");
         printf("  cpumode              - Display CPU mode (real/protected)\n");
         printf("  reboot               - Reboot the system\n");
@@ -81,8 +82,28 @@ void process_command(char *input) {
         }
         printf("\n");
         return;
-    
     }
+
+    if (strcmp(cmd, "page") == 0) {
+        if (arg_count < 2) {
+            printf("Usage: page <address>\n");
+            return;
+        }
+        uint32_t addr = str2int(args[1]);
+        if (addr == 0) {
+            printf("Invalid address: %s\n", args[1]);
+            return;
+        }
+        uint32_t phys = vmm_resolve((void *)addr);
+        if (phys) {
+            printf("Virtual address %x maps to physical address %x\n", addr, phys);
+        } else {
+            printf("Virtual address %x is not mapped\n", addr);
+        }
+        return;
+    }
+
+
 
     if (strcmp(cmd, "cpumode") == 0) {
         uint32_t cr0;
