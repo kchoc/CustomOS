@@ -16,6 +16,9 @@ void vm_space_init(void) {
 	kernel_space = current_space;
 	if (!current_space) PANIC("vm_space_init: Out of memory");
 	current_space->page_directory = get_current_page_directory_phys();
+
+	// Set up kernel_space and bootsector mappings
+	vmm_map((void*)0x00000000, 0x00000000, 0x100000, VM_PROT_READWRITE, VM_MAP_PHYS | VM_MAP_FORCE);
 }
 
 vm_space_t *vm_space_create(void) {

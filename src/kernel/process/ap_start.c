@@ -1,34 +1,36 @@
+#include "kernel/process/ap_start.h"
+#include "kernel/memory/vm.h"
 #include "kernel/process/lapic.h"
 #include "kernel/process/cpu.h"
+#include "kernel/time/pit.h"
 #include "kernel/terminal.h"
-#include "types/string.h"
 
 /* trampoline placement: choose a page-aligned low physical address */
-#define TRAMPOLINE_PADDR 0x00008000U   /* 32KiB, page aligned (vector = 0x8) */
+#define TRAMPOLINE_PHYS 0x00009000  /* 4KB aligned physical address for trampoline */
 
-/* linker-provided symbols for the binary data */
-extern unsigned char _binary_trampoline_bin_start[];
-extern unsigned char _binary_trampoline_bin_end[];
+/* called from trampoline (extern symbol) */
+void ap_entry(void) {
+    uint32_t apic = get_local_apic_id();
+    int cpu_idx = map_apicid_to_index(apic);
+    cpus[cpu_idx].started = 1;
+    if (cpu_idx < 0) {
+        // unknown APIC id; spin
+        for(;;) asm volatile("hlt");
+    }
 
-static inline uint32_t trampoline_size(void) {
-    return (uint32_t)(_binary_trampoline_bin_end - _binary_trampoline_bin_start);
 }
 
-/* Copy trampoline to physical low memory (must be writable/identity mapped) */
+/* Copy the ap_entry address for the trampoline to a known location */
 void deploy_trampoline(void) {
-    uint32_t size = trampoline_size();
-    void *dst = (void*)TRAMPOLINE_PADDR;
-
-    /* Ensure you can write to TRAMPOLINE_PADDR. If you run with paging and no identity mapping,
-       you must temporary map that physical page into the kernel virtual map before copying. */
-    memcpy(dst, _binary_trampoline_bin_start, size);
-    /* memory barrier to ensure writes visible before SIPI */
-    asm volatile("mfence" ::: "memory");
+    // shared location in low memory (must be identity-mapped)
+    uint32_t *ap_entry_ptr = (uint32_t*)0x7000;
+    *ap_entry_ptr = (uint32_t)ap_entry;
+    uint32_t *ap_cr3_ptr = (uint32_t*)0x7004;
+    *ap_cr3_ptr = (uint32_t)get_current_page_directory_phys();
 }
 
 /* Start a single AP by APIC id */
 int start_ap(uint32_t apic_id) {
-    deploy_trampoline();
     /* Optional: clear a flag in cpus[] so BSP can wait for AP to set it */
     int cpu_idx = map_apicid_to_index(apic_id);
     if (cpu_idx < 0) return -1;
@@ -36,13 +38,16 @@ int start_ap(uint32_t apic_id) {
 
     /* INIT */
     send_init_ipi(apic_id);
-    delay_ms(10);
+    delay_ms(20);
 
-    /* SIPI(s) pointing at TRAMPOLINE_PADDR */
-    send_startup_ipi(apic_id, TRAMPOLINE_PADDR);
+    /* SIPI(s) pointing at TRAMPOLINE_PADDR >> 12 */
+    // two SIPIs, 200us apart
+    send_startup_ipi(apic_id, TRAMPOLINE_PHYS);
 
     /* wait for AP to signal started (timeout) */
+    uint16_t* ap_check_ptr = (uint16_t*)0x7008;
     for (int i = 0; i < 200; ++i) {
+        // printf("ap_check_ptr=%x val=%x\n", ap_check_ptr, *ap_check_ptr);
         if (cpus[cpu_idx].started) return 0;
         delay_ms(10);
     }
@@ -50,26 +55,18 @@ int start_ap(uint32_t apic_id) {
 }
 
 /* Start all APs given an array of APIC IDs (skip BSP) */
-void start_all_aps(uint32_t *apic_ids, uint32_t count) {
-    for (size_t i = 0; i < count; ++i) {
-        uint32_t id = apic_ids[i];
+void start_all_aps() {
+    lapic_init();
+    deploy_trampoline();
+
+    printf("APs: %u/%u(MAX)\n", cpu_count, MAX_CPUS);
+    for (size_t i = 0; i < cpu_count; ++i) {
+        uint32_t id = cpus[i].apic_id;
         if (id == get_local_apic_id()) continue; /* skip BSP */
-        if (start_ap(id) == 0) {
-            // success
-        } else {
-            // handle failure (log, retry, continue)
-        }
+        printf("APIC CPU %u: ", id);
+        if (start_ap(id) == 0)
+            printf("OK\n");
+        else
+            printf("FAILED\n");
     }
-}
-
-/* called from trampoline (extern symbol) */
-void ap_entry(void) {
-    uint32_t apic = get_local_apic_id();
-    int cpu_idx = map_apicid_to_index(apic);
-    if (cpu_idx < 0) {
-        // unknown APIC id; spin
-        for(;;) asm volatile("hlt");
-    }
-
-    printf("AP CPU %d (APIC ID %u) starting up...\n", cpu_idx, apic);
 }

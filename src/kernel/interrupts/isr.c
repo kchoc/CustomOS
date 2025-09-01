@@ -21,9 +21,7 @@ void handle_isr(Registers regs) {
     if (g_interrupt_handlers[int_no] != 0) {
         IsrFunction handler = g_interrupt_handlers[int_no];
         handler(&regs);
-    }
-    else
-    {
+    } else {
         PANIC("Unhandled interrupt");
     }
 }
@@ -50,6 +48,7 @@ void isr_page_fault_handler(Registers *regs) {
     // printf("CR3: %x\n", get_current_page_directory_phys());
     // printf("Return Address: %x\n", &regs->eip);
     // printf("Fault Address: %x\n", faulting_address);
+    // delay(100);
 
     // Map the page
     if (!vmm_map(faulting_address, 0, PAGE_SIZE, VM_PROT_READWRITE, VM_MAP_ZERO)) {
@@ -128,7 +127,7 @@ void isr_bound_range_exceeded(Registers *regs) {
 
 void isr_invalid_opcode(Registers *regs) {
     printf("Invalid opcode\n");
-    asm volatile("hlt");
+    PANIC_DUMP_REGISTERS(regs);
 }
 
 void isr_device_not_available(Registers *regs) {

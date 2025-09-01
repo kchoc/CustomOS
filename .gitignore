@@ -5,3 +5,9 @@ bochsout.txt
 compile_commands.json
 build
 .cache
+qemu.log
+kernel.elf
+fs.img
+my-kernel.iso
+fat16
+iso

@@ -2,6 +2,7 @@
 #include "kernel/memory/vmspace.h"
 #include "kernel/process/process.h"
 #include "kernel/process/elf.h"
+#include "kernel/process/cpu.h"
 #include "kernel/terminal.h"
 #include "kernel/panic.h"
 #include "types/string.h"
@@ -12,9 +13,6 @@
 #define MAX_PROGRAM_SIZE (1024 * 1024) // 1 MB
 #define PROGRAM_ENTRY (void (*)(void))0x00001000
 
-thread_t *current_thread = NULL;
-static thread_t *runqueue_head = NULL;
-static thread_t *runqueue_tail = NULL;
 static list_t* all_processes = NULL;
 
 static uint32_t next_pid = 1;
@@ -29,54 +27,54 @@ void idle_task() {
 /* ---------------- Runqueue Management ---------------- */
 
 // Add a thread to the runqueue (circular linked list); handle empty list case
-static void runqueue_add(thread_t *t) {
-    if (!runqueue_head) {
-        runqueue_head = runqueue_tail = t;
+static void runqueue_add(cpu_t* cpu, thread_t *t) {
+    if (!cpu->runqueue_head) {
+        cpu->runqueue_head = cpu->runqueue_tail = t;
         t->next = t; // circular list
     } else {
-        runqueue_tail->next = t;
-        t->next = runqueue_head;
-        runqueue_tail = t;
+        cpu->runqueue_tail->next = t;
+        t->next = cpu->runqueue_head;
+        cpu->runqueue_tail = t;
     }
 }
 
 // Remove a thread from the runqueue; handle single element case
-static uint32_t runqueue_remove(thread_t *t) {
-    if (!runqueue_head) return -1; // empty
+static uint32_t runqueue_remove(cpu_t* cpu, thread_t *t) {
+    if (!cpu->runqueue_head) return -1; // empty
 
-    thread_t *prev = runqueue_tail;
-    thread_t *curr = runqueue_head;
+    thread_t *prev = cpu->runqueue_tail;
+    thread_t *curr = cpu->runqueue_head;
 
     do {
         if (curr == t) {
-            if (curr == runqueue_head && curr == runqueue_tail) {
-                runqueue_head = runqueue_tail = NULL; // list becomes empty
+            if (curr == cpu->runqueue_head && curr == cpu->runqueue_tail) {
+                cpu->runqueue_head = cpu->runqueue_tail = NULL; // list becomes empty
             } else {
                 prev->next = curr->next;
-                if (curr == runqueue_head) runqueue_head = curr->next;
-                if (curr == runqueue_tail) runqueue_tail = prev;
+                if (curr == cpu->runqueue_head) cpu->runqueue_head = curr->next;
+                if (curr == cpu->runqueue_tail) cpu->runqueue_tail = prev;
             }
             curr->next = NULL;
             return 0; // success
         }
         prev = curr;
         curr = curr->next;
-    } while (curr && curr != runqueue_head);
+    } while (curr && curr != cpu->runqueue_head);
 
     return -1; // not found
 }
 
-static void remove_thread(thread_t* prev) {
+static void remove_thread(cpu_t* cpu, thread_t* prev) {
     if (!prev || !prev->next) return;
 
     thread_t* curr = prev->next;
     if (prev == curr) {
         // Only one element in the list
-        runqueue_head = runqueue_tail = NULL;
+        cpu->runqueue_head = cpu->runqueue_tail = NULL;
     } else {
         prev->next = curr->next;
-        if (curr == runqueue_head) runqueue_head = curr->next;
-        if (curr == runqueue_tail) runqueue_tail = prev;
+        if (curr == cpu->runqueue_head) cpu->runqueue_head = curr->next;
+        if (curr == cpu->runqueue_tail) cpu->runqueue_tail = prev;
     }
 }
 
@@ -142,7 +140,7 @@ void tasking_init() {
     p->threads = t;
 
     // set globals
-    current_thread = t;
+    cpus[0].current_thread = t;
     t->next_in_proc = NULL;
 
     vm_space_switch(old);
@@ -177,7 +175,8 @@ thread_t* create_task(void (*entry)(void), proc_t *p) {
     t->next_in_proc = p->threads;
     p->threads = t;
 
-    runqueue_add(t);
+    cpu_t* cpu = &cpus[0]; // For simplicity, add to CPU 0's runqueue
+    runqueue_add(cpu, t);
 
     return t;
 }
@@ -197,10 +196,10 @@ proc_t* create_process(const char* name) {
 /* ---------------- Freeing / Reaping ---------------- */
 
 // Free a single thread (assumes it's already removed from runqueue and proc list)
-void free_thread(thread_t *t) {
+void free_thread(cpu_t* cpu, thread_t *t) {
     if (!t) return;
 
-    if (t == current_thread) {
+    if (t == cpu->current_thread) {
         PANIC("Attempted to free the current running thread!");
     }
 
@@ -218,7 +217,7 @@ void free_process(proc_t *p) {
     thread_t *t = p->threads;
     while (t) {
         thread_t *next = t->next_in_proc;
-        if (t != current_thread) {
+        if (t != cpus[0].current_thread) {
             if (t->kstack) kfree(t->kstack);
             kfree(t);
         } else {
@@ -235,36 +234,36 @@ void free_process(proc_t *p) {
 }
 
 // Reap all zombie threads in the runqueue
-static void reap_zombies() {
-    if (!runqueue_head) return;
+static void reap_zombies(cpu_t* cpu) {
+    if (!cpu->runqueue_head) return;
 
-    thread_t *prev = runqueue_tail;
-    thread_t *curr = runqueue_head;
+    thread_t *prev = cpu->runqueue_tail;
+    thread_t *curr = cpu->runqueue_head;
     thread_t* next;
 
     do {
         next = curr->next;
 
-        if (curr != current_thread && curr->state == TASK_ZOMBIE) {
-            remove_thread(prev);
+        if (curr != cpu->current_thread && curr->state == TASK_ZOMBIE) {
+            remove_thread(cpu, prev);
             if (curr->proc) {
                 proc_remove_thread(curr->proc, curr);
                 if (proc_thread_count(curr->proc) == 0)
                     free_process(curr->proc);
             }
-            free_thread(curr);
+            free_thread(cpu, curr);
         } else {
             prev = curr;
         }
 
         curr = next;
-    } while (curr && curr != runqueue_head);
+    } while (curr && curr != cpu->runqueue_head);
 }
 
 /* ---------------- Scheduling ---------------- */
 
 void thread_exit() {
-    current_thread->state = TASK_ZOMBIE;
+    get_current_cpu()->current_thread->state = TASK_ZOMBIE;
     yeild();
 
     PANIC("Thread exit failed to yield");
@@ -272,9 +271,10 @@ void thread_exit() {
 
 void schedule() {
     //TODO: Reaping each time is inefficient; consider doing it less frequently
-    reap_zombies();
+    cpu_t* cpu = get_current_cpu();
+    reap_zombies(cpu);
 
-    thread_t *prev = current_thread;
+    thread_t *prev = cpu->current_thread;
     if (!prev)
         PANIC("No current thread to schedule from!");
 
@@ -299,8 +299,8 @@ void schedule() {
 
     if (prev->state == TASK_RUNNING) prev->state = TASK_READY;
 
-    current_thread = next;
-    current_thread->state = TASK_RUNNING;
+    cpu->current_thread = next;
+    cpu->current_thread->state = TASK_RUNNING;
 
     switch_to(&prev->tcb, &next->tcb);
 }

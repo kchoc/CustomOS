@@ -18,6 +18,8 @@
 
 #define VM_MAP_ZERO             0x1 // Zero the pages
 #define VM_MAP_PHYS             0x2 // Mapping is to a physical address
+#define VM_MAP_FORCE            0x4 // Force mapping even if already mapped
+#define VM_MAP_FREE            0x8 // Free existing mappings
 
 typedef uint32_t page_entry_t;
 

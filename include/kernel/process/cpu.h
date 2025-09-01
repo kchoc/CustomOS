@@ -18,11 +18,12 @@ typedef struct cpu {
 	spinlock_t lock; // Spinlock for synchronizing access to CPU data
 } cpu_t;
 
-static cpu_t cpus[MAX_CPUS];
-static uint32_t cpu_count = 1; // Boot CPU is always present
+extern cpu_t cpus[MAX_CPUS];
+extern uint32_t cpu_count;
 
 void init_cpus();
 
 int map_apicid_to_index(uint32_t apic_id);
+cpu_t* get_current_cpu();
 
 #endif // CPU_H

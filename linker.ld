@@ -1,47 +1,65 @@
+OUTPUT_FORMAT("elf32-i386")
 ENTRY (_start)
 
 SECTIONS
 {
-        . = 0x00100000;
-	/* The kernel will live at 3GB + 1MB in the virtual address space, */
-	/* which will be mapped to 1MB in the physical address space. */
-	/* Note that we page-align the sections. */
-
-	_kernel_start = .;
-        .multiboot.data : {
-            *(.multiboot.data)
-        }
-
-       .multiboot.text : {
-           *(.multiboot.text)
-       }
-
-	. += 0xC0000000;
-	/* Add a symbol that indicates the start address of the kernel. */
-	.text ALIGN (4K) : AT (ADDR (.text) - 0xC0000000)
-	{
-		*(.text)
-	}
-	.rodata ALIGN (4K) : AT (ADDR (.rodata) - 0xC0000000)
-	{
-		*(.rodata)
-	}
-	.data ALIGN (4K) : AT (ADDR (.data) - 0xC0000000)
-	{
-		*(.data)
-	}
-	.bss ALIGN (4K) : AT (ADDR (.bss) - 0xC0000000)
-	{
-		*(COMMON)
-		*(.bss)
-		*(.bootstrap_stack)
-	}
-	/* Add a symbol that indicates the end address of the kernel. */
-	_kernel_end = .;
-
-	.trampoline : {
-        _binary_trampoline_bin_start = .;
-        KEEP(*(.trampoline))
-        _binary_trampoline_bin_end = .;
+    /* ------------------------------------------------------------------
+     * 1) Multiboot header and small bootstrap data must be at start of FILE
+     *    so the bootloader can find them (within first 8 KiB of file).
+     * ------------------------------------------------------------------*/
+    .multiboot  : {
+        KEEP(*(.multiboot))
+        KEEP(*(.multiboot.*))
+        KEEP(*(.multiboot.data))
+        KEEP(*(.multiboot.text))
     }
+
+    /* ------------------------------------------------------------------
+     * 2) Trampoline: put at physical 0x9000 (SIPI vector 0x09).
+     * ------------------------------------------------------------------*/
+    .trampoline 0x00009000 : AT(0x00009000) {
+        KEEP(*(.trampoline16))
+        KEEP(*(.trampoline32))
+        KEEP(*(.trampoline_gdt))
+        PROVIDE(trampoline_start = .);
+        . = ALIGN(4096);
+    }
+
+    /* ------------------------------------------------------------------
+     * 3) Kernel proper: load at physical 1 MiB, run at virtual 0xC0100000.
+     * ------------------------------------------------------------------*/
+    . = 0x00100000;      /* VMA: where kernel will run (virtual) */
+
+    _kernel_start = .;   /* VMA start symbol */
+
+    /* Now add an offset so the file-backed section addresses are computed as
+       virtual - 0xC0000000, which seems to be your existing approach. */
+    . += 0xC0000000;
+
+    .text ALIGN(4K) : AT(ADDR(.text) - 0xC0000000)
+    {
+        *(.text)
+        *(.text.*)
+    }
+
+    .rodata ALIGN(4K) : AT(ADDR(.rodata) - 0xC0000000)
+    {
+        *(.rodata)
+        *(.rodata.*)
+    }
+
+    .data ALIGN(4K) : AT(ADDR(.data) - 0xC0000000)
+    {
+        *(.data)
+        *(.data.*)
+    }
+
+    .bss ALIGN(4K) : AT(ADDR(.bss) - 0xC0000000)
+    {
+        *(COMMON)
+        *(.bss)
+        *(.bootstrap_stack)
+    }
+
+    _kernel_end = .;
 }

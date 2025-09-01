@@ -20,8 +20,11 @@ grub-mkrescue -o my-kernel.iso iso/
 rm $OBJECTS kernel
 
 qemu-system-i386 \
+  -smp 4 \
   -cpu pentium3 \
   -boot d \
   -cdrom my-kernel.iso \
   -drive file=fs.img,format=raw,index=0,media=disk \
-  -m 4G
+  -m 4G \
+  -d cpu_reset,int -D qemu.log \
+  # -S -s

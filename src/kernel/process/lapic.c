@@ -1,18 +1,6 @@
 #include "kernel/process/lapic.h"
 #include "kernel/memory/vm.h"
-
-//TODO: use proper timing functions
-void delay_ms(int ms) {
-	for (int i = 0; i < ms * 1000; i++) {
-		asm volatile("nop");
-	}
-}
-
-void delay_us(int us) {
-	for (int i = 0; i < us; i++) {
-		asm volatile("nop");
-	}
-}
+#include "kernel/time/pit.h"
 
 /* ---------------- LAPIC Access ---------------- */
 
@@ -84,11 +72,12 @@ void send_init_ipi(uint32_t apic_id) {
 /* Send one or two SIPIs to the AP pointing at (trampoline_paddr >> 12) */
 void send_startup_ipi(uint32_t apic_id, uint32_t trampoline_paddr) {
     uint32_t vector = (trampoline_paddr >> 12) & 0xFF;
+    uint32_t icr = ICR_DELIVERY_SIPI | (vector & 0xFF) | ICR_PHYSICAL;
 
     // SIPI: vector in low 8 bits | SIPI delivery mode
-    lapic_send_ipi(apic_id, ICR_DELIVERY_SIPI | (vector & 0xFF));
+    lapic_send_ipi(apic_id, icr);
     // wait 200us - 1ms per spec; then send a second SIPI
-    delay_us(200);
+    delay_ms(1);
     // send a second SIPI to be safe on some hardware
-    lapic_send_ipi(apic_id, ICR_DELIVERY_SIPI | (vector & 0xFF));
+    lapic_send_ipi(apic_id, icr);
 }

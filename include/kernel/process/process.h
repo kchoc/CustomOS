@@ -58,7 +58,8 @@ typedef struct process {
     thread_t* threads;      // Linked list of threads in the process
 } proc_t;
 
-extern thread_t *current_thread;
+typedef struct cpu cpu_t;
+
 extern void switch_to(pcb_t *prev, pcb_t *next);
 
 void tasking_init();
@@ -69,7 +70,7 @@ void schedule();
 void thread_exit();
 void list_tasks();
 
-void free_thread(thread_t *t);
+void free_thread(cpu_t* cpu, thread_t *t);
 void free_process(proc_t *proc);
 
 #endif // TASK_H

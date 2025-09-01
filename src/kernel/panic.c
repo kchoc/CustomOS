@@ -1,24 +1,22 @@
+#include "kernel/memory/vm.h"
 #include "kernel/panic.h"
 #include "kernel/terminal.h"
 
 
 
 void panic(const char *message, const char *file, int line) {
-	terminal_clear();
 	printf("KERNEL PANIC: %s\n", message);
 	printf("File: %s, Line: %d\n", file, line);
 	halt_system();
 }
 
 void panic_assert(const char *expression, const char *file, int line) {
-	terminal_clear();
 	printf("ASSERTION FAILED: %s\n", expression);
 	printf("File: %s, Line: %d\n", file, line);
 	halt_system();
 }
 
 void panic_dump_registers(Registers* regs) {
-	terminal_clear();
 	printf("REGISTER DUMP:\n");
 	printf("EAX: %x\n", regs->eax);
 	printf("EBX: %x\n", regs->ebx);
@@ -28,7 +26,7 @@ void panic_dump_registers(Registers* regs) {
 	printf("EDI: %x\n", regs->edi);
 	printf("EBP: %x\n", regs->ebp);
 	printf("ESP: %x\n", regs->esp);
-	printf("EIP: %x\n", regs->eip);
+	printf("EIP: %x (phys %x)\n", regs->eip, vmm_resolve((void*)regs->eip));
 	printf("EFLAGS: %x\n", regs->eflags);
 	halt_system();
 }

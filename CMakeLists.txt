@@ -1,47 +1,117 @@
-cmake_minimum_required(VERSION 3.10)
-project(MyKernel C ASM)
+cmake_minimum_required(VERSION 3.20)
+project(CustomOSKernel C ASM)
 
-set(CMAKE_C_COMPILER gcc)
-set(CMAKE_ASM_COMPILER gcc)  # GAS for `.s` files
-set(CMAKE_ASM_NASM_COMPILER nasm)  # NASM for `.asm` files
+# Enable ASM languages
+enable_language(ASM_NASM)
+enable_language(ASM)
 
-set(CMAKE_C_FLAGS "-m32 -ffreestanding -fno-stack-protector -Iinclude")
-set(CMAKE_ASM_FLAGS "-m32 -ffreestanding -fno-stack-protector")  # GAS Flags
-set(CMAKE_ASM_NASM_FLAGS "-f elf32")  # NASM Flags
+# Set C standard
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
+# --------------------------
+# Source files
+# --------------------------
+file(GLOB_RECURSE KERNEL_C_SRC ${CMAKE_SOURCE_DIR}/src/*.c)
+file(GLOB_RECURSE NASM_SRC ${CMAKE_SOURCE_DIR}/src/*.asm)
+file(GLOB_RECURSE GAS_SRC  ${CMAKE_SOURCE_DIR}/src/*.s)
+
+# Include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
-# Get source files
-file(GLOB_RECURSE C_SOURCES src/*.c)
-file(GLOB_RECURSE GAS_SOURCES src/*.s)
-file(GLOB_RECURSE NASM_SOURCES src/*.asm)
+# Output directory
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-# Compile NASM `.asm` files separately
-set(NASM_OBJECTS "")
-foreach(ASM_FILE ${NASM_SOURCES})
-    get_filename_component(FILENAME ${ASM_FILE} NAME_WE)
-    set(OBJ_FILE ${CMAKE_BINARY_DIR}/${FILENAME}.o)
-    add_custom_command(
-        OUTPUT ${OBJ_FILE}
-        COMMAND ${CMAKE_ASM_NASM_COMPILER} ${CMAKE_ASM_NASM_FLAGS} ${ASM_FILE} -o ${OBJ_FILE}
-        DEPENDS ${ASM_FILE}
-    )
-    list(APPEND NASM_OBJECTS ${OBJ_FILE})
+# --------------------------
+# Build trampoline.bin -> trampoline.o
+# --------------------------
+set(TRAMPOLINE_SRC ${CMAKE_SOURCE_DIR}/src/kernel/process/trampoline.asm)
+set(TRAMPOLINE_BIN ${CMAKE_BINARY_DIR}/trampoline.bin)
+set(TRAMPOLINE_O   ${CMAKE_BINARY_DIR}/trampoline.o)
+
+add_custom_command(
+    OUTPUT ${TRAMPOLINE_O}
+    COMMAND nasm -f bin ${TRAMPOLINE_SRC} -o ${TRAMPOLINE_BIN}
+    COMMAND ld -r -b binary ${TRAMPOLINE_BIN} -o ${TRAMPOLINE_O}
+    DEPENDS ${TRAMPOLINE_SRC}
+    COMMENT "Building trampoline binary"
+)
+
+# --------------------------
+# NASM compilation
+# --------------------------
+# Exclude trampoline.asm
+file(GLOB_RECURSE NASM_SRC_TEMP ${CMAKE_SOURCE_DIR}/src/*.asm)
+set(NASM_SRC "")
+foreach(nasm_file IN LISTS NASM_SRC_TEMP)
+    if(NOT nasm_file STREQUAL TRAMPOLINE_SRC)
+        list(APPEND NASM_SRC ${nasm_file})
+    endif()
 endforeach()
 
-# Compile GAS `.s` files using gcc
-add_executable(kernel ${C_SOURCES} ${GAS_SOURCES} ${NASM_OBJECTS})
-set_target_properties(kernel PROPERTIES LINKER_LANGUAGE C)
+# Create object files for NASM sources manually
+set(NASM_OBJ "")
+foreach(nasm_file IN LISTS NASM_SRC)
+    get_filename_component(nasm_name ${nasm_file} NAME_WE)
+    set(nasm_o ${CMAKE_BINARY_DIR}/${nasm_name}.o)
+    add_custom_command(
+        OUTPUT ${nasm_o}
+        COMMAND nasm -f elf32 ${nasm_file} -o ${nasm_o}
+        DEPENDS ${nasm_file}
+        COMMENT "Assembling NASM file ${nasm_file}"
+    )
+    list(APPEND NASM_OBJ ${nasm_o})
+endforeach()
 
-# Linker script
-set(LINKER_SCRIPT ${CMAKE_SOURCE_DIR}/linker.ld)
-set(CMAKE_EXE_LINKER_FLAGS "-m elf_i386 -T ${LINKER_SCRIPT}")
 
-# Post-build actions
-add_custom_command(TARGET kernel POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:kernel> iso/boot/
-    COMMAND ${CMAKE_COMMAND} -E copy grub.cfg iso/boot/grub/
-    COMMAND grub-mkrescue -o my-kernel.iso iso/
-    COMMAND ${CMAKE_COMMAND} -E remove $<TARGET_FILE:kernel>
-    COMMAND qemu-system-i386 -cdrom my-kernel.iso -m 4G
+# --------------------------
+# Kernel ELF target
+# --------------------------
+add_executable(kernel.elf
+    ${KERNEL_C_SRC}
+    ${GAS_SRC}
+    ${NASM_OBJ}
+    ${TRAMPOLINE_O}
+)
+
+# --------------------------
+# Compiler flags for C only
+# --------------------------
+# C flags
+target_compile_options(kernel.elf PRIVATE
+    $<$<COMPILE_LANGUAGE:C>:-m32 -ffreestanding -O2 -Wall -Wextra>
+)
+
+# ASM flags (GAS)
+set_source_files_properties(${KERNEL_ASM_SRC} PROPERTIES
+    COMPILE_FLAGS "-m32"
+)
+
+# NASM files are handled in the custom commands already
+
+
+# --------------------------
+# Linker flags
+# --------------------------
+set_target_properties(kernel.elf PROPERTIES
+    LINK_FLAGS "-m elf_i386 -T ${CMAKE_SOURCE_DIR}/linker.ld -nostdlib"
+)
+
+# --------------------------
+# Bootable ISO
+# --------------------------
+add_custom_command(TARGET kernel.elf POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/iso/boot/grub
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:kernel.elf> ${CMAKE_BINARY_DIR}/iso/boot/kernel.elf
+    COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/iso/grub.cfg ${CMAKE_BINARY_DIR}/iso/boot/grub/
+    COMMAND grub-mkrescue -o ${CMAKE_BINARY_DIR}/my-kernel.iso ${CMAKE_BINARY_DIR}/iso
+    COMMENT "Creating bootable ISO"
+)
+
+# --------------------------
+# Run in QEMU
+# --------------------------
+add_custom_target(run
+    COMMAND qemu-system-i386 -smp 4 -cpu pentium3 -boot d -cdrom ${CMAKE_BINARY_DIR}/my-kernel.iso -drive file=${CMAKE_SOURCE_DIR}/fs.img,format=raw,index=0,media=disk -m 4G
+    DEPENDS kernel.elf
 )
