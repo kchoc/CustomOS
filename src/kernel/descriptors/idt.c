@@ -32,9 +32,6 @@ void remap_pic() {
 
 // Load the IDT into the CPU using the LIDT instruction
 void load_idt() {
-	ip.limit = (sizeof(struct idt_entry_t) * IDT_SIZE) - 1;
-	ip.base = (uint32_t)&idt;
-
 	asm volatile("lidt (%0)" : : "r"(&ip));
 }
 
@@ -79,6 +76,7 @@ void idt_init() {
     set_idt_entry(31, (uint32_t)isr31, 0x08, 0x8E);
     set_idt_entry(32, (uint32_t)isr32, 0x08, 0x8E);
     set_idt_entry(33, (uint32_t)isr33, 0x08, 0x8E);
+    set_idt_entry(64, (uint32_t)isr64, 0x08, 0x8E);
     set_idt_entry(128,(uint32_t)isr128,0x08, 0x8E);
 
 
@@ -106,7 +104,12 @@ void idt_init() {
 
     interrupt_register(33, isr_keyboard_handler);
 
+    interrupt_register(64, isr_timer_handler);
+
     interrupt_register(128,isr_syscall);
+
+    ip.limit = (sizeof(struct idt_entry_t) * IDT_SIZE) - 1;
+    ip.base = (uint32_t)&idt;
 
 	// Load the IDT into the CPU
 	load_idt();

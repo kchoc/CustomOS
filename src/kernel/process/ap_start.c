@@ -1,23 +1,37 @@
 #include "kernel/process/ap_start.h"
-#include "kernel/memory/vm.h"
 #include "kernel/process/lapic.h"
+#include "kernel/process/process.h"
 #include "kernel/process/cpu.h"
+#include "kernel/memory/vm.h"
+#include "kernel/memory/kmalloc.h"
+#include "kernel/descriptors/idt.h"
 #include "kernel/time/pit.h"
 #include "kernel/terminal.h"
 
 /* trampoline placement: choose a page-aligned low physical address */
 #define TRAMPOLINE_PHYS 0x00009000  /* 4KB aligned physical address for trampoline */
+#define STACK_SIZE  8192        /* 8KB stack for AP */
 
 /* called from trampoline (extern symbol) */
 void ap_entry(void) {
     uint32_t apic = get_local_apic_id();
     int cpu_idx = map_apicid_to_index(apic);
-    cpus[cpu_idx].started = 1;
+
     if (cpu_idx < 0) {
         // unknown APIC id; spin
         for(;;) asm volatile("hlt");
     }
 
+    cpu_t* cpu = &cpus[cpu_idx];
+    cpu->started = 1;
+
+    thread_t* idle = create_task(idle_task, idle_process, 0, cpu);
+    cpu->current_thread = idle;
+    apic_cpu_init();
+    load_idt();
+    asm volatile("sti"); // enable interrupts
+    apic_timer_init(10000000);
+    schedule();
 }
 
 /* Copy the ap_entry address for the trampoline to a known location */
@@ -35,6 +49,9 @@ int start_ap(uint32_t apic_id) {
     int cpu_idx = map_apicid_to_index(apic_id);
     if (cpu_idx < 0) return -1;
     cpus[cpu_idx].started = 0;
+
+    uint32_t *ap_stack_ptr = (uint32_t*)0x700C;
+    *ap_stack_ptr = (uint32_t)kmalloc(STACK_SIZE) + STACK_SIZE;
 
     /* INIT */
     send_init_ipi(apic_id);

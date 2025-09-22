@@ -56,6 +56,7 @@ extern void isr30();
 extern void isr31();
 extern void isr32();
 extern void isr33();
+extern void isr64();
 extern void isr128();
 
 void set_idt_entry(int index, uint32_t base, uint16_t selector, uint8_t type_attr);

@@ -15,8 +15,15 @@
 
 static list_t* all_processes = NULL;
 
+proc_t* idle_process = NULL;
+
 static uint32_t next_pid = 1;
 static uint32_t next_tid = 1;
+
+static inline thread_t* proc_node_to_thread(list_node_t* node) {
+    if (!node) return NULL;
+    return (thread_t*)((uint8_t*)node - offsetof(thread_t, proc_node));
+}
 
 void idle_task() {
     while (1) {
@@ -28,100 +35,41 @@ void idle_task() {
 
 // Add a thread to the runqueue (circular linked list); handle empty list case
 static void runqueue_add(cpu_t* cpu, thread_t *t) {
-    if (!cpu->runqueue_head) {
-        cpu->runqueue_head = cpu->runqueue_tail = t;
-        t->next = t; // circular list
-    } else {
-        cpu->runqueue_tail->next = t;
-        t->next = cpu->runqueue_head;
-        cpu->runqueue_tail = t;
-    }
+    list_push_tail(&cpu->runqueue, (list_node_t*)&t->node);
+    cpu->total_priority += t->priority;
 }
 
-// Remove a thread from the runqueue; handle single element case
-static uint32_t runqueue_remove(cpu_t* cpu, thread_t *t) {
-    if (!cpu->runqueue_head) return -1; // empty
-
-    thread_t *prev = cpu->runqueue_tail;
-    thread_t *curr = cpu->runqueue_head;
-
-    do {
-        if (curr == t) {
-            if (curr == cpu->runqueue_head && curr == cpu->runqueue_tail) {
-                cpu->runqueue_head = cpu->runqueue_tail = NULL; // list becomes empty
-            } else {
-                prev->next = curr->next;
-                if (curr == cpu->runqueue_head) cpu->runqueue_head = curr->next;
-                if (curr == cpu->runqueue_tail) cpu->runqueue_tail = prev;
-            }
-            curr->next = NULL;
-            return 0; // success
-        }
-        prev = curr;
-        curr = curr->next;
-    } while (curr && curr != cpu->runqueue_head);
-
-    return -1; // not found
-}
-
-static void remove_thread(cpu_t* cpu, thread_t* prev) {
-    if (!prev || !prev->next) return;
-
-    thread_t* curr = prev->next;
-    if (prev == curr) {
-        // Only one element in the list
-        cpu->runqueue_head = cpu->runqueue_tail = NULL;
-    } else {
-        prev->next = curr->next;
-        if (curr == cpu->runqueue_head) cpu->runqueue_head = curr->next;
-        if (curr == cpu->runqueue_tail) cpu->runqueue_tail = prev;
-    }
+static void runqueue_remove(cpu_t* cpu, thread_t *t) {
+    list_node_t* node = list_find(&cpu->runqueue, &t->node);
+    if (!node) return;
+    list_remove(node);
+    cpu->total_priority -= t->priority;
 }
 
 /* ---------------- Process Management ---------------- */
 
 // Add a process to the global process list
 static void proc_list_add(proc_t* p) {
-    list_node_t* node = kmalloc(sizeof(list_node_t));
-    node->data = p;
-    list_push_tail(all_processes, node);
+    list_push_tail(all_processes, (list_node_t*)&p->node);
 }
 
 // Remove a process from the global process list
 static void proc_list_remove(proc_t* p) {
-    list_node_t* current = all_processes->head;
-    while (current) {
-        if (current->data == p) {
-            list_remove(current);
-            kfree(current);
-            return;
-        }
-        current = current->next;
-    }
+    list_node_t* node = list_find(all_processes, &p->node);
+    if (!node) return;
+    list_remove(node);
 }
 
-// Count threads in a process
-static int proc_thread_count(proc_t* p) {
-    int count = 0;
-    thread_t* t = p->threads;
-    while (t) {
-        count++;
-        t = t->next_in_proc;
-    }
-    return count;
+// Add a thread to its process thread list
+static void proc_add_thread(proc_t* p, thread_t* t) {
+    list_push_tail(&p->threads, (list_node_t*)&t->proc_node);
 }
 
 // Remove a thread from its process thread list
 static void proc_remove_thread(proc_t* p, thread_t* t) {
-    thread_t **link = &p->threads;
-    while (*link) {
-        if (*link == t) {
-            *link = t->next_in_proc;
-            t->next_in_proc = NULL;
-            return;
-        }
-        link = &(*link)->next_in_proc;
-    }
+    list_node_t* node = list_find(&p->threads, &t->proc_node);
+    if (!node) return;
+    list_remove(node);
 }
 
 /* ---------------- Allocation / Creation ---------------- */
@@ -131,27 +79,27 @@ void tasking_init() {
 
     // bootstrap "idle" thread representing the kernel at startup
     proc_t *p = create_process("idle");
+    idle_process = p;
 
     vm_space_t* old = vm_space_switch(p->vmspace);
 
-    thread_t *t = create_task(idle_task, p);
+    thread_t *t = create_task(idle_task, p, 0, &cpus[0]);
 
+    cpus[0].current_thread = (thread_t*)&t->node;
+
+    
     p->main_thread = t;
-    p->threads = t;
-
-    // set globals
-    cpus[0].current_thread = t;
-    t->next_in_proc = NULL;
+    proc_add_thread(p, t);
 
     vm_space_switch(old);
 }
 
-thread_t* create_task(void (*entry)(void), proc_t *p) {
+thread_t* create_task(void (*entry)(void), proc_t *p, uint32_t priority, cpu_t* cpu) {
     thread_t* t = kmalloc(sizeof(thread_t));
     memset(t, 0, sizeof(*t));
     t->tid = next_tid++;
     t->state = TASK_READY;
-    t->priority = 0;
+    t->priority = priority;
     t->proc = p;
 
     uint8_t* stack = kmalloc(STACK_SIZE);
@@ -172,10 +120,8 @@ thread_t* create_task(void (*entry)(void), proc_t *p) {
     t->tcb.esp0 = (uint32_t)(stack + STACK_SIZE);
     t->tcb.cr3 = (uint32_t)p->vmspace->page_directory;
 
-    t->next_in_proc = p->threads;
-    p->threads = t;
-
-    cpu_t* cpu = &cpus[0]; // For simplicity, add to CPU 0's runqueue
+    proc_add_thread(p, t);
+    if (!cpu) cpu = select_cpu();
     runqueue_add(cpu, t);
 
     return t;
@@ -193,17 +139,25 @@ proc_t* create_process(const char* name) {
     return p;
 }
 
+cpu_t* select_cpu() {
+    cpu_t* lowest = &cpus[0];
+    for (uint32_t i = 1; i < cpu_count; i++) {
+        if (cpus[i].total_priority < lowest->total_priority)
+            lowest = &cpus[i];
+    }
+    return lowest;
+}
+
 /* ---------------- Freeing / Reaping ---------------- */
 
 // Free a single thread (assumes it's already removed from runqueue and proc list)
 void free_thread(cpu_t* cpu, thread_t *t) {
     if (!t) return;
 
-    if (t == cpu->current_thread) {
+    if (t == cpu->current_thread)
         PANIC("Attempted to free the current running thread!");
-    }
 
-    if (t->kstack) kfree(t->kstack);
+    if (t->kstack) kfree(t->kstack);    
     kfree(t);
 }
 
@@ -214,18 +168,10 @@ void free_process(proc_t *p) {
     proc_list_remove(p);
 
     // Remove all threads
-    thread_t *t = p->threads;
-    while (t) {
-        thread_t *next = t->next_in_proc;
-        if (t != cpus[0].current_thread) {
-            if (t->kstack) kfree(t->kstack);
-            kfree(t);
-        } else {
-            /* current thread still exists; should not happen when freeing process */
-            PANIC("Attempt to free process containing current_thread");
-        }
-        t = next;
-    }
+    thread_t* node;
+    do {
+        node = proc_node_to_thread(list_pop_head(&p->threads));
+    }  while (node && (node->state = TASK_ZOMBIE));
 
     if (p->vmspace)
         vm_space_destroy(p->vmspace);
@@ -235,29 +181,21 @@ void free_process(proc_t *p) {
 
 // Reap all zombie threads in the runqueue
 static void reap_zombies(cpu_t* cpu) {
-    if (!cpu->runqueue_head) return;
-
-    thread_t *prev = cpu->runqueue_tail;
-    thread_t *curr = cpu->runqueue_head;
-    thread_t* next;
+    thread_t* t = (thread_t*)cpu->runqueue.head;
+    if (!t) return;
 
     do {
-        next = curr->next;
-
-        if (curr != cpu->current_thread && curr->state == TASK_ZOMBIE) {
-            remove_thread(cpu, prev);
-            if (curr->proc) {
-                proc_remove_thread(curr->proc, curr);
-                if (proc_thread_count(curr->proc) == 0)
-                    free_process(curr->proc);
+        if (t != cpu->current_thread && t->state == TASK_ZOMBIE) {
+            list_remove((list_node_t*)&t->node);
+            if (t->proc) {
+                proc_remove_thread(t->proc, t);
+                if (t->proc->threads.head == NULL)
+                    free_process(t->proc);
             }
-            free_thread(cpu, curr);
-        } else {
-            prev = curr;
+            free_thread(cpu, t);
         }
-
-        curr = next;
-    } while (curr && curr != cpu->runqueue_head);
+        t = (thread_t*)t->node.next;
+    } while (t && t != cpu->current_thread);
 }
 
 /* ---------------- Scheduling ---------------- */
@@ -270,6 +208,7 @@ void thread_exit() {
 }
 
 void schedule() {
+    // printf("Scheduling... %u\n", get_current_cpu()->apic_id);
     //TODO: Reaping each time is inefficient; consider doing it less frequently
     cpu_t* cpu = get_current_cpu();
     reap_zombies(cpu);
@@ -278,9 +217,9 @@ void schedule() {
     if (!prev)
         PANIC("No current thread to schedule from!");
 
-    thread_t *next = prev->next;
+    thread_t *next = (thread_t*)prev->node.next;
     if (!next)
-        PANIC("Runqueue is empty!");
+        next = (thread_t*)cpu->runqueue.head;
 
     if (next == prev) {
         if (prev->state == TASK_ZOMBIE)
@@ -291,7 +230,7 @@ void schedule() {
 
     thread_t *start = next;
     while (next->state != TASK_READY && next != prev) {
-        next = next->next;
+        next = (thread_t*)next->node.next;
         if (next == start) break;
     }
 
@@ -300,7 +239,7 @@ void schedule() {
     if (prev->state == TASK_RUNNING) prev->state = TASK_READY;
 
     cpu->current_thread = next;
-    cpu->current_thread->state = TASK_RUNNING;
+    next->state = TASK_RUNNING;
 
     switch_to(&prev->tcb, &next->tcb);
 }
@@ -312,13 +251,13 @@ void yeild() {
 /* ---------------- Debugging / Listing ---------------- */
 
 void list_tasks() {
-    printf("PID   TID   PPID  STATE     NAME\n");
-    printf("=====================================\n");
+    printf("CPU    PID   TID   PPID  STATE     NAME\n");
+    printf("=========================================\n");
 
     list_node_t* node = all_processes->head;
     while (node) {
-        proc_t* p = (proc_t*)node->data;
-        thread_t* t = p->threads;
+        proc_t* p = (proc_t*)node;
+        thread_t* t = proc_node_to_thread(p->threads.head);
         while (t) {
             const char* state_str = "UNKNOWN";
             switch (t->state) {
@@ -328,10 +267,36 @@ void list_tasks() {
                 case TASK_SLEEPING: state_str = "SLEEPING"; break;
                 case TASK_ZOMBIE:  state_str = "ZOMBIE";  break;
             }
-            printf("%u     %u     %u     %s     %s\n", p->pid, t->tid, p->ppid, state_str, p->name);
-            t = t->next_in_proc;
+            printf("UNKNOWN %u     %u     %u     %s     %s\n", p->pid, t->tid, p->ppid, state_str, p->name);
+            t = proc_node_to_thread(t->proc_node.next);
         }
         node = node->next;
     }
+}
 
+void list_cpu_threads(cpu_t* cpu) {
+    printf("CPU %u Runqueue:\n", cpu->apic_id);
+    printf("TID   PID   PPID  STATE     NAME\n");
+    printf("================================\n");
+
+    list_node_t* node = cpu->runqueue.head;
+    if (!node) {
+        printf("<empty>\n");
+        return;
+    }
+
+    do {
+        thread_t* t = (thread_t*)node;
+        proc_t* p = t->proc;
+        const char* state_str = "UNKNOWN";
+        switch (t->state) {
+            case TASK_RUNNING: state_str = "RUNNING"; break;
+            case TASK_READY:   state_str = "READY";   break;
+            case TASK_STOPPED: state_str = "BLOCKED"; break;
+            case TASK_SLEEPING: state_str = "SLEEPING"; break;
+            case TASK_ZOMBIE:  state_str = "ZOMBIE";  break;
+        }
+        printf("%u     %u     %u     %s     %s\n", t->tid, p->pid, p->ppid, state_str, p->name);
+        node = node->next;
+    } while (node && node != cpu->runqueue.head);
 }

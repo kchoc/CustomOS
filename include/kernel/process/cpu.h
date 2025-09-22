@@ -1,6 +1,7 @@
 #ifndef CPU_H
 #define CPU_H
 
+#include "types/list.h"
 #include <stdint.h>
 
 #define MAX_CPUS 8
@@ -11,8 +12,8 @@ typedef volatile uint32_t spinlock_t;
 typedef struct cpu {
 	uint32_t apic_id;    // Local APIC ID
 	thread_t *current_thread; // Currently running thread on this CPU
-	thread_t *runqueue_head; // Head of the runqueue
-	thread_t *runqueue_tail; // Tail of the runqueue
+	list_t runqueue;
+	uint32_t total_priority; // Total priority of all threads in the runqueue
 	uint32_t cpu_number; // CPU number (0, 1, 2, ...)
 	uint8_t started;    // Has this CPU been started
 	spinlock_t lock; // Spinlock for synchronizing access to CPU data

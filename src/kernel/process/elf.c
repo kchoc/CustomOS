@@ -64,7 +64,7 @@ proc_t *create_process_from_elf(const char *filename) {
     void (*entry)(void) = (void (*)(void))eh.e_entry;
 
     // Create main thread
-    thread_t* t = create_task(entry, p);
+    thread_t* t = create_task(entry, p, 1, NULL);
     p->main_thread = t;
 
     return p;

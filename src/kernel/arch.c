@@ -57,10 +57,9 @@ void init() {
 	fat16_init();
 	printf("FAT16: OK\n");
 
-	start_all_aps();
-
 	tasking_init();
 	printf("Tasking: OK\n");
-	delay(100);
 
+	init_cpus();
+	start_all_aps();
 }

@@ -1,12 +1,16 @@
 #include "kernel/interrupts/isr.h"
 #include "kernel/drivers/port_io.h"
 #include "kernel/drivers/keyboard.h"
-#include "kernel/terminal.h"
 #include "kernel/panic.h"
 #include "kernel/memory/vm.h"
-#include "types/common.h"
 #include "kernel/syscalls/syscalls.h"
-#include <string.h>
+
+#include "kernel/process/process.h"
+#include "kernel/process/lapic.h"
+
+#include "kernel/terminal.h"
+#include "types/common.h"
+#include "types/string.h"
 
 IsrFunction g_interrupt_handlers[256];
 
@@ -96,6 +100,8 @@ void isr_syscall(Registers *regs) {
 
 // Exception handlers
 void isr_divide_by_zero(Registers *regs) {
+    printf("#DE at EIP=%x, CS=%x, EAX=%x, EBX=%x ...\n",
+           regs->eip, regs->cs, regs->eax, regs->ebx);
     printf("Divide by zero\n");
     asm volatile("hlt");
 }
@@ -183,4 +189,18 @@ void isr_machine_check(Registers *regs) {
 void isr_simd_floating_point(Registers *regs) {
     printf("SIMD floating point\n");
     asm volatile("hlt");
+}
+
+void isr_timer_handler(Registers *regs) {
+    // Send an EOI to the PIC
+    outb(0x20, 0x20); // Send EOI to PIC1
+    outb(0xA0, 0x20); // Send EOI to PIC2
+
+    // Send EOI to LAPIC
+    lapic_write(LAPIC_EOI, 0);
+
+    // printf("Timer Interrupt on CPU %u\n", get_local_apic_id());
+
+    // Schedule next task
+    schedule();
 }

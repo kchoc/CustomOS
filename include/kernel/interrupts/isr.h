@@ -32,5 +32,6 @@ void isr_fpu_error(Registers *regs);
 void isr_alignment_check(Registers *regs);
 void isr_machine_check(Registers *regs);
 void isr_simd_floating_point(Registers *regs);
+void isr_timer_handler(Registers *regs);
 
 #endif // ISR_H

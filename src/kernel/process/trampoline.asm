@@ -42,11 +42,12 @@ protected_entry:
     mov gs, ax
     mov ss, ax
 
-    mov esp, 0x80000        ; Load stack address from known location
 
     ; Enable paging by loading the page directory base register (CR3)
     mov eax, dword [0x7004] ; Page directory base address at physical 0x7004
     mov cr3, eax
+
+    mov esp, [0x700C]        ; Load stack address from known location
 
     ; Enable paging by setting the PG bit in CR0
     mov eax, cr0

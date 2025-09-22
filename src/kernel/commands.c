@@ -2,8 +2,11 @@
 #include "kernel/terminal.h"
 #include "kernel/memory/kmalloc.h"
 #include "kernel/memory/vm.h"
+
 #include "kernel/process/process.h"
 #include "kernel/process/elf.h"
+#include "kernel/process/cpu.h"
+
 #include "kernel/drivers/port_io.h"
 #include "kernel/filesystem/fs.h"
 
@@ -33,7 +36,7 @@ void process_command(char *input) {
         printf("  kmalloc              - Display memory usage\n");
         printf("  memdump ADDR         - Dump memory contents\n");
         printf("  page ADDR            - Show page table entry for address\n");
-        printf("  task                 - Manage tasks (list, switch)\n");
+        printf("  task                 - Manage tasks (list, switch, processes)\n");
         printf("  cpumode              - Display CPU mode (real/protected)\n");
         printf("  reboot               - Reboot the system\n");
         printf("  pagefault            - Trigger a page fault (for test)\n");
@@ -54,6 +57,9 @@ void process_command(char *input) {
         if (arg_count > 1 && strcmp(args[1], "switch") == 0) {
             schedule();
         } else if (arg_count > 1 && strcmp(args[1], "list") == 0) {
+            uint32_t cpu_id = arg_count > 2 ? str2int(args[2]) : get_current_cpu()->apic_id;
+            list_cpu_threads(&cpus[cpu_id]);
+        } else if (arg_count > 1 && strcmp(args[1], "processes") == 0) {
             list_tasks();
         } else {
             printf("Usage: task [list|switch]\n");
