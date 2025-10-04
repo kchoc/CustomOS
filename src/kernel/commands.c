@@ -8,8 +8,9 @@
 #include "kernel/process/cpu.h"
 
 #include "kernel/drivers/port_io.h"
-#include "kernel/filesystem/fs.h"
+#include "kernel/filesystem/vfs.h"
 
+#include "kernel/types.h"
 #include "types/string.h"
 #include <stdint.h>
 
@@ -41,12 +42,14 @@ void process_command(char *input) {
         printf("  reboot               - Reboot the system\n");
         printf("  pagefault            - Trigger a page fault (for test)\n");
         printf("  syscall N            - Trigger software interrupt with syscall N\n");
+        printf("  mounts               - List mounted filesystems\n");
         printf("  writef <file> <data> - Write string to file\n");
         printf("  readf <file>         - Read and print file content\n");
         printf("  mkdir <directory>    - Create a new directory\n");
+        printf("  rmdir <directory>    - Remove an empty directory\n");
+        printf("  create <file>        - Create a new empty file\n");
         printf("  ls <directory>       - List files in directory (default /)\n");
         printf("  rm <file>            - Remove a file\n");
-        printf("  path <path>          - Tests path parsing\n");
         printf("  cd <directory>       - Change current directory\n");
         printf("  exec <binary>        - Execute a binary file\n");
         return;
@@ -109,8 +112,6 @@ void process_command(char *input) {
         return;
     }
 
-
-
     if (strcmp(cmd, "cpumode") == 0) {
         uint32_t cr0;
         asm volatile("mov %%cr0, %0" : "=r"(cr0));
@@ -142,6 +143,11 @@ void process_command(char *input) {
         return;
     }
 
+    if (strcmp(cmd, "mounts") == 0) {
+        vfs_print_mounts();
+        return;
+    }
+
     if (strcmp(cmd, "writef") == 0) {
         if (arg_count < 3) {
             printf("Usage: writef <filename> <data>\n");
@@ -149,8 +155,15 @@ void process_command(char *input) {
         }
         const char *filename = args[1];
         const char *content = args[2];
-        fat16_write_file(filename, (const uint8_t *)content, strlen(content));
-        printf("Wrote to %s\n", filename);
+        file_t *file = vfs_open(filename, 0x1 | 0x2 | 0x200, 0x8000); // Read-write, create if not exist
+        if (!file) {
+            printf("Failed to open file: %s\n", filename);
+            return;
+        }
+        vfs_write(file, content, strlen(content), 0);
+        vfs_close(file);
+        printf("Wrote %uB to file: %s\n", strlen(content), filename);
+        
         return;
     }
 
@@ -161,12 +174,20 @@ void process_command(char *input) {
         }
 
         const char *filename = args[1];
-        uint8_t *buf;
-        uint32_t size;
-        fat16_read_file(filename, &buf, &size);
-        buf[4095] = '\0'; // Null-terminate
-        printf("%s\n", buf);
-        kfree(buf);
+        file_t *file = vfs_open(filename, 0, 0x8000); // Read-only
+        if (!file) {
+            printf("Failed to open file: %s\n", filename);
+            return;
+        }
+
+
+        char buffer[129];
+        ssize_t bytes = vfs_read(file, buffer, 128, NULL);
+        buffer[128] = '\0'; // Null-terminate
+        printf("Read %d bytes from file: %s\n", bytes, filename);
+        printf("%s\n", buffer);
+        vfs_close(file);
+
         return;
     }
 
@@ -175,16 +196,109 @@ void process_command(char *input) {
             printf("Usage: mkdir <directory>\n");
             return;
         }
-        if (fat16_create_dir(args[1]) == 0) {
-            printf("Directory created: %s\n", args[1]);
-        } else {
-            printf("Failed to create directory: %s\n", args[1]);
+        
+        const char *path = args[1];
+        const char *name = strrchr(path, '/');
+        name = name ? name + 1 : path;
+        if (strlen(name) > 11) {
+            printf("Directory name too long (max 11 characters): %s\n", name);
+            return;
         }
+        dentry_t *dentry = vfs_lookup(NULL, path);
+        if (dentry) {
+            printf("Directory already exists: %s\n", path);
+            return;
+        }
+
+        const char *parent_path = name == path ? "/" : strndup(path, name - path - 1);
+        dentry_t *parent_dentry = vfs_lookup(NULL, parent_path);
+        if (!parent_dentry || !parent_dentry->d_inode || !(parent_dentry->d_inode->i_mode & 0x4000)) {
+            printf("Parent directory does not exist: %s\n", parent_path);
+            return;
+        }
+
+        inode_t *parent_inode = parent_dentry->d_inode;
+        dentry_t *new_dentry = alloc_dentry(name, NULL, parent_dentry);
+        if (!new_dentry) {
+            printf("Failed to allocate dentry for: %s\n", name);
+            return;
+        }
+        if (vfs_mkdir(parent_inode, new_dentry, 0x4000) != 0) {
+            printf("Failed to create directory: %s\n", path);
+            kfree(new_dentry);
+            return;
+        }
+        printf("Directory created: %s\n", path);
+
+        return;
+    }
+
+    if (strcmp(cmd, "rmdir") == 0) {
+        if (arg_count < 2) {
+            printf("Usage: rmdir <directory>\n");
+            return;
+        }
+        const char *path = args[1];
+        dentry_t *dentry = vfs_lookup(NULL, path);
+        if (!dentry || !dentry->d_inode || !(dentry->d_inode->i_mode & 0x4000)) {
+            printf("Directory does not exist: %s\n", path);
+            return;
+        }
+        inode_t *parent_inode = dentry->d_parent ? dentry->d_parent->d_inode : NULL;
+        if (!parent_inode) {
+            printf("Cannot remove root directory\n");
+            return;
+        }
+        if (vfs_rmdir(parent_inode, dentry) != 0) {
+            printf("Failed to remove directory (not empty?): %s\n", path);
+            return;
+        }
+        printf("Directory removed: %s\n", path);
+
+        return;
+    }
+
+    if (strcmp(cmd, "create") == 0) {
+        if (arg_count < 3) {
+            printf("Usage: create <directory> <file>\n");
+            return;
+        }
+        const char *dir_path = args[1];
+        const char *file_name = args[2];
+        if (strlen(file_name) > 11) {
+            printf("File name too long (max 11 characters): %s\n", file_name);
+            return;
+        }
+
+        dentry_t *dir_dentry = vfs_lookup(NULL, dir_path);
+        if (!dir_dentry || !dir_dentry->d_inode || !(dir_dentry->d_inode->i_mode & 0x4000)) {
+            printf("Directory does not exist: %s\n", dir_path);
+            return;
+        }
+        inode_t *dir_inode = dir_dentry->d_inode;
+        dentry_t *new_dentry = alloc_dentry(file_name, NULL, dir_dentry);
+        if (!new_dentry) {
+            printf("Failed to allocate dentry for: %s\n", file_name);
+            return;
+        }
+        if (vfs_create(dir_inode, new_dentry, 0x8000, false) != 0) {
+            printf("Failed to create file: %s/%s\n", dir_path, file_name);
+            kfree(new_dentry);
+            return;
+        }
+        printf("File created: %s/%s\n", dir_path, file_name);
         return;
     }
 
     if (strcmp(cmd, "ls") == 0) {
-        fat16_list_dir();
+        if (arg_count < 2) {
+            printf("Usage: ls <directory>\n");
+            return;
+        }
+
+        const char *path = args[1];
+        vfs_ls(path);
+
         return;
     }
 
@@ -193,31 +307,6 @@ void process_command(char *input) {
             printf("Usage: rm <file>\n");
             return;
         }
-        if (fat16_delete_file(args[1]) == 0) {
-            printf("File deleted: %s\n", args[1]);
-        } else {
-            printf("Failed to delete file: %s\n", args[1]);
-        }
-        return;
-    }
-
-    if (strcmp(cmd, "path") == 0) {
-        if (arg_count < 2) {
-            printf("Usage: path <path>\n");
-            return;
-        }
-        path_t *parsed_path = parse_path(args[1]);
-        if (parsed_path) {
-            while (parsed_path) {
-                printf("%s/", parsed_path->name);
-                parsed_path = parsed_path->subdir;
-            }
-            printf("\n");
-            
-            destroy_path(parsed_path);
-        } else {
-            printf("Invalid path format.\n");
-        }
         return;
     }
 
@@ -225,11 +314,6 @@ void process_command(char *input) {
         if (arg_count < 2) {
             printf("Usage: cd <directory>\n");
             return;
-        }
-        if (fat16_change_directory(args[1]) == 0) {
-            printf("Changed directory to: %s\n", args[1]);
-        } else {
-            printf("Failed to change directory to: %s\n", args[1]);
         }
         return;
     }

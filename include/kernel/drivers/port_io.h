@@ -21,7 +21,4 @@ void outsw(uint16_t port, const void* addr, int count);
 // Read a block of words from a port
 void insw(uint16_t port, void* addr, int count);
 
-void ide_write_sector(uint32_t lba, const uint8_t* data);
-void ide_read_sector(uint32_t lba, uint8_t* buffer);
-
 #endif // PORT_IO_H

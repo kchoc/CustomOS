@@ -5,6 +5,8 @@
 
 #define SYSCALL_COUNT 256
 
+#define SYSCALL_DEFINE(name, ...) int sys##name(__VA_ARGS__);
+
 extern void* g_syscalls[];
 
 void syscalls_init();

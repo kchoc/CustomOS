@@ -1,6 +1,13 @@
 #include "types/list.h"
 #include "types/string.h"
 
+void list_init(list_t *list, bool circular) {
+    list->head = NULL;
+    list->tail = NULL;
+    list->size = 0;
+    list->circular = 0;
+}
+
 void list_push_head(list_t *list, list_node_t *node) {
     list->size++;
     node->list = list;

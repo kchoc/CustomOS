@@ -2,6 +2,7 @@
 #include "kernel/process/process.h"
 #include "kernel/terminal.h"
 #include "types/string.h"
+#include "types/common.h"
 
 #include <stdarg.h>
 

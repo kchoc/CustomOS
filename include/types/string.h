@@ -30,8 +30,12 @@ char *strdup(const char *s);
 char *strndup(const char *s, unsigned n);
 // Convert a string to uppercase
 void strtoupper(char *str);
+// Convert n characters of a string to uppercase
+void strntoupper(char *str, unsigned n);
 // Convert a string to lowercase
 void strtolower(char *str);
+// Convert n characters of a string to lowercase
+void strntolower(char *str, unsigned n);
 
 // Convert a string to an integer
 int str2int(const char *str);

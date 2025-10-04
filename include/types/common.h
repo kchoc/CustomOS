@@ -1,6 +1,9 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#define __user
+#define __kernel
+
 #include <stdint.h>
 
 typedef struct Registers

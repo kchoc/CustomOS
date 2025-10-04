@@ -15,7 +15,9 @@
 #include "kernel/process/process.h"
 #include "kernel/process/ap_start.h"
 #include "kernel/drivers/port_io.h"
-#include "kernel/filesystem/fs.h"
+
+#include "kernel/filesystem/vfs.h"
+#include "kernel/filesystem/fat16.h"
 
 void init() {
 	terminal_init();
@@ -54,12 +56,13 @@ void init() {
 	asm volatile("sti");
 	printf("Interrupts: ENABLED\n");
 
-	fat16_init();
-	printf("FAT16: OK\n");
-
 	tasking_init();
 	printf("Tasking: OK\n");
 
 	init_cpus();
-	start_all_aps();
+	// start_all_aps();
+
+	// Initialize and mount root filesystem
+	vfs_init_root(NULL);
+	printf("VFS: OK\n");
 }

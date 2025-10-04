@@ -180,8 +180,24 @@ void strtoupper(char *str) {
     }
 }
 
+void strntoupper(char *str, unsigned n) {
+    while (*str && n--) {
+        if (*str >= 'a' && *str <= 'z')
+            *str -= 32;
+        str++;
+    }
+}
+
 void strtolower(char *str) {
     while (*str) {
+        if (*str >= 'A' && *str <= 'Z')
+            *str += 32;
+        str++;
+    }
+}
+
+void strntolower(char *str, unsigned n) {
+    while (*str && n--) {
         if (*str >= 'A' && *str <= 'Z')
             *str += 32;
         str++;
