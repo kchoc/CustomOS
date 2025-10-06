@@ -35,33 +35,30 @@ rsdp_t* find_rsdp() {
         if (strncmp(r->signature, "RSD PTR ", 8) == 0 && rsdp_checksum_ok(r)) return r;
     }
 
-    printf("No RSDP found\n");
     return NULL;
 }
 
 acpi_header_t* find_table(rsdt_t* rsdt, const char* signature) {
-	uint32_t entry_count = (rsdt->header.length - sizeof(acpi_header_t)) / sizeof(uint32_t);
+    uint32_t entry_count = (rsdt->header.length - sizeof(acpi_header_t)) / sizeof(uint32_t);
 
-	for (uint32_t i = 0; i < entry_count; i++) {
-		acpi_header_t* header = (acpi_header_t*)(uintptr_t)rsdt->entries[i];
-		if (strncmp(header->signature, signature, 4) == 0) {
-			
-			return header; // Table found
-		}
-	}
-	return NULL; // Table not found
+    for (uint32_t i = 0; i < entry_count; i++) {
+        acpi_header_t* header = (acpi_header_t*)(uintptr_t)rsdt->entries[i];
+        if (strncmp(header->signature, signature, 4) == 0)
+            return header; // Table found
+    }
+    return NULL; // Table not found
 }
 
 void rsdt_init() {
-	rsdp_t* rsdp = find_rsdp();
-	if (!rsdp) PANIC("No RSDP found!");
+    rsdp_t* rsdp = find_rsdp();
+    if (!rsdp) PANIC("No RSDP found!");
 
 
-	rsdt_t* rsdt = (rsdt_t*)(uintptr_t)rsdp->rsdt_address;
+    rsdt_t* rsdt = (rsdt_t*)(uintptr_t)rsdp->rsdt_address;
     vmm_map(rsdt, (uintptr_t)rsdt, PAGE_SIZE, VM_PROT_READWRITE, VM_MAP_PHYS);
 
-	acpi_header_t* madt = find_table(rsdt, "APIC");
-	if (!madt) PANIC("No MADT found!");
+    acpi_header_t* madt = find_table(rsdt, "APIC");
+    if (!madt) PANIC("No MADT found!");
 
-	parse_madt(madt);
+    parse_madt(madt);
 }

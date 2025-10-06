@@ -1,8 +1,10 @@
 #include "kernel/drivers/ide.h"
 #include "kernel/drivers/port_io.h"
+#include "kernel/drivers/ata.h"
+#include "types/string.h"
 
 void ide_write_sector(uint32_t lba, const uint8_t* data) {
-	// Wait until the drive is ready
+    // Wait until the drive is ready
     while (inb(0x1F7) & 0x80);
 
     // Send the write command and parameters
@@ -29,7 +31,7 @@ void ide_write_sector(uint32_t lba, const uint8_t* data) {
 }
 
 void ide_read_sector(uint32_t lba, uint8_t* buffer) {
-	// Wait until the drive is ready
+    // Wait until the drive is ready
     while (inb(0x1F7) & 0x80);
 
     // Send the read command and parameters
@@ -46,4 +48,11 @@ void ide_read_sector(uint32_t lba, uint8_t* buffer) {
 
     // Read the sector data
     insw(0x1F0, buffer, 256);
+}
+
+void ide_detect_all_drives() {
+    ata_identify(0x1F0, 0); // Primary Master
+    ata_identify(0x1F0, 1); // Primary Slave
+    ata_identify(0x170, 0); // Secondary Master
+    ata_identify(0x170, 1); // Secondary Slave
 }

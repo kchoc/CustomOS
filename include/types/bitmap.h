@@ -1,7 +1,7 @@
 #ifndef BITMAP_H
 #define BITMAP_H
 
-#include <stdint.h>
+#include "kernel/types.h"
 
 typedef struct bitmap {
     uint32_t *memory_map;

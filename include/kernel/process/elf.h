@@ -1,7 +1,7 @@
 #ifndef ELF_H
 #define ELF_H
 
-#include <stdint.h>
+#include "kernel/types.h"
 
 #define EI_NIDENT 16
 

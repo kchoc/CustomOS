@@ -1,7 +1,7 @@
 #ifndef RSD_H
 #define RSD_H
 
-#include <stdint.h>
+#include "kernel/types.h"
 
 typedef struct root_system_description_pointer {
 	char signature[8]; // "RSD PTR "

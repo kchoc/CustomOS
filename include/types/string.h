@@ -1,7 +1,7 @@
 #ifndef STRING_H
 #define STRING_H
 
-#include <stdint.h>
+#include "kernel/types.h"
 
 #define NULL ((void *)0)
 
@@ -21,6 +21,10 @@ char *strcat(const char *s, char c);
 char *uint_to_string(uint32_t u, char *str);
 // Reverse a string
 char *strrev(char *str);
+// Strip trailing whitespace from a string
+void strrstrip(char *str);
+// Strip leading whitespace from a string
+void strlstrip(char *str);
 
 // Tokenize a string 
 char *strtok(char *str, const char *delim);

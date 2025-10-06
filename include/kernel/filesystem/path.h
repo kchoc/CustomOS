@@ -1,7 +1,7 @@
 #ifndef PATH_H
 #define PATH_H
 
-#include <stdint.h>
+#include "types/string.h"
 
 typedef struct dentry dentry_t;
 

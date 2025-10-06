@@ -1,7 +1,7 @@
 #ifndef SYSCALLS_H
 #define SYSCALLS_H
 
-#include <stdint.h>
+#include "kernel/types.h"
 
 #define SYSCALL_COUNT 256
 

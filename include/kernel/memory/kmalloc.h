@@ -1,8 +1,8 @@
 #ifndef KMALLOC_H
 #define KMALLOC_H
 
-#include <stddef.h>
-#include <stdint.h>
+#include "kernel/types.h"
+#include "types/string.h"
 
 #define KMALLOC(var, type, size)                \
     type *var __attribute__((cleanup(kfreep)))  \

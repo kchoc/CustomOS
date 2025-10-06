@@ -1,8 +1,7 @@
 #ifndef VM_H
 #define VM_H
 
-#include <stdint.h>
-#include <stddef.h>
+#include "kernel/types.h"
 
 #define PAGE_SIZE 4096
 

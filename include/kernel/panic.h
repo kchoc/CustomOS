@@ -2,7 +2,7 @@
 #define PANIC_H
 
 #include "types/common.h"
-#include <stdint.h>
+#include "kernel/types.h"
 
 static uint8_t hasPanicOccurred = 0;
 

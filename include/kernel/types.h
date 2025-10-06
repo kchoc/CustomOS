@@ -12,9 +12,12 @@ typedef signed int          int32_t;
 typedef signed long long    int64_t;
 typedef unsigned int 		size_t;
 typedef int 				ssize_t;
+typedef unsigned int		uintptr_t;
 
 typedef unsigned int fmode_t;
 typedef unsigned short umode_t;
 typedef unsigned long loff_t;
+
+#define offsetof(type, member) ((size_t) &((type *)0)->member)
 
 #endif // TYPES_H

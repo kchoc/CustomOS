@@ -24,6 +24,18 @@ void outw(uint16_t port, uint16_t data) {
     asm volatile("outw %0, %1" :: "a"(data), "Nd"(port));
 }
 
+// Read a double word (4 bytes) from a port
+uint32_t inl(uint16_t port) {
+    uint32_t data;
+    asm volatile("inl %1, %0" : "=a"(data) : "Nd"(port));
+    return data;
+}
+
+// Write a double word (4 bytes) to a port
+void outl(uint16_t port, uint32_t data) {
+    asm volatile("outl %0, %1" :: "a"(data), "Nd"(port));
+}
+
 void outsw(uint16_t port, const void* addr, int count) {
     __asm__ volatile ("rep outsw"
                       : "+S"(addr), "+c"(count)

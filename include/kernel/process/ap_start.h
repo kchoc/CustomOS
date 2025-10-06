@@ -1,7 +1,7 @@
 #ifndef AP_START_H
 #define AP_START_H
 
-#include <stdint.h>
+#include "kernel/types.h"
 
 int start_ap(uint32_t apic_id);
 void start_all_aps(void);

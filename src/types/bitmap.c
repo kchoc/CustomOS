@@ -1,6 +1,5 @@
 #include "types/bitmap.h"
 #include "kernel/memory/kmalloc.h"
-#include <stdint.h>
 
 bitmap_t *create_bitmap(uint32_t blocks) {
     bitmap_t *bm = (bitmap_t *)kmalloc(sizeof(bitmap_t));

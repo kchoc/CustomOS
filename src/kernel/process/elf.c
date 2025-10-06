@@ -7,7 +7,7 @@
 #include "types/string.h"
 
 proc_t *create_process_from_elf(const char *filename) {
-  	proc_t* p = create_process(strchr(filename, '/') ? strrchr(filename, '/') + 1 : filename);
+    proc_t* p = create_process(strchr(filename, '/') ? strrchr(filename, '/') + 1 : filename);
     vm_space_switch(p->vmspace);
 
     file_t* file = vfs_open(filename, 0, 0x8000); // Read-only

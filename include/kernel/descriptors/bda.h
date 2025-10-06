@@ -1,7 +1,7 @@
 #ifndef BDA_H
 #define BDA_H
 
-#include <stdint.h>
+#include "kernel/types.h"
 
 typedef struct bios_data_area {
 	uint16_t com_ports[4]; 		// 0x400, COM1..COM4

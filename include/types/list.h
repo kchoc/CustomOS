@@ -1,7 +1,6 @@
 #ifndef LIST_H
 #define LIST_H
 
-#include <stdint.h>
 #include "types/bool.h"
 
 typedef struct list_node list_node_t;

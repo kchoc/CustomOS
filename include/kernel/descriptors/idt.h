@@ -1,7 +1,7 @@
 #ifndef IDT_H
 #define IDT_H
 
-#include <stdint.h>
+#include "kernel/types.h"
 
 // Define the number of entries in the IDT
 #define IDT_SIZE 256
@@ -59,8 +59,7 @@ extern void isr33();
 extern void isr64();
 extern void isr128();
 
-void set_idt_entry(int index, uint32_t base, uint16_t selector, uint8_t type_attr);
-void load_idt(void);
-void idt_init(void);
+void load_idt();
+int idt_init(void);
 
 #endif // IDT_H

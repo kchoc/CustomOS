@@ -2,7 +2,7 @@
 #define CPU_H
 
 #include "types/list.h"
-#include <stdint.h>
+#include "kernel/types.h"
 
 #define MAX_CPUS 8
 

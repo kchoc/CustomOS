@@ -12,7 +12,6 @@
 
 #include "kernel/types.h"
 #include "types/string.h"
-#include <stdint.h>
 
 void process_command(char *input) {
     char *args[10];

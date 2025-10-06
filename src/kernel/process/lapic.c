@@ -67,13 +67,13 @@ static void lapic_send_ipi(uint32_t apic_id, uint32_t icr_low) {
 }
 
 void lapic_init() {
-	// Map LAPIC base
+    // Map LAPIC base
     vmm_map((void*)LAPIC_BASE, LAPIC_BASE, PAGE_SIZE, VM_PROT_READWRITE, VM_MAP_PHYS | VM_MAP_ZERO);
 
 
-	// Enable APIC by setting the spurious interrupt vector register (SVR)
-	// Set bit 8 (APIC enabled) and set vector to 0xFF (example)
-	lapic_write(LAPIC_SVR, 0x100 | 0xFF);
+    // Enable APIC by setting the spurious interrupt vector register (SVR)
+    // Set bit 8 (APIC enabled) and set vector to 0xFF (example)
+    lapic_write(LAPIC_SVR, 0x100 | 0xFF);
 }
 
 /* ---------------- IPI Sending ---------------- */

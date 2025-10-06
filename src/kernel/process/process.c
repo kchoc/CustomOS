@@ -7,7 +7,6 @@
 #include "kernel/panic.h"
 #include "types/string.h"
 #include "types/list.h"
-#include <stdint.h>
 
 #define STACK_SIZE 4096
 #define MAX_PROGRAM_SIZE (1024 * 1024) // 1 MB

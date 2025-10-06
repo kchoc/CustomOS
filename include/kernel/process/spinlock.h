@@ -1,7 +1,7 @@
 #ifndef SPINLOCK_H
 #define SPINLOCK_H
 
-#include <stdint.h>
+#include "kernel/types.h"
 
 typedef volatile uint32_t spinlock_t;
 

@@ -1,7 +1,7 @@
 #ifndef PAGE_MEMORY_ALLOC_H
 #define PAGE_MEMORY_ALLOC_H
 
-#include <stdint.h>
+#include "kernel/types.h"
 
 #define PAGE_SIZE 4096
 

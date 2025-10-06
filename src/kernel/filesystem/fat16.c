@@ -39,7 +39,7 @@ static inline uint32_t cluster_to_lba(uint16_t cluster) {
 }
 
 dentry_t* fat16_mount(file_system_type_t* fs_type, int flags,
-                           const char* dev_name, void* data) {
+                        block_device_t* device, void* data) {
     if (!fs_type || strcmp(fs_type->name, "fat16") != 0) return NULL;
 
     fat16_init();
@@ -49,8 +49,9 @@ dentry_t* fat16_mount(file_system_type_t* fs_type, int flags,
     sb->s_magic = 0x4D44; // 'DM' signature for FAT16
     sb->block_size = SECTOR_SIZE;
     sb->s_op = NULL; // Not used in this simple implementation
+    sb->device = device;
 
-    inode_t* root_inode = alloc_inode(0, 0x4000, 0, &fat16_inode_ops, &fat16_file_ops); // Directory mode
+    inode_t* root_inode = alloc_inode(0, UMODE_IFDIR, 0, &fat16_inode_ops, &fat16_file_ops); // Directory mode
     if (!root_inode) goto cleanup_sb;
     root_inode->i_sb = sb;
 
@@ -168,6 +169,7 @@ typedef bool (*fat16_entry_cb)(fat16_dir_entry_t* entry, void* context, uint16_t
 /* ---- Directory Iteration ---- */
 
 #define MAX_ITTERATIONS 1024 // Prevent infinite loops incase of corruption
+
 static bool fat16_iterate_dir(uint16_t cluster, fat16_entry_cb cb, void* context) {
     KMALLOC_RET(buf, void, SECTOR_SIZE, false);
     fat16_dir_entry_t* entries = (fat16_dir_entry_t*)buf;
@@ -372,8 +374,10 @@ int fat16_open(inode_t* inode, file_t* file) {
     if (!fdata) return -1; // Memory allocation failure
 
     dentry_t* dentry = file->f_dentry;
-    if (!dentry || !dentry->d_inode || !dentry->d_inode->private)
-        kfree(fdata); return -1; // Invalid dentry or inode
+    if (!dentry || !dentry->d_inode || !dentry->d_inode->private) {
+        kfree(fdata);
+        return -1; // Invalid dentry or inode
+    }
 
     fat16_node_info_t* node_info = (fat16_node_info_t*)dentry->d_inode->private;
     fdata->file_size = node_info->file_size;

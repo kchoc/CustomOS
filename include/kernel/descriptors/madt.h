@@ -2,7 +2,7 @@
 #define MADT_H
 
 #include "kernel/descriptors/rsd.h"
-#include <stdint.h>
+#include "kernel/types.h"
 
 typedef struct multiple_apic_description_table {
     acpi_header_t header;

@@ -1,6 +1,7 @@
 #ifndef FAT16_H
 #define FAT16_H
 
+#include "kernel/drivers/ide.h"
 #include "kernel/filesystem/vfs.h"
 #include "kernel/types.h"
 
@@ -84,25 +85,25 @@ typedef struct __attribute__((packed)) {
 fat16_node_info_t* alloc_fat16_node_info(uint16_t start_cluster, uint32_t file_size, uint32_t dir_lba, uint16_t dir_index);
 
 dentry_t* fat16_mount(file_system_type_t* fs_type, int flags,
-                          const char* dev_name, void* data);
+                          block_device_t* dev_name, void* data);
 void fat16_kill_sb(super_block_t* sb);
 
-dentry_t*   fat16_lookup( inode_t* dir, const char* name, unsigned int flags);
-int         fat16_create( inode_t* dir, dentry_t* dentry, umode_t mode, bool excl);
-int         fat16_link(   inode_t* dir, dentry_t* old_dentry, dentry_t* new_dentry);
-int         fat16_unlink( inode_t* dir, dentry_t* dentry);
-int         fat16_mkdir(  inode_t* dir, dentry_t* dentry, umode_t mode);
-int         fat16_rmdir(  inode_t* dir, dentry_t* dentry);
-int         fat16_rename( inode_t* old_dir, dentry_t* old_dentry,
-                          inode_t* new_dir, dentry_t* new_dentry, unsigned int flags);
+dentry_t*   fat16_lookup(   inode_t* dir, const char* name, unsigned int flags);
+int         fat16_create(   inode_t* dir, dentry_t* dentry, umode_t mode, bool excl);
+int         fat16_link(     inode_t* dir, dentry_t* old_dentry, dentry_t* new_dentry);
+int         fat16_unlink(   inode_t* dir, dentry_t* dentry);
+int         fat16_mkdir(    inode_t* dir, dentry_t* dentry, umode_t mode);
+int         fat16_rmdir(    inode_t* dir, dentry_t* dentry);
+int         fat16_rename(   inode_t* old_dir, dentry_t* old_dentry,
+                            inode_t* new_dir, dentry_t* new_dentry, unsigned int flags);
 
 
-loff_t fat16_llseek(file_t* file, loff_t offset, int whence);
-ssize_t fat16_read(file_t* file, char* __user buf, size_t count, loff_t* offset);
-ssize_t fat16_write(file_t* file, const char* __user buf, size_t count, loff_t* offset);
-int fat16_open(inode_t* inode, file_t* file);
-int fat16_release(inode_t* inode, file_t* file);
-int fat16_iterate_shared(file_t* file, dir_context_t* ctx);
+loff_t  fat16_llseek(       file_t* file, loff_t offset, int whence);
+ssize_t fat16_read(         file_t* file,       char* __user buf, size_t count, loff_t* offset);
+ssize_t fat16_write(        file_t* file, const char* __user buf, size_t count, loff_t* offset);
+int     fat16_open(         inode_t* inode, file_t* file);
+int     fat16_release(      inode_t* inode, file_t* file);
+int     fat16_iterate_shared(file_t* file, dir_context_t* ctx);
 
 // OLD Implementation of FAT16 filesystem
 void fat16_flush();

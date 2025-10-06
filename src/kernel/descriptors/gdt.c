@@ -1,5 +1,5 @@
 #include "kernel/descriptors/gdt.h"
-#include "string.h"
+#include "types/string.h"
 
 #define GDT_ENTRIES 6
 struct gdt_entry gdt[GDT_ENTRIES];
@@ -26,7 +26,7 @@ void write_tss(int32_t num, uint32_t ss0, uint32_t esp0) {
 
 // Initialize GDT
 void gdt_init() {
-	gdt[0] = (struct gdt_entry){0}; // Null descriptor
+    gdt[0] = (struct gdt_entry){0}; // Null descriptor
 
     gdt[1] = (struct gdt_entry) {
         .limit_low = 0xFFFF,

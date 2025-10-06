@@ -1,8 +1,6 @@
 #include "kernel/time/pit.h"
 #include "kernel/drivers/port_io.h"
 
-#include <stdint.h>
-
 #define PIT_FREQUENCY 1193182  // PIT input clock frequency
 #define PIT_PORT_CMD 0x43
 #define PIT_PORT_CH0 0x40

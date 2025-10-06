@@ -1,8 +1,7 @@
 #ifndef VMSPACE_H
 #define VMSPACE_H
 
-#include <stdint.h>
-#include <stddef.h>
+#include "kernel/types.h"
 
 typedef struct vm_space {
 	void *page_directory; // Pointer to the page directory for this space (physical address)

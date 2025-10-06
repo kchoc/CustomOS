@@ -1,27 +1,17 @@
 #ifndef VFS_H
 #define VFS_H
 
+#include "kernel/drivers/ide.h"
 #include "types/list.h"
 #include "kernel/types.h"
 #include "kernel/compiler.h"
 
-typedef struct device device_t;
 typedef struct file file_t;
 typedef struct inode inode_t;
 typedef struct dentry dentry_t;
 typedef struct super_block super_block_t;
 typedef struct vfsmount vfsmount_t;
 typedef struct dir_context dir_context_t;
-
-/* =================
-   DEVICE STRUCTURE
-   ================= */
-typedef struct device {
-    const char* name;
-    int         dev_id;
-    int         dev_type; // e.g., block, char
-    void*       private;
-} device_t;
 
 /* ===========
    DIR CONTEXT
@@ -75,20 +65,20 @@ typedef struct dentry_operations {
     char*      (*d_dname)          (dentry_t* dentry, char* buf, int buflen);
 } dentry_ops_t;
 
-/* =================
+/* ================
    FILE SYSTEM TYPE
-   ================= */
+   ================ */
 typedef struct file_system_type {
     const char*    name;
     int            fs_flags;
     dentry_t*      (*mount)        (struct file_system_type* fs_type, int flags,
-                                    const char* dev_name, void* data);
+                                    block_device_t* device, void* data);
     void           (*kill_sb)      (super_block_t* sb);
 } file_system_type_t;
 
-/* ===================
+/* ==============
    VFS STRUCTURES
-   ================= */
+   ============== */
 typedef struct inode {
     umode_t            i_mode;
     unsigned int       i_flags;
@@ -116,24 +106,24 @@ typedef struct dentry {
 } dentry_t;
 
 typedef struct super_block {
-    unsigned long          block_size;
-    unsigned long          s_magic;
-    dentry_t*              s_root;
-    file_system_type_t*    fs_type; // e.g., "ext4", "fat16"
-    const sb_ops_t*        s_op;
-    void*                  private;
+    unsigned long           block_size;
+    unsigned long           s_magic;
+    dentry_t*               s_root;
+    block_device_t*         device;    
+    file_system_type_t*     fs_type; // e.g., "ext4", "fat16"
+    const sb_ops_t*         s_op;
+    void*                   private;
 } super_block_t;
 
 struct vfsmount {
-    super_block_t* sb;
-    dentry_t*      root;
-    dentry_t*      mountpoint;
-    device_t*      device;
+    super_block_t*  sb;
+    dentry_t*       root;
+    dentry_t*       mountpoint;
 };
 
-/* =================
+/* ==========
     VFS MODES
-    ================= */
+    ========= */
 
 /* File modes */
 
@@ -150,6 +140,28 @@ struct vfsmount {
 /* File is opened for execution */
 #define FMODE_EXEC      0x20
 
+/* Inode modes (file types) */
+
+/* File type mask */
+#define UMODE_IFMT   0xF000
+/* Regular file */
+#define UMODE_IFREG  0x8000
+/* Directory */
+#define UMODE_IFDIR  0x4000
+/* Character device */
+#define UMODE_IFCHR  0x2000
+/* Block device */
+#define UMODE_IFBLK  0x6000
+/* FIFO */
+#define UMODE_IFIFO  0x1000
+/* Symbolic link */
+#define UMODE_IFLNK  0xA000
+/* Socket */
+#define UMODE_IFSOCK 0xC000
+
+/* Block Device Register */
+int             vfs_register_block_device(block_device_t* bdev);
+block_device_t* vfs_get_block_device(const char* device_name);
 
 /* VFS Structure Allocators */
 
@@ -167,12 +179,11 @@ file_system_type_t* get_fs_type(const char* name);
 vfsmount_t* alloc_vfsmount(void);
 int         free_vfsmount(vfsmount_t* mnt);
 vfsmount_t* lookup_mnt_for_dentry(dentry_t* dentry);
-int         mount_fs(super_block_t* sb, dentry_t* mountpoint, dentry_t* mnt_root, device_t* device);
+int         mount_fs(super_block_t* sb, dentry_t* mountpoint, dentry_t* mnt_root, block_device_t* device);
 int         unmount_fs(dentry_t* mountpoint);
 void        vfs_unmount(vfsmount_t* mnt);
-
-/* Initialization */
-void vfs_init_root(device_t* root_device);
+int         vfs_mount_root(block_device_t* device);
+int         vfs_mount_drive(const char* device_name, const char* mount_path, file_system_type_t* fs_type);
 
 /* Dentry cache */
 dentry_t* dentry_cache_lookup(dentry_t* parent, const char* name);

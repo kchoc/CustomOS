@@ -3,9 +3,8 @@
 #include "kernel/commands.h"
 #include "kernel/memory/layout.h"
 #include "types/string.h"
-#include "itoa.h"
+#include "types/bool.h"
 
-#include <stddef.h>
 #include <stdarg.h>
 
 // Global terminal variables
@@ -67,51 +66,128 @@ void terminal_test(void) {
     delay(200);
 }
 
-// Print a formatted string to the terminal
-void printf(const char *s, ...) {
+static void reverse(char *str, int len) {
+    for (int i = 0; i < len / 2; i++) {
+        char tmp = str[i];
+        str[i] = str[len - i - 1];
+        str[len - i - 1] = tmp;
+    }
+}
+
+// helper: convert integer to string
+static void itoa_base(uint32_t value, char *buf, int base, bool uppercase) {
+    const char *digits = uppercase ? "0123456789ABCDEF" : "0123456789abcdef";
+    int i = 0;
+    if (value == 0) {
+        buf[i++] = '0';
+    } else {
+        while (value) {
+            buf[i++] = digits[value % base];
+            value /= base;
+        }
+    }
+    buf[i] = '\0';
+    reverse(buf, i);
+}
+
+// helper: print integer with optional padding
+static void print_uint(uint32_t val, int base, int width, char pad_char, bool uppercase) {
+    char buf[33]; // Enough for 32-bit binary + null
+    itoa_base(val, buf, base, uppercase);
+    int len = strlen(buf);
+    for (int i = len; i < width; i++) {
+        terminal_putchar(pad_char);
+    }
+    terminal_print(buf);
+}
+
+static void print_int(int32_t val, int width, char pad_char) {
+    if (val < 0) {
+        terminal_putchar('-');
+        val = -val;
+        width--;
+    }
+    print_uint((uint32_t)val, 10, width, pad_char, false);
+}
+
+// Main printf
+void printf(const char *fmt, ...) {
     va_list args;
+    va_start(args, fmt);
 
-    uint32_t u;
-    int32_t i;
-    char *str;
-
-    va_start(args, s);
-
-    while (*s) {
-        if (*s != '%') {
-            terminal_putchar(*s++);
+    for (; *fmt; fmt++) {
+        if (*fmt != '%') {
+            terminal_putchar(*fmt);
             continue;
         }
-        s++;
-        switch (*s) {
+
+        fmt++;
+
+        // handle %%
+        if (*fmt == '%') {
+            terminal_putchar('%');
+            continue;
+        }
+
+        // parse padding
+        char pad_char = ' ';
+        int width = 0;
+        if (*fmt == '0') {
+            pad_char = '0';
+            fmt++;
+        }
+        while (*fmt >= '0' && *fmt <= '9') {
+            width = width * 10 + (*fmt - '0');
+            fmt++;
+        }
+
+        // format specifiers
+        switch (*fmt) {
             case 'd':
-                i = va_arg(args, int32_t);
-                terminal_print_int(i);
+            case 'i': {
+                int32_t v = va_arg(args, int32_t);
+                print_int(v, width, pad_char);
                 break;
-            case 'u':
-                u = va_arg(args, uint32_t);
-                terminal_print_int(u);
+            }
+            case 'u': {
+                uint32_t v = va_arg(args, uint32_t);
+                print_uint(v, 10, width, pad_char, false);
                 break;
-            case 'x':
-                u = va_arg(args, uint32_t);
-                terminal_print_hex(&u, sizeof(u));
+            }
+            case 'x': {
+                uint32_t v = va_arg(args, uint32_t);
+                print_uint(v, 16, width, pad_char, false);
                 break;
-            case 's':
-                str = va_arg(args, char *);
+            }
+            case 'X': {
+                uint32_t v = va_arg(args, uint32_t);
+                print_uint(v, 16, width, pad_char, true);
+                break;
+            }
+            case 'p': {
+                uintptr_t ptr = (uintptr_t)va_arg(args, void *);
+                terminal_print("0x");
+                print_uint(ptr, 16, width ? width : (int)(sizeof(void*) * 2), '0', false);
+                break;
+            }
+            case 's': {
+                const char *str = va_arg(args, const char *);
+                if (!str) str = "(null)";
                 terminal_print(str);
                 break;
-            case 'c':
-                u = va_arg(args, int32_t);
-                terminal_putchar(u);
+            }
+            case 'c': {
+                char c = (char)va_arg(args, int);
+                terminal_putchar(c);
                 break;
-            case 0:
-                return;
+            }
             default:
-                terminal_putchar(*s);
+                terminal_putchar('%');
+                terminal_putchar(*fmt);
                 break;
         }
-        s++;
     }
+
     va_end(args);
     set_cursor_position(terminal_row, terminal_column);
 }
@@ -119,11 +195,11 @@ void printf(const char *s, ...) {
 // Input handler for the terminal
 void terminal_input(uint8_t scancode, char c) {
     if (!command_mode) {
-		if (c == '\n') {
-			command_mode = 1;
-			terminal_clear();
-			terminal_putchar('>');
-		}
+        if (c == '\n') {
+            command_mode = 1;
+            terminal_clear();
+            terminal_putchar('>');
+        }
         return;
     }
     if (c == '\b')
@@ -148,16 +224,16 @@ void terminal_input(uint8_t scancode, char c) {
         }
     } else if (c == '\n') {
         char command_buffer[160] = { 0 };
-		for (int i = 0; i < 160; i++) {
-			command_buffer[i] = (char)(video_memory[i + 1] & 0x00FF);
-		}
-		command_mode = 0;
-		terminal_clear();
-		process_command(command_buffer);
-	}
-	else {
-		terminal_putchar(c);
-	}
+        for (int i = 0; i < 160; i++) {
+            command_buffer[i] = (char)(video_memory[i + 1] & 0x00FF);
+        }
+        command_mode = 0;
+        terminal_clear();
+        process_command(command_buffer);
+    }
+    else {
+        terminal_putchar(c);
+    }
     set_cursor_position(terminal_row, terminal_column);
 }
 
@@ -166,28 +242,6 @@ void terminal_print(const char *str) {
     while (*str) {
         terminal_putchar(*str++);
     }
-}
-
-// Print an integer to the terminal
-void terminal_print_int(int num) {
-    char str[16];
-    itoa(num, str, 10);
-    terminal_print(str);
-}
-
-// Print a hexadecimal number to the terminal
-void terminal_print_hex(const void *object, size_t size) {
-    const uint8_t *byte = (const uint8_t *)object;
-    char str[size * 2 + 3];
-    str[0] = '0';
-    str[1] = 'x';
-    for (size_t i = 0; i < size; i++) {
-        uint8_t value = byte[size - 1 - i];
-        str[2 + i * 2] = (value >> 4) < 10 ? '0' + (value >> 4) : 'A' + (value >> 4) - 10;
-        str[3 + i * 2] = (value & 0xF) < 10 ? '0' + (value & 0xF) : 'A' + (value & 0xF) - 10;
-    }
-    str[size * 2 + 2] = '\0';
-    terminal_print(str);
 }
 
 // Clear the terminal screen
@@ -212,10 +266,7 @@ void terminal_backspace(void) {
 }
 
 void terminal_print_register_value(uint32_t value) {
-    terminal_print("Register Value: ");
-    terminal_print_hex(&value, sizeof(value));
-    terminal_print("\n");
-
+    printf("Register value: %x\n", value);
     delay(400);
 }
 

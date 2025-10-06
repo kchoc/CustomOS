@@ -39,9 +39,8 @@ char scancode_to_ascii(uint8_t scancode) {
     char base = (shift ? keyboard_shift_map : keyboard_map)[scancode];
 
     // Optionally, handle Ctrl combinations
-    if (ctrl && base >= 'a' && base <= 'z') {
+    if (ctrl && base >= 'a' && base <= 'z')
         return base - 'a' + 1; // Ctrl+A = 0x01, Ctrl+B = 0x02, etc.
-    }
 
     return base;
 }

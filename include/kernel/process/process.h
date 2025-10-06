@@ -2,7 +2,7 @@
 #define TASK_H
 
 #include "types/list.h"
-#include <stdint.h>
+#include "kernel/types.h"
 
 #define MAX_TASKS 100
 

@@ -1,8 +1,7 @@
 #ifndef TERMINAL_H
 #define TERMINAL_H
 
-#include <stdint.h>
-#include <stddef.h>
+#include "kernel/types.h"
 
 // Initialize the terminal
 void terminal_init(void);
@@ -23,13 +22,7 @@ void printf(const char *s, ...);
 void terminal_input(uint8_t scancode, char c);
 
 // Put a string on the terminal
-void terminal_print(const char* str);
-
-// Print an integer to the terminal
-void terminal_print_int(int num);
-
-// Print a hexadecimal number to the terminal
-void terminal_print_hex(const void *object, size_t size);
+void terminal_print(const char *str);
 
 // Clear the terminal screen
 void terminal_clear(void);

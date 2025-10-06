@@ -1,9 +1,6 @@
 #include "types/string.h"
 #include "kernel/memory/kmalloc.h"
 
-#include <stdint.h>
-#include <stddef.h>
-
 void strcpy(char *dest, const char *src) {
     while (*src) {
         *dest++ = *src++;
@@ -103,6 +100,27 @@ char *strrev(char *str) {
     }
 
     return str;
+}
+
+void strrstrip(char *str) {
+    char *end = str + strlen(str) - 1;
+    while (end >= str && (*end == ' ' || *end == '\t' || *end == '\n')) {
+        *end-- = '\0';
+    }
+}
+
+void strlstrip(char *str) {
+    char *start = str;
+    while (*start == ' ' || *start == '\t' || *start == '\n') {
+        start++;
+    }
+    if (start != str) {
+        char *dst = str;
+        while (*start) {
+            *dst++ = *start++;
+        }
+        *dst = '\0';
+    }
 }
 
 char *strtok(char *str, const char *delim) {

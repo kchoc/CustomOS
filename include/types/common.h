@@ -4,7 +4,7 @@
 #define __user
 #define __kernel
 
-#include <stdint.h>
+#include "kernel/types.h"
 
 typedef struct Registers
 {

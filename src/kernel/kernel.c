@@ -1,11 +1,11 @@
 #include "kernel/arch.h"
 
 void spindle() {
-	while (1);
+    while (1);
 }
 
 void main() {
-	init();
+    init();
 
     spindle();
 }
