@@ -6,8 +6,10 @@
 #define PIT_PORT_CH0 0x40
 #define PIT_MODE_ONESHOT 0x30  // Channel 0, lobyte/hibyte, mode 0 (interrupt on terminal count), binary mode
 
-
+// WARNING: If the time is too long then an overflow error will occur on division causing a DE fault
 void delay_us(int us) {
+    if (us > 3500) return; // Prevent overflow
+
     uint32_t count = (PIT_FREQUENCY * us) / 1000000;
     if (count == 0) count = 1;
 

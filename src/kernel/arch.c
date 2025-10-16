@@ -62,7 +62,7 @@ void init() {
     printf("Tasking: OK\n");
 
     init_cpus();
-    // start_all_aps();
+    start_all_aps();
 
     pci_discover_devices();
 

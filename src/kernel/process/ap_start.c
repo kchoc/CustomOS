@@ -13,6 +13,7 @@
 #define STACK_SIZE  8192        /* 8KB stack for AP */
 
 /* called from trampoline (extern symbol) */
+void ap_entry(void) __attribute__((noinline, used));
 void ap_entry(void) {
     uint32_t apic = get_local_apic_id();
     int cpu_idx = map_apicid_to_index(apic);
@@ -25,19 +26,26 @@ void ap_entry(void) {
     cpu_t* cpu = &cpus[cpu_idx];
     cpu->started = 1;
 
+    for (;;) asm volatile("hlt");
+
     thread_t* idle = create_task(idle_task, idle_process, 0, cpu);
     cpu->current_thread = idle;
     apic_cpu_init();
     load_idt();
     asm volatile("sti"); // enable interrupts
     apic_timer_init(10000000);
-    schedule();
+
+    for (;;) asm volatile("hlt");
+    // schedule();
 }
 
 /* Copy the ap_entry address for the trampoline to a known location */
 void deploy_trampoline(void) {
     // shared location in low memory (must be identity-mapped)
     uint32_t *ap_entry_ptr = (uint32_t*)0x7000;
+
+    // For some reason this returns the link address, not the actual address?
+    printf("Trampoline at %x, ap_entry at %x\n", TRAMPOLINE_PHYS, (uintptr_t)(void*)ap_entry);
     *ap_entry_ptr = (uint32_t)ap_entry;
     uint32_t *ap_cr3_ptr = (uint32_t*)0x7004;
     *ap_cr3_ptr = (uint32_t)get_current_page_directory_phys();
@@ -73,6 +81,7 @@ int start_ap(uint32_t apic_id) {
 
 /* Start all APs given an array of APIC IDs (skip BSP) */
 void start_all_aps() {
+    if (0) ap_entry(); /* reference to avoid "defined but not used" */
     lapic_init();
     deploy_trampoline();
 

@@ -15,10 +15,20 @@ CustomOSC is a 32-bit IA-32 OS kernel written in C and assembly, demonstrating c
 ## Build & Run
 
 1. Clone the repo, navigate to the directory.
-2. Build and run with QEMU:
+2. Construct filesystem image:
+   ```bash
+   dd if=/dev/zero of=fs.img bs=1M count=16
+   ```
+2. Build with ISO:
     ```bash
-   ./run.bash
+    mkdir build && cd build
+   cmake ..
+   cmake --build .
     ```
+3. Run in QEMU:
+   ```bash
+   qemu-system-i386 -smp 4 -cpu pentium3 -boot d -cdrom my-kernel.iso -drive file=fs.img,format=raw,index=0,media=disk -m 4G -d cpu_reset,int -D qemu.log
+   ```
 
 ## Features (Experimental)
 

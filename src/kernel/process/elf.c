@@ -10,14 +10,15 @@ proc_t *create_process_from_elf(const char *filename) {
     proc_t* p = create_process(strchr(filename, '/') ? strrchr(filename, '/') + 1 : filename);
     vm_space_switch(p->vmspace);
 
-    file_t* file = vfs_open(filename, 0, 0x8000); // Read-only
+    file_t* file = vfs_open(filename, 0, 0);
     if (!file) {
+        printf("ELF loader: failed to open %s\n", filename);
         free_process(p);
         return NULL;
     }
 
     Elf32_Ehdr eh;
-    vfs_read(file, (uint8_t *)&eh, sizeof(Elf32_Ehdr), 0);
+    vfs_read(file, (uint8_t *)&eh, sizeof(Elf32_Ehdr), NULL);
 
     /* Basic ELF validation */
     if (eh.e_ident[0] != 0x7F || eh.e_ident[1] != 'E' ||
@@ -42,18 +43,17 @@ proc_t *create_process_from_elf(const char *filename) {
     }
 
     vfs_llseek(file, eh.e_phoff, 0);
-    vfs_read(file, (uint8_t *)ph, eh.e_phnum * sizeof(Elf32_Phdr), 0);
+    vfs_read(file, (uint8_t *)ph, eh.e_phnum * sizeof(Elf32_Phdr), NULL);
 
     for (int i = 0; i < eh.e_phnum; i++) {
         if (ph[i].p_type != 1 /* PT_LOAD */) continue;
 
         vfs_llseek(file, ph[i].p_offset, 0);
-        vfs_read(file, (uint8_t *)ph[i].p_vaddr, ph[i].p_filesz, 0);
+        vfs_read(file, (uint8_t *)ph[i].p_vaddr, ph[i].p_filesz, NULL);
 
         // Zero out the rest if memsz > filesz
-        if (ph[i].p_memsz > ph[i].p_filesz) {
+        if (ph[i].p_memsz > ph[i].p_filesz)
             memset((uint8_t *)ph[i].p_vaddr + ph[i].p_filesz, 0, ph[i].p_memsz - ph[i].p_filesz);
-        }
     }
 
     kfree(ph);

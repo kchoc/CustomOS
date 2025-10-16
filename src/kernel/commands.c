@@ -59,7 +59,7 @@ void process_command(char *input) {
         if (arg_count > 1 && strcmp(args[1], "switch") == 0) {
             schedule();
         } else if (arg_count > 1 && strcmp(args[1], "list") == 0) {
-            uint32_t cpu_id = arg_count > 2 ? str2int(args[2]) : get_current_cpu()->apic_id;
+            uint32_t cpu_id = arg_count > 2 ? (uint32_t)str2int(args[2]) : get_current_cpu()->apic_id;
             list_cpu_threads(&cpus[cpu_id]);
         } else if (arg_count > 1 && strcmp(args[1], "processes") == 0) {
             list_tasks();

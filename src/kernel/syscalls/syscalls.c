@@ -24,6 +24,7 @@ int syscall_exit() {
 
 int syscall_print(const char* str) {
     if (!str) return -1; // Invalid string
+    printf("%s", str);
     return 0; // Success
 }
 

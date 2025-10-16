@@ -3,7 +3,7 @@
 #include "kernel/panic.h"
 #include "kernel/terminal.h"
 
-
+static uint8_t hasPanicOccurred = 0;
 
 void panic(const char *message, const char *file, int line) {
     printf("KERNEL PANIC: %s\n", message);

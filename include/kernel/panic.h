@@ -4,7 +4,7 @@
 #include "types/common.h"
 #include "kernel/types.h"
 
-static uint8_t hasPanicOccurred = 0;
+static uint8_t hasPanicOccurred;
 
 // Panic function to handle critical errors
 void panic(const char *message, const char *file, int line);
