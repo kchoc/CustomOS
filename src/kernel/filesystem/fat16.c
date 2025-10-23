@@ -270,7 +270,7 @@ loff_t fat16_llseek(file_t* file, loff_t offset, int whence) {
     // Walk cluster chain to get cluster for new_pos
     uint16_t cluster = fat_file->start_cluster;
     loff_t pos = 0;
-    while (cluster != FAT16_CLUSTER_EOF && pos + SECTOR_SIZE <= new_pos) {
+    while (cluster != FAT16_CLUSTER_EOF && pos + SECTOR_SIZE < new_pos) {
         cluster = fat16_get_next_cluster(cluster);
         pos += SECTOR_SIZE;
     }
@@ -281,7 +281,7 @@ loff_t fat16_llseek(file_t* file, loff_t offset, int whence) {
 }
 
 ssize_t fat16_read(file_t* file, char* __user buf, size_t count, loff_t* offset) {
-    if (!file || !file->private || !buf) return -1; // Invalid parameters
+    if (!file || !file->private) return -1; // Invalid parameters
     if (offset) *offset = file->f_pos;
 
     KMALLOC_RET(cluster_buf, void, SECTOR_SIZE, -1);

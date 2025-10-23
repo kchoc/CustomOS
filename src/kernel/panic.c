@@ -17,7 +17,7 @@ void panic_assert(const char *expression, const char *file, int line) {
     halt_system();
 }
 
-void panic_dump_registers(Registers* regs) {
+void panic_dump_registers(registers_t* regs) {
     printf("REGISTER DUMP:\n");
     printf("EAX: %x\n", regs->eax);
     printf("EBX: %x\n", regs->ebx);

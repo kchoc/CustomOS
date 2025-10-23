@@ -270,6 +270,14 @@ void terminal_print_register_value(uint32_t value) {
     delay(400);
 }
 
+void terminal_print_registers(registers_t* regs) {
+    printf("Registers:\n");
+    printf("EAX: %x  EBX: %x  ECX: %x  EDX: %x\n", regs->eax, regs->ebx, regs->ecx, regs->edx);
+    printf("ESI: %x  EDI: %x  EBP: %x  ESP: %x\n", regs->esi, regs->edi, regs->ebp, regs->esp);
+    printf("EIP: %x  CS: %x  EFLAGS: %x\n", regs->eip, regs->cs, regs->eflags);
+    printf("DS: %x  ES: %x  FS: %x  GS: %x\n", regs->ds, regs->es, regs->fs, regs->gs);
+}
+
 void delay(uint32_t ms) {
     for (uint32_t i = 0; i < ms; i++) {
         for (uint32_t j = 0; j < 1000000; j++) {}

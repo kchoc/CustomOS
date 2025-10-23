@@ -7,8 +7,11 @@ _start:
     mov ebx, message
     int 0x80            ; trigger syscall
 
-    mov eax, 0          ; syscall_exit
-    int 0x80            ; trigger syscall
+    int 0x1
+
+    ; Catch halt if exit fails
+hang:
+    jmp hang
 
 message:
     db "Hello from userland!", 0

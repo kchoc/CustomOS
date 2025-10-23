@@ -466,7 +466,7 @@ void vfs_close(file_t *file) {
 }
 
 ssize_t vfs_read(file_t *file, void __user *buf, size_t count, loff_t *offset) {
-    if (!file || !buf) return -1;
+    if (!file) return -1;
     if (!file->f_ops || !file->f_ops->read) return -1;
 
     return file->f_ops->read(file, buf, count, offset);

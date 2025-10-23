@@ -82,7 +82,7 @@ int alloc_table(uint32_t table_idx, int prot) {
         table = pmm_alloc_page();
         if (!table) return -1;
 
-        *entry = (page_entry_t)table | VM_PROT_PRESENT | VM_PROT_READWRITE;
+        *entry = (page_entry_t)table | (prot & 0xFFF) | VM_PROT_PRESENT;
         tlb_invlpg(&current_pts[table_idx]); // Not sure if this is needed here but just in case
         memset(&current_pts[table_idx], 0, PAGE_SIZE);
     }
@@ -116,6 +116,7 @@ void *vmm_map(void *virt, uintptr_t phys, size_t size, int prot, int flags) {
         }
         entry = &table->entries[entry_idx];
         if (*entry & VM_PROT_PRESENT) {
+            printf("vmm_map: virtual address %x already mapped to phys %x\n", cur_virt, *entry & 0xFFFFF000);
             if (!(flags & VM_MAP_FORCE))
                 return NULL;
 
@@ -195,6 +196,25 @@ void vmm_unmap(void *virt, size_t size) {
 
         unmapped += PAGE_SIZE;
         entry_idx++;
+    }
+}
+
+void vmm_unmap_tables(uint32_t table_idx_start, uint32_t table_count) {
+    page_table_t *table;
+    page_entry_t *entry;
+
+    for (uint32_t i = 0; i < table_count; i++) {
+        uint32_t table_idx = table_idx_start + i;
+
+        table = current_pd;
+        entry = &table->entries[table_idx];
+        vmm_unmap((void *)(table_idx << 22), PAGE_SIZE * 1024);
+
+        if (*entry & VM_PROT_PRESENT) {
+            page_table_t *pt = (page_table_t *)(*entry & 0xFFFFF000);
+            pmm_free_page(pt);
+            *entry = 0; // Clear the entry
+        }
     }
 }
 

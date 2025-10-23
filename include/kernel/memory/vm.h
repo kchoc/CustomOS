@@ -31,6 +31,7 @@ extern page_entry_t kernel_pd_entries[255];
 void    vmm_init(void);
 void   *vmm_map(void *virt, uintptr_t phys, size_t size, int prot, int flags);
 void    vmm_unmap(void *virt, size_t size);
+void    vmm_unmap_tables(uint32_t table_idx_start, uint32_t table_count);
 uint32_t vmm_resolve(void *virt);
 void    vmm_zero(uintptr_t phys);
 

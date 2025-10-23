@@ -53,12 +53,24 @@ ISR_NO_ERROR_CODE  33
 ISR_NO_ERROR_CODE  64
 ISR_NO_ERROR_CODE 128
 
+extern terminal_print_register_value
+
 %macro  SAVE_REGS 0
         pushad
-        push ds ;those registers are 16 bit but they are pushed as 32 bits here
-        push es
-        push fs
-        push gs
+        mov eax, ds
+        push eax               ; 4 bytes
+        
+        ; Prtnt segment registers for debugging
+        ; push eax
+        ; call terminal_print_register_value
+        ; add esp, 4
+
+        mov eax, es
+        push eax
+        mov eax, fs
+        push eax
+        mov eax, gs
+        push eax
 
         push ebx
         mov bx, 0x10 ; load the kernel data segment descriptor

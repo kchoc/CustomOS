@@ -2,6 +2,7 @@
 #define TERMINAL_H
 
 #include "kernel/types.h"
+#include "types/common.h"
 
 // Initialize the terminal
 void terminal_init(void);
@@ -32,6 +33,9 @@ void terminal_backspace(void);
 
 // Terminal print register value
 void terminal_print_register_value(uint32_t value);
+
+// Print registers
+void terminal_print_registers(registers_t* regs);
 
 // Delay function
 void delay(uint32_t ms);

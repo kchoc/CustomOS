@@ -16,6 +16,9 @@ static void set_idt_entry(int index, uint32_t base, uint16_t selector, uint8_t t
 }
 
 static void remap_pic() {
+    outb(0x21, 0xFF); // Mask all interrupts on Master PIC
+    outb(0xA1, 0xFF); // Mask all interrupts on Slave PIC
+
     outb(0x20, 0x11); // Master PIC command
     outb(0xA0, 0x11); // Slave PIC command
     outb(0x21, 0x20); // Data PIC offset
@@ -25,8 +28,8 @@ static void remap_pic() {
     outb(0x21, 0x01); // 8086/88 (MCS-80/85) mode
     outb(0xA1, 0x01); // 8086/88 (MCS-80/85) mode
 
-    outb(0x21, 0x0);  // Mask all interrupts except IRQ1
-    outb(0xA1, 0x0);  // Mask all interrupts
+    outb(0x21, 0xFF); // Mask all interrupts on Master PIC
+    outb(0xA1, 0xFF); // Mask all interrupts on Slave PIC
 }
 
 // Load the IDT into the CPU using the LIDT instruction
@@ -76,8 +79,7 @@ int idt_init() {
     set_idt_entry(32, (uint32_t)isr32, 0x08, 0x8E);
     set_idt_entry(33, (uint32_t)isr33, 0x08, 0x8E);
     set_idt_entry(64, (uint32_t)isr64, 0x08, 0x8E);
-    set_idt_entry(128,(uint32_t)isr128,0x08, 0x8E);
-
+    set_idt_entry(128,(uint32_t)isr128,0x08, 0xEE); // Trap gate for syscalls
 
     interrupt_register( 0, isr_divide_by_zero);
     interrupt_register( 1, isr_debug);

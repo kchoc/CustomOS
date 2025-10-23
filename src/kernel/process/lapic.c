@@ -44,12 +44,6 @@ void apic_cpu_init() {
     // Set bit 8 (APIC enabled) and set vector to 0xFF (example)
     lapic_write(LAPIC_SVR, 0x100 | 0xFF);
     lapic_write(LAPIC_TPR, 0); // Set task priority to 0 (accept all interrupts)
-
-    // Disable the legacy PIC
-    outb(0xA1, 0xFF); // Mask all IRQs on slave PIC
-    outb(0x21, 0xFF); // Mask all IRQs on master PIC
-    outb(0x20, 0x11); // Start initialization sequence (in cascade mode)
-    outb(0xA0, 0x11); // Start initialization sequence (in cascade mode)
 }
 
 /* ---------------- IPI Sending Helper ---------------- */

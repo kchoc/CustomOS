@@ -1,8 +1,10 @@
 #include "kernel/process/ap_start.h"
 #include "kernel/process/lapic.h"
+#include "kernel/process/ioapic.h"
 #include "kernel/process/process.h"
 #include "kernel/process/cpu.h"
 #include "kernel/memory/vm.h"
+#include "kernel/memory/vmspace.h"
 #include "kernel/memory/kmalloc.h"
 #include "kernel/descriptors/idt.h"
 #include "kernel/time/pit.h"
@@ -26,17 +28,23 @@ void ap_entry(void) {
     cpu_t* cpu = &cpus[cpu_idx];
     cpu->started = 1;
 
-    for (;;) asm volatile("hlt");
-
-    thread_t* idle = create_task(idle_task, idle_process, 0, cpu);
+    thread_t* idle = create_kernel_thread(idle_task, idle_process, 0, cpu);
     cpu->current_thread = idle;
-    apic_cpu_init();
+
+
     load_idt();
+
+    apic_cpu_init();
+    vm_space_switch(idle_process->vmspace);
+    
+    gdt_init_percpu(cpu_idx, (uint32_t)(idle->kstack + idle->kstack_size));
+
     asm volatile("sti"); // enable interrupts
     apic_timer_init(10000000);
 
+    schedule();
+
     for (;;) asm volatile("hlt");
-    // schedule();
 }
 
 /* Copy the ap_entry address for the trampoline to a known location */
@@ -81,18 +89,28 @@ int start_ap(uint32_t apic_id) {
 
 /* Start all APs given an array of APIC IDs (skip BSP) */
 void start_all_aps() {
-    if (0) ap_entry(); /* reference to avoid "defined but not used" */
     lapic_init();
+
+    // Setup BSP LAPIC and IOAPIC
+    apic_cpu_init();
+    ioapic_init();
+    ioapic_enable_irq(1, 0x21, 0); // Keyboard IRQ
+
+    // Deploy trampoline code
     deploy_trampoline();
 
     printf("APs: %u/%u(MAX)\n", cpu_count, MAX_CPUS);
     for (size_t i = 0; i < cpu_count; ++i) {
         uint32_t id = cpus[i].apic_id;
-        if (id == get_local_apic_id()) continue; /* skip BSP */
+        if (id == get_local_apic_id()) {
+            continue; /* skip BSP */
+        }
         printf("APIC CPU %u: ", id);
         if (start_ap(id) == 0)
             printf("OK\n");
         else
             printf("FAILED\n");
     }
+    
+    apic_timer_init(10000000);
 }

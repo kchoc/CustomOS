@@ -3,6 +3,12 @@
 
 #include "kernel/types.h"
 
+#define GDT_ENTRIES 6
+
+typedef struct gdt_entry gdt_t;
+typedef struct gdt_ptr gdt_ptr_t;
+typedef struct tss_entry tss_t;
+
 // GDT structures
 struct gdt_entry {
     uint16_t limit_low;
@@ -48,12 +54,10 @@ struct tss_entry {
     uint16_t iomap_base;
 } __attribute__((packed));
 
-extern struct tss_entry tss;
+void gdt_init_percpu(int, uint32_t);
+void write_tss(gdt_t* gdt, int num, tss_t* tss, uint32_t ss0, uint32_t esp0);
 
-void gdt_init();
-void write_tss(int32_t num, uint32_t ss0, uint32_t esp0);
-
-extern void load_gdt(void*);
-extern void load_tss(uint16_t selector);
+extern void load_gdt(void* gdt_ptr);
+extern void load_tss(uint16_t tss_selector);
 
 #endif // GDT_H

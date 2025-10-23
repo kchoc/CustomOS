@@ -10,6 +10,7 @@
 #include "kernel/descriptors/bda.h"
 
 #include "kernel/process/cpu.h"
+#include "kernel/process/elf.h"
 #include "kernel/terminal.h"
 #include "kernel/syscalls/syscalls.h"
 #include "kernel/process/process.h"
@@ -40,7 +41,7 @@ void init() {
     load_ebda();
     printf("BDA/EBDA: OK\n");
 
-    gdt_init();
+    gdt_init_percpu(0, 0);
     printf("GDT: OK\n");
 
     rsdt_init();
@@ -51,8 +52,6 @@ void init() {
 
     idt_init();
     printf("IDT: OK\n");
-
-    outb(0x21, 0xFD); // Mask all interrupts except IRQ1
 
     // Enable interrupts
     asm volatile("sti");
@@ -68,4 +67,9 @@ void init() {
 
     // Initialize and mount root filesystem
     printf("VFS: %s\n", vfs_mount_drive("QEMU HARDDISK", "/", &fat16_fs_type) == 0 ? "OK" : "FAILED");
+
+    // Clear all pages that are not used by the kernel (<0xC0000000)
+    vmm_unmap_tables(0, 768); // Unmap first 3GB (768 * 4MB pages)
+
+    create_process_from_elf("hello.elf");
 }

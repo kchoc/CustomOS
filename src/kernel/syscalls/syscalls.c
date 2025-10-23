@@ -11,18 +11,17 @@ void* g_syscalls[SYSCALL_COUNT];
 void syscalls_init() {
     memset((uint8_t*)g_syscalls, 0, sizeof(void*) * SYSCALL_COUNT);
 
-    g_syscalls[0] = syscall_exit;
-    g_syscalls[1] = syscall_print;
+    g_syscalls[SYSCALL_EXIT] = syscall_exit;
+    g_syscalls[SYSCALL_PRINT] = syscall_print;
 }
 
-int syscall_exit() {
-    printf("Exiting!\n");
-    delay(300);
-    thread_exit();
+int syscall_exit(registers_t* regs) {
+    printf("Process exiting...\n");
+    thread_exit(regs);
     return 0; // Success
 }
 
-int syscall_print(const char* str) {
+int syscall_print(const char* str, SYSCALL1) {
     if (!str) return -1; // Invalid string
     printf("%s", str);
     return 0; // Success

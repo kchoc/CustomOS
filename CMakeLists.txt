@@ -54,7 +54,13 @@ add_custom_command(TARGET kernel POST_BUILD
 
 # --- Optional: Initiate QEMU for testing ---
 add_custom_target(run
-    COMMAND qemu-system-i386 -smp 4 -cpu pentium3 -boot d -cdrom my-kernel.iso -drive file=../fs.img,format=raw,index=0,media=disk -m 4G -d cpu_reset,int -D qemu.log
+    COMMAND qemu-system-i386 -smp 4 -cpu pentium3 -boot d -cdrom my-kernel.iso -drive file=../fs.img,format=raw,index=0,media=disk -m 4G -d int -D ../qemu.log
     DEPENDS kernel
     COMMENT "Starting QEMU with the built ISO"
+)
+
+add_custom_target(debug
+    COMMAND qemu-system-i386 -smp 4 -cpu pentium3 -boot d -cdrom my-kernel.iso -drive file=../fs.img,format=raw,index=0,media=disk -m 4G -s -S
+    DEPENDS kernel
+    COMMENT "Starting QEMU in debug mode (listening on port 1234)"
 )

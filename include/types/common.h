@@ -6,17 +6,14 @@
 
 #include "kernel/types.h"
 
-typedef struct Registers
+typedef struct registers
 {
-    uint32_t gs;
-    uint32_t fs;
-    uint32_t es;
-    uint32_t ds;
+    uint32_t gs, fs, es, ds;                         //pushed the segs last
     uint32_t edi, esi, ebp, esp, ebx, edx, ecx, eax; //pushed by pusha
     uint32_t interruptNumber, errorCode;             //if applicable
     uint32_t eip, cs, eflags, userEsp, ss;           //pushed by the CPU
-} Registers;
+} registers_t;
 
-typedef void (*IsrFunction)(Registers*);
+typedef void (*IsrFunction)(registers_t*);
 
 #endif //COMMON_H

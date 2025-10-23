@@ -3,8 +3,7 @@
 
 #include "types/list.h"
 #include "kernel/types.h"
-
-#define MAX_TASKS 100
+#include "types/common.h"
 
 typedef enum {
     TASK_RUNNING,
@@ -18,22 +17,35 @@ typedef struct fxsave_state {
     uint8_t fx_region[512] __attribute__((aligned(16)));
 } fxss_t;
 
-typedef struct process_control_block {
-    uint32_t esp;   // Stack pointer
-    uint32_t ebp;   // Base pointer
+typedef struct thread_control_block {
+    // --------------------
+    // Kernel context (used by switch_to)
+    // --------------------
+    uint32_t esp;   // Kernel stack pointer
     uint32_t eip;   // Instruction pointer
-    uint32_t cr3;   // Page directory base register
-    uint32_t esp0;  // Kernel stack top
+    uint32_t cr3;   // Page directory
+    uint32_t esp0;  // Top of kernel stack
 
-    fxss_t fxstate;
-} pcb_t;
+    fxss_t fxstate; // FPU/MMX/SSE state
+
+    // --------------------
+    // User context (for iret into user mode)
+    // --------------------
+    uint32_t user_eip;   // Entry point in user mode
+    uint32_t user_esp;   // User stack pointer
+    uint32_t cs, ds, es, ss; // Segment selectors
+    uint32_t eflags;     // User-mode EFLAGS
+
+    uint32_t eax, ebx, ecx, edx, esi, edi, ebp; // General purpose registers
+} tcb_t;
+
 
 struct process;
 
 typedef struct thread {
     list_node_t node; // For linking threads in a list
     list_node_t proc_node; // For linking in process's thread list
-    pcb_t tcb;
+    tcb_t tcb;
     struct process* proc;
 
     uint32_t tid;       // Thread ID
@@ -64,16 +76,18 @@ typedef struct cpu cpu_t;
 
 extern proc_t* idle_process;
 
-extern void switch_to(pcb_t *prev, pcb_t *next);
+extern void switch_to(tcb_t *prev, tcb_t *next);
 
 void idle_task(void);
 void tasking_init();
-thread_t* create_task(void (*entry)(void), proc_t *p, uint32_t priority, cpu_t* cpu);
+thread_t* create_kernel_thread(void (*entry)(void), proc_t *p, uint32_t priority, cpu_t* cpu);
+thread_t* create_user_thread(void (*entry)(void), proc_t *p, uint32_t priority, cpu_t* cpu);
 proc_t* create_process(const char* name);
 cpu_t* select_cpu();
 void yeild();
 void schedule();
-void thread_exit();
+void schedule_from_irq(registers_t *regs);
+void thread_exit(registers_t* regs);
 void list_tasks();
 void list_cpu_threads(cpu_t* cpu);
 
