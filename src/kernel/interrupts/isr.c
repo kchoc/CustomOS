@@ -50,6 +50,7 @@ void isr_page_fault_handler(registers_t *regs) {
 
     printf("===== Page Fault =====\n");
     printf("CPU ID: %d\n", get_current_cpu()->apic_id);
+    printf("Current process name: %s\n", get_current_cpu()->current_thread->proc->name);
     printf("CR3: %x\n", get_current_page_directory_phys());
     printf("Return Address: %x\n", &regs->eip);
     printf("Fault Address: %x\n", faulting_address);
@@ -75,6 +76,7 @@ void isr_syscall(registers_t *regs) {
 
     if (regs->eax == SYSCALL_EXIT) {
         syscall_exit(regs);
+        return;
     }
 
     void *syscall = g_syscalls[regs->eax];

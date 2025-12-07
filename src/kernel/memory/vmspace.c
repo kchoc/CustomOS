@@ -53,7 +53,7 @@ vm_space_t *vm_space_create(void) {
 void vm_space_destroy(vm_space_t *space) {
     if (!space || current_space == space) return;
     page_table_t *pd = (page_table_t *)space->page_directory;
-    for (uint32_t i = 0; i < 1024; i++) {
+    for (uint32_t i = 0; i < 768; i++) {
         if (pd->entries[i] & VM_PROT_PRESENT) {
             page_table_t *pt = (page_table_t *)PAGE_TABLES_ADDRESS + (i << 12);
             for (uint32_t j = 0; j < 1024; j++) {

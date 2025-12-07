@@ -9,7 +9,6 @@
 #include "kernel/panic.h"
 #include "types/string.h"
 #include "types/list.h"
-#include <stdint.h>
 
 #define STACK_SIZE 4096
 #define USER_STACK_TOP 0xC0000000 // 3GB
@@ -24,13 +23,13 @@ static uint32_t next_tid = 1;
 
 // Helpers to convert between list nodes and thread/process structures
 #define CPU_FROM_TASK(t) ((cpu_t*)(t->node.list - offsetof(cpu_t, runqueue)))
-#define PROC_FROM_NODE(node) ((proc_t*)((uint8_t*)node - offsetof(proc_t, node)))
-#define THREAD_FROM_NODE(node) ((thread_t*)((uint8_t*)node - offsetof(thread_t, node)))
-#define THREAD_FROM_PROC_NODE(node) ((thread_t*)((uint8_t*)node - offsetof(thread_t, proc_node)))
+#define PROC_FROM_NODE(node) ((node) ? (proc_t*)((uint8_t*)node - offsetof(proc_t, node)) : NULL)
+#define THREAD_FROM_NODE(node) ((node) ? (thread_t*)((uint8_t*)node - offsetof(thread_t, node)) : NULL)
+#define THREAD_FROM_PROC_NODE(node) ((node) ? (thread_t*)((uint8_t*)node - offsetof(thread_t, proc_node)) : NULL)
 
 void idle_task() {
     while (1) {
-        yeild();
+      asm volatile("hlt");
     }
 }
 
@@ -196,7 +195,7 @@ proc_t* create_process(const char* name) {
         p->name[sizeof(p->name) - 1] = '\0';
     }
 
-
+    list_init(&p->threads, 0);
     p->vmspace = vm_space_create();
 
     proc_list_add(p);
@@ -238,8 +237,7 @@ void free_process(proc_t *p) {
 
         cpu_t* cpu = CPU_FROM_TASK(t);
         if (cpu) runqueue_remove(cpu, t);
-        if (t->kstack) kfree(t->kstack);
-        kfree(t);
+        free_thread(cpu, t);
     }    
 
     if (p->vmspace)
@@ -250,14 +248,17 @@ void free_process(proc_t *p) {
 
 // Reap all zombie threads in the runqueue
 static void reap_zombies(cpu_t* cpu) {
-    if (!cpu) return;
+    if (!cpu || !cpu->runqueue.head) return;
 
     thread_t* t = (thread_t*)cpu->runqueue.head;
-    if (!t) return;
+    thread_t* start = t;
 
     do {
+        thread_t* next = (thread_t*)t->node.next;
+
         if (t != cpu->current_thread && t->state == TASK_ZOMBIE) {
-            list_remove((list_node_t*)&t->node);
+            runqueue_remove(cpu, t);
+
             if (t->proc) {
                 proc_remove_thread(t->proc, t);
                 if (t->proc->threads.head == NULL)
@@ -265,11 +266,25 @@ static void reap_zombies(cpu_t* cpu) {
             }
             free_thread(cpu, t);
         }
-        t = (thread_t*)t->node.next;
-    } while (t && t != cpu->current_thread);
+        t = next;
+    } while (t && t != (thread_t*)cpu->runqueue.head);
 }
 
 /* ---------------- Scheduling ---------------- */
+
+thread_t* get_next_ready_thread(thread_t* prev) {
+    thread_t* next = (thread_t*)prev->node.next;
+    if (!next) return NULL;
+
+    thread_t* start = next;
+    while (next->state != TASK_READY) {
+        next = (thread_t*)next->node.next;
+        if (!next || next == start) return NULL;
+    }
+    return next;
+}
+
+
 
 void thread_exit(registers_t* regs) {
     cpu_t* cpu = get_current_cpu();
@@ -285,13 +300,13 @@ void schedule_from_irq(registers_t *regs) {
     reap_zombies(cpu);
 
     thread_t *prev = cpu->current_thread;
-    thread_t *next = (thread_t*)prev->node.next;
+    thread_t *next = get_next_ready_thread(prev);
     
     if (!next || next == prev)
         return;
 
     // --- Save current context into prev->tcb ---
-    if (prev) {
+    if (prev && prev->state != TASK_ZOMBIE) {
         if ((regs->cs & 0x3) == 3) {
             // From user mode
             prev->tcb.user_eip = regs->eip;
@@ -303,6 +318,7 @@ void schedule_from_irq(registers_t *regs) {
             // Interrupted from kernel mode.
             prev->tcb.user_eip = 0;
             prev->tcb.eip = regs->eip;
+            prev->tcb.esp = regs->esp;
         }
 
         prev->tcb.eax = regs->eax;
@@ -312,10 +328,11 @@ void schedule_from_irq(registers_t *regs) {
         prev->tcb.esi = regs->esi;
         prev->tcb.edi = regs->edi;
         prev->tcb.ebp = regs->ebp;
-        prev->state = TASK_READY;
+        if (prev->state == TASK_RUNNING) prev->state = TASK_READY;
     }
 
     // --- Prepare next thread context ---
+
     // Switch address space first so memory accesses to next's memory are correct
     vm_space_switch(next->proc->vmspace);
 
@@ -345,7 +362,7 @@ void schedule_from_irq(registers_t *regs) {
     } else {
         // Resume into kernel mode (kernel thread)
         regs->eip = next->tcb.eip;
-        regs->userEsp = next->tcb.esp;
+        regs->esp = next->tcb.esp;
         regs->cs  = 0x08;
         regs->eflags = next->tcb.eflags | (1 << 9);
         regs->ds = regs->es = regs->fs = regs->gs = 0x10;
@@ -400,8 +417,8 @@ void list_tasks() {
 
     list_node_t* node = all_processes->head;
     while (node) {
-        proc_t* p = (proc_t*)node;
-        thread_t* t = PROC_FROM_NODE(node)->main_thread;
+        proc_t* p = PROC_FROM_NODE(node);
+        thread_t* t = p->main_thread;
         while (t) {
             const char* state_str = "UNKNOWN";
             switch (t->state) {
@@ -411,7 +428,7 @@ void list_tasks() {
                 case TASK_SLEEPING: state_str = "SLEEPING"; break;
                 case TASK_ZOMBIE:   state_str = "ZOMBIE  "; break;
             }
-            printf("%5u %5u %5u %5u %s %s\n",
+            printf("%5u %5u %5u %5u %s %s %x\n",
                 CPU_FROM_TASK(t)->apic_id,
                 t->proc->pid,
                 t->tid,

@@ -70,6 +70,4 @@ void init() {
 
     // Clear all pages that are not used by the kernel (<0xC0000000)
     vmm_unmap_tables(0, 768); // Unmap first 3GB (768 * 4MB pages)
-
-    create_process_from_elf("hello.elf");
 }

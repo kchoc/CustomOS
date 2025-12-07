@@ -7,7 +7,8 @@ _start:
     mov ebx, message
     int 0x80            ; trigger syscall
 
-    int 0x1
+    mov eax, 0
+    int 0x80            ; syscall_exit
 
     ; Catch halt if exit fails
 hang:
