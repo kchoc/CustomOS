@@ -8,7 +8,10 @@
 #include "kernel/process/cpu.h"
 
 #include "kernel/drivers/port_io.h"
+#include "kernel/drivers/vga.h"
 #include "kernel/filesystem/vfs.h"
+#include "kernel/filesystem/sockfs.h"
+#include "kernel/socket/socket.h"
 
 #include "kernel/types.h"
 #include "types/string.h"
@@ -51,6 +54,10 @@ void process_command(char *input) {
         printf("  rm <file>            - Remove a file\n");
         printf("  cd <directory>       - Change current directory\n");
         printf("  exec <binary>        - Execute a binary file\n");
+        printf("  socktest             - Test sockfs functionality\n");
+        printf("  socklist             - List all sockets in sockfs\n");
+        printf("  gfxmode              - Switch to graphics mode (320x200)\n");
+        printf("  textmode             - Switch back to text mode\n");
         return;
     }
 
@@ -324,6 +331,99 @@ void process_command(char *input) {
         return;
     }
 
+    if (strcmp(cmd, "socktest") == 0) {
+        printf("=== Sockfs Test ===\n");
+        
+        // Create a socket
+        printf("Creating socket 'test_sock'...\n");
+        if (vfs_socket_create("test_sock", SOCK_TYPE_STREAM, 0666)) {
+            printf("Failed to create socket\n");
+            return;
+        }
+        printf("Socket created successfully\n");
+        
+        // Lookup the socket
+        dentry_t* sock_dentry = sockfs_lookup_socket("test_sock");
+        if (!sock_dentry) {
+            printf("Failed to lookup socket\n");
+            return;
+        }
+        printf("Socket found in sockfs\n");
+        
+        // Make it a listening socket
+        const socket_ops_t* sock_ops = sockfs_get_socket_ops();
+        if (sock_ops->listen(sock_dentry, 5)) {
+            printf("Failed to listen on socket\n");
+            return;
+        }
+        printf("Socket is now listening\n");
+        
+        // Create a client socket
+        printf("Creating client socket...\n");
+        if (vfs_socket_create("client_sock", SOCK_TYPE_STREAM, 0666)) {
+            printf("Failed to create client socket\n");
+            return;
+        }
+        
+        // Connect to the server
+        printf("Connecting to test_sock...\n");
+        file_t* client_file = vfs_socket_connect("test_sock", 0);
+        if (!client_file) {
+            printf("Failed to connect\n");
+            return;
+        }
+        printf("Connected successfully\n");
+        
+        // Send a message
+        const char* msg = "Hello, Socket!";
+        printf("Sending message: %s\n", msg);
+        ssize_t sent = vfs_socket_send(client_file, msg, strlen(msg), 0);
+        if (sent < 0) {
+            printf("Failed to send message\n");
+        } else {
+            printf("Sent %d bytes\n", sent);
+        }
+        
+        // Try to receive (should have data if peer socket works)
+        char buffer[64];
+        ssize_t received = vfs_socket_recv(client_file, buffer, sizeof(buffer) - 1, 0);
+        if (received > 0) {
+            buffer[received] = '\0';
+            printf("Received: %s\n", buffer);
+        } else {
+            printf("No data received (expected for now)\n");
+        }
+        
+        // Close client
+        vfs_close(client_file);
+        printf("Client closed\n");
+        
+        // Cleanup
+        vfs_socket_unlink("test_sock");
+        vfs_socket_unlink("client_sock");
+        printf("Sockets cleaned up\n");
+        printf("=== Test Complete ===\n");
+        return;
+    }
+
+    if (strcmp(cmd, "socklist") == 0) {
+        sockfs_list_sockets();
+        return;
+    }
+
+    if (strcmp(cmd, "gfxmode") == 0) {
+        printf("Switching to graphics mode (320x200)...\n");
+        vga_set_mode_13h();
+        printf("Graphics mode enabled. Use 'textmode' to return.\n");
+        return;
+    }
+
+    if (strcmp(cmd, "textmode") == 0) {
+        vga_set_mode_text();
+        terminal_init();
+        printf("Text mode restored.\n");
+        return;
+    }
 
     printf("Unknown command: %s. Type 'help' for a list of commands.\n", cmd);
 }

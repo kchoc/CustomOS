@@ -91,7 +91,8 @@ int alloc_table(uint32_t table_idx, int prot) {
 }
 
 void *vmm_map(void *virt, uintptr_t phys, size_t size, int prot, int flags) {
-    size_t mapped = 0;
+    ssize_t mapped = 0;
+    size += ((uintptr_t)virt & 0xFFF); // Adjust size for unaligned start address
 
     page_table_t *table;
     page_entry_t *entry;
@@ -224,12 +225,34 @@ void vmm_zero(uintptr_t phys) {
     vmm_unmap(virt, PAGE_SIZE);
 }
 
+void vmm_copy(uintptr_t dest_virt, uintptr_t src_virt, size_t size, int prot) {
+    size_t pages = SIZE_TO_PAGES(size);
+    for (size_t i = 0; i < pages; i++) {
+        // Resolve physical address for each source page separately
+        uintptr_t src_page = src_virt + (i * PAGE_SIZE);
+        uintptr_t phys = vmm_resolve((void*)src_page);
+        if (!phys) continue; // Skip unmapped pages
+        
+        // Map the physical page to destination
+        void* dest_page = (void*)(dest_virt + (i * PAGE_SIZE));
+        vmm_map(dest_page, phys & 0xFFFFF000, PAGE_SIZE, prot, VM_MAP_PHYS | VM_MAP_FORCE);
+    }
+}
+
 uintptr_t vmm_resolve(void *virt) {
     uint32_t phys;
     uint32_t flags;
     if (page_table_get_map((uint32_t)virt, &phys, &flags))
         return 0;
     return phys | ((uint32_t)virt & 0xFFF);
+}
+
+uint32_t vmm_get_prot_flags(void *virt) {
+    uint32_t phys;
+    uint32_t flags;
+    if (page_table_get_map((uint32_t)virt, &phys, &flags))
+        return 0;
+    return flags;
 }
 
 page_table_t *get_current_page_directory_phys() {

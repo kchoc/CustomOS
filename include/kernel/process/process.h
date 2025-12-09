@@ -8,6 +8,7 @@
 typedef enum {
     TASK_RUNNING,
     TASK_READY,
+    TASK_BLOCKED,    // Waiting for I/O (stdin, etc.)
     TASK_SLEEPING,
     TASK_STOPPED,
     TASK_ZOMBIE
@@ -58,6 +59,7 @@ typedef struct thread {
 
 typedef struct vm_space vm_space_t;
 typedef struct list list_t;
+typedef struct fd_table fd_table_t;
 
 typedef struct process {
     list_node_t node; // For linking processes in a list
@@ -66,11 +68,16 @@ typedef struct process {
     char name[32];      // Process name
 
     vm_space_t *vmspace;    // Memory management info
-    // ... other process-specific information
+    fd_table_t *fd_table;   // File descriptor table
 
     thread_t* main_thread;  // Main thread of the process
     list_t threads;      // Linked list of threads in the process
 } proc_t;
+
+typedef struct wait_node {
+    list_node_t node;
+    thread_t* thread;
+} wait_node_t;
 
 typedef struct cpu cpu_t;
 
@@ -93,5 +100,13 @@ void list_cpu_threads(cpu_t* cpu);
 
 void free_thread(cpu_t* cpu, thread_t *t);
 void free_process(proc_t *proc);
+
+/* Current process/thread helpers */
+thread_t* get_current_thread(void);
+proc_t* get_current_process(void);
+
+/* Wait queue for blocking operations */
+void block_current_thread(list_t* wait_queue);
+void wake_up_queue(list_t* wait_queue);
 
 #endif // TASK_H

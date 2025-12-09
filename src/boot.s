@@ -1,7 +1,8 @@
 # Declare constants for the multiboot header.
 .set ALIGN,    1<<0             # align loaded modules on page boundaries
 .set MEMINFO,  1<<1             # provide memory map
-.set FLAGS,    ALIGN | MEMINFO  # this is the Multiboot 'flag' field
+.set VIDEO,    1<<2             # request video mode
+.set FLAGS,    ALIGN | MEMINFO | VIDEO  # this is the Multiboot 'flag' field
 .set MAGIC,    0x1BADB002       # 'magic number' lets bootloader find the header
 .set CHECKSUM, -(MAGIC + FLAGS) # checksum of above, to prove we are multiboot
 
@@ -11,6 +12,15 @@
 .long MAGIC
 .long FLAGS
 .long CHECKSUM
+.long 0 # header_addr (not used with ELF)
+.long 0 # load_addr
+.long 0 # load_end_addr
+.long 0 # bss_end_addr
+.long 0 # entry_addr
+.long 0 # mode_type (0 = linear graphics mode)
+.long 1280 # width
+.long 720  # height
+.long 32   # depth (bits per pixel)
 
 # Allocate the initial stack.
 .section .bootstrap_stack, "aw", @nobits
@@ -30,11 +40,23 @@ boot_page_table1:
 boot_page_table2:
 	.skip 4096
 
+.section .data
+.global multiboot_magic
+.global multiboot_info_ptr
+multiboot_magic:
+	.long 0
+multiboot_info_ptr:
+	.long 0
+
 # The kernel entry point.
 .section .multiboot.text, "a"
 .global _start
 .type _start, @function
 _start:
+	# Save multiboot info (GRUB passes magic in %eax, info pointer in %ebx)
+	movl %eax, multiboot_magic - 0xC0000000
+	movl %ebx, multiboot_info_ptr - 0xC0000000
+
 	# Physical address of boot_page_table1.
 	# TODO: I recall seeing some assembly that used a macro to do the
 	#       conversions to and from physical. Maybe this should be done in this

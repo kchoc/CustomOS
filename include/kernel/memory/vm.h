@@ -33,7 +33,9 @@ void   *vmm_map(void *virt, uintptr_t phys, size_t size, int prot, int flags);
 void    vmm_unmap(void *virt, size_t size);
 void    vmm_unmap_tables(uint32_t table_idx_start, uint32_t table_count);
 uint32_t vmm_resolve(void *virt);
+uint32_t vmm_get_prot_flags(void *virt);
 void    vmm_zero(uintptr_t phys);
+void    vmm_copy(uintptr_t dest_virt, uintptr_t src_virt, size_t size, int prot);
 
 void *io_remap(uintptr_t phys, size_t size);
 void io_unmap(void *virt, size_t size);

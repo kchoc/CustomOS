@@ -5,6 +5,7 @@
 #include "types/list.h"
 #include "kernel/types.h"
 #include "kernel/compiler.h"
+#include "kernel/socket/socket.h"
 
 typedef struct file file_t;
 typedef struct inode inode_t;
@@ -64,6 +65,15 @@ typedef struct dentry_operations {
     void       (*d_release)        (dentry_t* dentry);
     char*      (*d_dname)          (dentry_t* dentry, char* buf, int buflen);
 } dentry_ops_t;
+
+typedef struct socket_operations {
+    int        (*listen)           (dentry_t* socket_node, int backlog);
+    file_t*    (*accept)           (dentry_t* socket_node, int flags);
+    int        (*connect)          (dentry_t* socket_node, file_t* file, int flags);
+    ssize_t    (*sendmsg)          (file_t* file, const void* __user buf, size_t len, int flags);
+    ssize_t    (*recvmsg)          (file_t* file,       void* __user buf, size_t len, int flags);
+    int        (*release)          (dentry_t* socket_node, file_t* file);
+} socket_ops_t;
 
 /* ================
    FILE SYSTEM TYPE
@@ -198,6 +208,14 @@ void    vfs_close(  file_t* file);
 ssize_t vfs_read(   file_t* file,       void* __user buf, size_t count, loff_t* offset);
 ssize_t vfs_write(  file_t* file, const void* __user buf, size_t count, loff_t* offset);
 int     vfs_llseek( file_t* file, loff_t offset, int whence);
+
+/* Socket operations */
+int     vfs_socket_create(const char* path, sock_type_t type, umode_t mode);
+file_t* vfs_socket_connect(const char* path, int flags);
+file_t* vfs_socket_accept(file_t* socket_file, int flags);
+ssize_t vfs_socket_send(file_t* file, const void* __user buf, size_t len, int flags);
+ssize_t vfs_socket_recv(file_t* file,       void* __user buf, size_t len, int flags);
+int     vfs_socket_unlink(const char* path);
 
 /* Directory operations */
 int vfs_mkdir(  inode_t* dir, dentry_t* dentry, umode_t mode);

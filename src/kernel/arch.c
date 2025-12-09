@@ -18,9 +18,12 @@
 
 #include "kernel/drivers/port_io.h"
 #include "kernel/drivers/pci.h"
+#include "kernel/drivers/vbe.h"
 
 #include "kernel/filesystem/vfs.h"
 #include "kernel/filesystem/fat16.h"
+#include "kernel/filesystem/sockfs.h"
+#include "kernel/wm/window.h"
 
 void init() {
     terminal_init();
@@ -49,6 +52,10 @@ void init() {
 
     syscalls_init();
     printf("Syscalls: OK\n");
+    
+    vbe_init();
+    
+    wm_init();
 
     idt_init();
     printf("IDT: OK\n");
@@ -68,6 +75,16 @@ void init() {
     // Initialize and mount root filesystem
     printf("VFS: %s\n", vfs_mount_drive("QEMU HARDDISK", "/", &fat16_fs_type) == 0 ? "OK" : "FAILED");
 
+    // Initialize sockfs
+    printf("Sockfs: %s\n", sockfs_init() == 0 ? "OK" : "FAILED");
+
+    // Map VGA text mode buffer for terminal (still needed for text mode)
+    void* vga_text = (void*)0xC03FF000;
+    vmm_map(vga_text, 0xB8000, 0x1000, 
+            VM_PROT_READWRITE | VM_PROT_NOCACHE, VM_MAP_PHYS | VM_MAP_FORCE);
+
     // Clear all pages that are not used by the kernel (<0xC0000000)
     vmm_unmap_tables(0, 768); // Unmap first 3GB (768 * 4MB pages)
+
+    create_process_from_elf("terminal.elf");
 }

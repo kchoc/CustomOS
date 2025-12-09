@@ -90,34 +90,60 @@ static void itoa_base(uint32_t value, char *buf, int base, bool uppercase) {
     reverse(buf, i);
 }
 
+// Output context for formatting functions
+typedef struct {
+    char *buffer;       // For sprintf/snprintf: buffer pointer
+    size_t buffer_size; // For snprintf: max size
+    size_t written;     // Number of characters written
+    bool to_buffer;     // true = write to buffer, false = write to terminal
+} output_ctx_t;
+
+// Output a single character to the context
+static void output_char(output_ctx_t *ctx, char c) {
+    if (ctx->to_buffer) {
+        // Write to buffer if there's space (leave room for null terminator)
+        if (ctx->buffer_size == 0 || ctx->written < ctx->buffer_size - 1) {
+            ctx->buffer[ctx->written] = c;
+        }
+    } else {
+        // Write to terminal
+        terminal_putchar(c);
+    }
+    ctx->written++;
+}
+
+// Output a string to the context
+static void output_string(output_ctx_t *ctx, const char *str) {
+    while (*str) {
+        output_char(ctx, *str++);
+    }
+}
+
 // helper: print integer with optional padding
-static void print_uint(uint32_t val, int base, int width, char pad_char, bool uppercase) {
+static void print_uint(output_ctx_t *ctx, uint32_t val, int base, int width, char pad_char, bool uppercase) {
     char buf[33]; // Enough for 32-bit binary + null
     itoa_base(val, buf, base, uppercase);
     int len = strlen(buf);
     for (int i = len; i < width; i++) {
-        terminal_putchar(pad_char);
+        output_char(ctx, pad_char);
     }
-    terminal_print(buf);
+    output_string(ctx, buf);
 }
 
-static void print_int(int32_t val, int width, char pad_char) {
+static void print_int(output_ctx_t *ctx, int32_t val, int width, char pad_char) {
     if (val < 0) {
-        terminal_putchar('-');
+        output_char(ctx, '-');
         val = -val;
         width--;
     }
-    print_uint((uint32_t)val, 10, width, pad_char, false);
+    print_uint(ctx, (uint32_t)val, 10, width, pad_char, false);
 }
 
-// Main printf
-void printf(const char *fmt, ...) {
-    va_list args;
-    va_start(args, fmt);
-
+// Internal formatting function used by printf, sprintf, and snprintf
+static int vformat(output_ctx_t *ctx, const char *fmt, va_list args) {
     for (; *fmt; fmt++) {
         if (*fmt != '%') {
-            terminal_putchar(*fmt);
+            output_char(ctx, *fmt);
             continue;
         }
 
@@ -125,7 +151,7 @@ void printf(const char *fmt, ...) {
 
         // handle %%
         if (*fmt == '%') {
-            terminal_putchar('%');
+            output_char(ctx, '%');
             continue;
         }
 
@@ -146,52 +172,114 @@ void printf(const char *fmt, ...) {
             case 'd':
             case 'i': {
                 int32_t v = va_arg(args, int32_t);
-                print_int(v, width, pad_char);
+                print_int(ctx, v, width, pad_char);
                 break;
             }
             case 'u': {
                 uint32_t v = va_arg(args, uint32_t);
-                print_uint(v, 10, width, pad_char, false);
+                print_uint(ctx, v, 10, width, pad_char, false);
                 break;
             }
             case 'x': {
                 uint32_t v = va_arg(args, uint32_t);
-                print_uint(v, 16, width, pad_char, false);
+                print_uint(ctx, v, 16, width, pad_char, false);
                 break;
             }
             case 'X': {
                 uint32_t v = va_arg(args, uint32_t);
-                print_uint(v, 16, width, pad_char, true);
+                print_uint(ctx, v, 16, width, pad_char, true);
                 break;
             }
             case 'p': {
                 uintptr_t ptr = (uintptr_t)va_arg(args, void *);
-                terminal_print("0x");
-                print_uint(ptr, 16, width ? width : (int)(sizeof(void*) * 2), '0', false);
+                output_string(ctx, "0x");
+                print_uint(ctx, ptr, 16, width ? width : (int)(sizeof(void*) * 2), '0', false);
                 break;
             }
             case 's': {
                 const char *str = va_arg(args, const char *);
                 if (!str) str = "(null)";
-                terminal_print(str);
+                output_string(ctx, str);
                 break;
             }
             case 'c': {
                 char c = (char)va_arg(args, int);
-                terminal_putchar(c);
+                output_char(ctx, c);
                 break;
             }
             default:
-                terminal_putchar('%');
-                terminal_putchar(*fmt);
+                output_char(ctx, '%');
+                output_char(ctx, *fmt);
                 break;
         }
     }
 
+    // Null-terminate if writing to buffer
+    if (ctx->to_buffer && ctx->buffer_size > 0) {
+        size_t pos = ctx->written < ctx->buffer_size ? ctx->written : ctx->buffer_size - 1;
+        ctx->buffer[pos] = '\0';
+    }
+
+    return (int)ctx->written;
+}
+
+// Main printf
+void printf(const char *fmt, ...) {
+    output_ctx_t ctx = {
+        .buffer = NULL,
+        .buffer_size = 0,
+        .written = 0,
+        .to_buffer = false
+    };
+
+    va_list args;
+    va_start(args, fmt);
+    vformat(&ctx, fmt, args);
     va_end(args);
+    
     set_cursor_position(terminal_row, terminal_column);
 }
 
+// sprintf - write formatted string to buffer (no size limit)
+int sprintf(char *buffer, const char *fmt, ...) {
+    if (!buffer) return -1;
+
+    output_ctx_t ctx = {
+        .buffer = buffer,
+        .buffer_size = 0, // No limit for sprintf
+        .written = 0,
+        .to_buffer = true
+    };
+
+    va_list args;
+    va_start(args, fmt);
+    int ret = vformat(&ctx, fmt, args);
+    va_end(args);
+
+    // Always null-terminate
+    buffer[ctx.written] = '\0';
+    
+    return ret;
+}
+
+// snprintf - write formatted string to buffer with size limit
+int snprintf(char *buffer, size_t size, const char *fmt, ...) {
+    if (!buffer || size == 0) return -1;
+
+    output_ctx_t ctx = {
+        .buffer = buffer,
+        .buffer_size = size,
+        .written = 0,
+        .to_buffer = true
+    };
+
+    va_list args;
+    va_start(args, fmt);
+    int ret = vformat(&ctx, fmt, args);
+    va_end(args);
+
+    return ret;
+}
 // Input handler for the terminal
 void terminal_input(uint8_t scancode, char c) {
     if (!command_mode) {

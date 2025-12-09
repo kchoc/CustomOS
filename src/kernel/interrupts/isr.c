@@ -48,19 +48,27 @@ void isr_page_fault_handler(registers_t *regs) {
     uint32_t* faulting_address;
     asm volatile("movl %%cr2, %0" : "=r" (faulting_address));
 
-    printf("===== Page Fault =====\n");
-    printf("CPU ID: %d\n", get_current_cpu()->apic_id);
-    printf("Current process name: %s\n", get_current_cpu()->current_thread->proc->name);
-    printf("CR3: %x\n", get_current_page_directory_phys());
-    printf("Return Address: %x\n", &regs->eip);
-    printf("Fault Address: %x\n", faulting_address);
-    printf("Error Code: %x\n", regs->errorCode);
-    delay(1000);
+    // printf("===== Page Fault =====\n");
+    // printf("CPU ID: %d\n", get_current_cpu()->apic_id);
+    // printf("Current process name: %s\n", get_current_cpu()->current_thread->proc->name);
+    // printf("CR3: %x\n", get_current_page_directory_phys());
+    // printf("Return Address: %x\n", &regs->eip);
+    // printf("Fault Address: %x\n", faulting_address);
+    // printf("Error Code: %s %s %x\n", regs->errorCode & 0x1 ? "Present" : "Not Present", 
+    //        regs->errorCode & 0x2 ? "Write" : "Read", regs->errorCode);
+    // delay(600);
 
     // Map the page
-    if (!vmm_map(faulting_address, 0, PAGE_SIZE, VM_PROT_READWRITE, VM_MAP_ZERO)) {
+    if (!(regs->errorCode & 0x1)) {
+      int prot = VM_PROT_READWRITE | (regs->errorCode & 0x4 ? VM_PROT_USER : VM_PROT_GLOBAL);
+
+      if (!vmm_map(faulting_address, 0, PAGE_SIZE, prot, VM_MAP_ZERO)) {
         printf("Failed to map page at %x\n", faulting_address);
-        // PANIC_DUMP_REGISTERS(regs);
+      }
+    } else {
+      // Get protection flags
+      int prot = vmm_get_prot_flags(faulting_address);
+      // printf("Protection flags: %x\n", prot);
     }
 
     // Send an EOI to the LAPIC

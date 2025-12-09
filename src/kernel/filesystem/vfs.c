@@ -11,9 +11,9 @@
 #include "types/list.h"
 #include "types/string.h"
 
-/*   =================
-     VFS BLOCK DEVICES
-     ================= */
+/*  =================
+    VFS BLOCK DEVICES
+    ================= */
 
 #define MAX_BLOCK_DEVICES 8
 static block_device_t* g_block_devices[MAX_BLOCK_DEVICES];
@@ -34,7 +34,7 @@ block_device_t* vfs_get_block_device(const char* name) {
     return NULL;
 }
 
-/* ========================
+/*  ========================
     VFS STRUCTURE ALLOCATORS
     ======================== */
 
@@ -129,7 +129,7 @@ file_t* alloc_file(dentry_t* dentry, fmode_t mode) {
     return file;
 }
 
-/* ====================
+/*  ====================
     VFS MOUNT MANAGEMENT
     ==================== */
 
@@ -270,7 +270,7 @@ int vfs_mount_drive(const char *device_name, const char *mount_path, file_system
     return 0;
 }
 
-/* --------------------
+/*  --------------------
     DENTRY CACHE
     -------------------- */
 
@@ -388,9 +388,9 @@ dentry_t *vfs_lookup(dentry_t *start, const char *path) {
     return current;
 }
 
-/* --------------------
+/*  ====================
     VFS ENTRY OPERATIONS
-    -------------------- */
+    ==================== */
 
 int vfs_mkdir(inode_t *dir, dentry_t *dentry, umode_t mode) {
     if (!dir || !dentry || !dentry->d_name || dentry->d_name[0] == '\0') return -1;
@@ -428,9 +428,9 @@ int vfs_rename(inode_t *old_dir, dentry_t *old_dentry, inode_t *new_dir, dentry_
     return old_dir->i_ops->rename(old_dir, old_dentry, new_dir, new_dentry, flags);
 }
 
-/* -------------------
+/*  ===================
     VFS FILE OPERATIONS
-    ------------------- */
+    =================== */
 
 file_t *vfs_open(const char *path, int flags, umode_t mode) {
     if (!path || path[0] == '\0') return NULL;
@@ -490,9 +490,94 @@ int vfs_llseek(file_t *file, loff_t offset, int whence) {
     return res;
 }
 
-/* --------------------
+/*  =====================
+    VFS SOCKET OPERATIONS
+    ===================== */
+
+#include "kernel/filesystem/sockfs.h"
+
+int vfs_socket_create(const char *path, sock_type_t type, umode_t mode) {
+    if (!path || path[0] == '\0') return -1;
+    
+    // Extract the socket name from the path (last component)
+    const char *name = strrchr(path, '/');
+    name = name ? name + 1 : path;
+    
+    // Create socket in sockfs
+    dentry_t *sock_dentry = sockfs_create_socket(name, type);
+    if (!sock_dentry) return -1;
+    
+    return 0;
+}
+
+file_t *vfs_socket_connect(const char *path, int flags) {
+    if (!path || path[0] == '\0') return NULL;
+    
+    // Extract socket name
+    const char *name = strrchr(path, '/');
+    name = name ? name + 1 : path;
+    
+    // Lookup socket in sockfs
+    dentry_t *sock_dentry = sockfs_lookup_socket(name);
+    if (!sock_dentry) return NULL;
+    
+    // Get socket operations
+    const socket_ops_t *sock_ops = sockfs_get_socket_ops();
+    if (!sock_ops || !sock_ops->connect) return NULL;
+    
+    // Open the socket file
+    file_t *file = alloc_file(sock_dentry, FMODE_READ | FMODE_WRITE);
+    if (!file) return NULL;
+    
+    // Call connect operation
+    if (sock_ops->connect(sock_dentry, file, flags)) {
+        kfree(file);
+        return NULL;
+    }
+    
+    return file;
+}
+
+file_t *vfs_socket_accept(file_t *socket_file, int flags) {
+    if (!socket_file || !socket_file->f_dentry) return NULL;
+    
+    const socket_ops_t *sock_ops = sockfs_get_socket_ops();
+    if (!sock_ops || !sock_ops->accept) return NULL;
+    
+    return sock_ops->accept(socket_file->f_dentry, flags);
+}
+
+ssize_t vfs_socket_send(file_t *file, const void __user *buf, size_t len, int flags) {
+    if (!file) return -1;
+    
+    const socket_ops_t *sock_ops = sockfs_get_socket_ops();
+    if (!sock_ops || !sock_ops->sendmsg) return -1;
+    
+    return sock_ops->sendmsg(file, buf, len, flags);
+}
+
+ssize_t vfs_socket_recv(file_t *file, void __user *buf, size_t len, int flags) {
+    if (!file) return -1;
+    
+    const socket_ops_t *sock_ops = sockfs_get_socket_ops();
+    if (!sock_ops || !sock_ops->recvmsg) return -1;
+    
+    return sock_ops->recvmsg(file, buf, len, flags);
+}
+
+int vfs_socket_unlink(const char *path) {
+    if (!path || path[0] == '\0') return -1;
+    
+    // Extract socket name
+    const char *name = strrchr(path, '/');
+    name = name ? name + 1 : path;
+    
+    return sockfs_unlink_socket(name);
+}
+
+/*  ========
     VFS MISC
-    -------------------- */
+    ======== */
 
 void vfs_print_mounts(void) {
     printf("Mounted filesystems:\n");

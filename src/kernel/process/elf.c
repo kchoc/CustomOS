@@ -35,14 +35,12 @@ proc_t *create_process_from_elf(const char *filename) {
         if (ph[i].p_type != 1 /* PT_LOAD */) continue;
 
         // Allocate memory in the process's VM space
-        vmm_map((void *)ph[i].p_vaddr, 0, ph[i].p_memsz, VM_PROT_READWRITE | VM_PROT_USER, 0);
+        vmm_map((void *)ph[i].p_vaddr, 0, ph[i].p_memsz, 
+                               VM_PROT_READWRITE | VM_PROT_USER, VM_MAP_ZERO);
 
+        // Load file data into the mapped memory
         vfs_llseek(file, ph[i].p_offset, 0);
         vfs_read(file, (uint8_t *)ph[i].p_vaddr, ph[i].p_filesz, NULL);
-
-        // Zero out the rest if memsz > filesz
-        if (ph[i].p_memsz > ph[i].p_filesz)
-            memset((uint8_t *)ph[i].p_vaddr + ph[i].p_filesz, 0, ph[i].p_memsz - ph[i].p_filesz);
     }
 
     kfree(ph);

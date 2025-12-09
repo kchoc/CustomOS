@@ -87,6 +87,14 @@ void vm_space_unmap(vm_space_t *space, void *virt, size_t size) {
     vm_space_switch(old_space);
 }
 
+void vm_space_copy_mappings(vm_space_t *space, uintptr_t src_start, uintptr_t dest_start, size_t size, int prot) {
+    if (!space) return;
+    vm_space_t *old_space = vm_space_switch(space);
+
+    vmm_copy(dest_start, src_start, size, prot);
+    vm_space_switch(old_space);
+}
+
 vm_space_t* vm_space_switch(vm_space_t *space) {
     if (!space) return NULL;
     vm_space_t* old_space = current_space;

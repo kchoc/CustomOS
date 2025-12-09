@@ -5,6 +5,7 @@
 #include "kernel/process/process.h"
 #include "kernel/process/elf.h"
 #include "kernel/process/cpu.h"
+#include "kernel/process/fd.h"
 #include "kernel/terminal.h"
 #include "kernel/panic.h"
 #include "types/string.h"
@@ -26,6 +27,7 @@ static uint32_t next_tid = 1;
 #define PROC_FROM_NODE(node) ((node) ? (proc_t*)((uint8_t*)node - offsetof(proc_t, node)) : NULL)
 #define THREAD_FROM_NODE(node) ((node) ? (thread_t*)((uint8_t*)node - offsetof(thread_t, node)) : NULL)
 #define THREAD_FROM_PROC_NODE(node) ((node) ? (thread_t*)((uint8_t*)node - offsetof(thread_t, proc_node)) : NULL)
+#define WAIT_NODE_FROM_NODE(node) ((node) ? (wait_node_t*)((uint8_t*)node - offsetof(wait_node_t, node)) : NULL)
 
 void idle_task() {
     while (1) {
@@ -197,6 +199,16 @@ proc_t* create_process(const char* name) {
 
     list_init(&p->threads, 0);
     p->vmspace = vm_space_create();
+    
+    // Create file descriptor table
+    p->fd_table = fd_table_create();
+    if (!p->fd_table) {
+        kfree(p);
+        return NULL;
+    }
+    
+    // Initialize standard file descriptors
+    fd_init_stdio(p);
 
     proc_list_add(p);
     return p;
@@ -209,6 +221,18 @@ cpu_t* select_cpu() {
             lowest = &cpus[i];
     }
     return lowest;
+}
+
+/* ---------------- Current Process/Thread Helpers ---------------- */
+
+thread_t* get_current_thread(void) {
+    cpu_t* cpu = get_current_cpu();
+    return cpu ? cpu->current_thread : NULL;
+}
+
+proc_t* get_current_process(void) {
+    thread_t* thread = get_current_thread();
+    return thread ? thread->proc : NULL;
 }
 
 /* ---------------- Freeing / Reaping ---------------- */
@@ -242,6 +266,9 @@ void free_process(proc_t *p) {
 
     if (p->vmspace)
         vm_space_destroy(p->vmspace);
+    
+    if (p->fd_table)
+        fd_table_destroy(p->fd_table);
 
     kfree(p);
 }
@@ -302,11 +329,18 @@ void schedule_from_irq(registers_t *regs) {
     thread_t *prev = cpu->current_thread;
     thread_t *next = get_next_ready_thread(prev);
     
-    if (!next || next == prev)
-        return;
+    if (!next || next == prev) return;
 
     // --- Save current context into prev->tcb ---
     if (prev && prev->state != TASK_ZOMBIE) {
+        prev->tcb.eax = regs->eax;
+        prev->tcb.ebx = regs->ebx;
+        prev->tcb.ecx = regs->ecx;
+        prev->tcb.edx = regs->edx;
+        prev->tcb.esi = regs->esi;
+        prev->tcb.edi = regs->edi;
+        prev->tcb.ebp = regs->ebp;
+        
         if ((regs->cs & 0x3) == 3) {
             // From user mode
             prev->tcb.user_eip = regs->eip;
@@ -321,13 +355,6 @@ void schedule_from_irq(registers_t *regs) {
             prev->tcb.esp = regs->esp;
         }
 
-        prev->tcb.eax = regs->eax;
-        prev->tcb.ebx = regs->ebx;
-        prev->tcb.ecx = regs->ecx;
-        prev->tcb.edx = regs->edx;
-        prev->tcb.esi = regs->esi;
-        prev->tcb.edi = regs->edi;
-        prev->tcb.ebp = regs->ebp;
         if (prev->state == TASK_RUNNING) prev->state = TASK_READY;
     }
 
@@ -390,12 +417,12 @@ void schedule() {
     }
 
     thread_t *start = next;
-    while (next->state != TASK_READY && next != prev) {
+    while ((next->state != TASK_READY && next->state != TASK_RUNNING) && next != prev) {
         next = (thread_t*)next->node.next;
         if (next == start) break;
     }
 
-    if (next == prev || next->state != TASK_READY) return;
+    if (next == prev || (next->state != TASK_READY && next->state != TASK_RUNNING)) return;
 
     if (prev->state == TASK_RUNNING) prev->state = TASK_READY;
 
@@ -407,6 +434,49 @@ void schedule() {
 
 void yeild() {
     schedule();
+}
+
+/* ---------------- Wait Queue (for blocking I/O) ---------------- */
+
+// Block the current thread and add it to a wait queue
+void block_current_thread(list_t* wait_queue) {
+    thread_t* current = get_current_thread();
+    if (!current) return;
+    
+    // Change state to blocked
+    current->state = TASK_BLOCKED;
+    
+    // Add to wait queue if provided
+    if (wait_queue) {
+        wait_node_t* wait_node = kmalloc(sizeof(wait_node_t));
+        if (!wait_node) PANIC("block_current_thread: Out of memory");
+        wait_node->thread = current;
+        list_push_head(wait_queue, &wait_node->node);
+    }
+    
+    // Trigger a software interrupt to invoke the scheduler from interrupt context
+    // This ensures proper context saving/restoration via schedule_from_irq()
+    // Timer interrupt is on vector 64 (0x40)
+    __asm__ __volatile__("int $0x40");
+}
+
+// Wake up all threads in a wait queue
+void wake_up_queue(list_t* wait_queue) {
+    if (!wait_queue || !wait_queue->head) return;
+    
+    list_node_t* node = wait_queue->head;
+    while (node) {
+        wait_node_t* wait_node = WAIT_NODE_FROM_NODE(node);
+        thread_t* t = wait_node->thread;
+        if (t && t->state == TASK_BLOCKED) {
+            t->state = TASK_READY;
+        }
+        
+        list_node_t* to_free = node;
+        node = node->next;
+        list_remove(to_free);
+        kfree(wait_node);
+    }
 }
 
 /* ---------------- Debugging / Listing ---------------- */
@@ -459,10 +529,11 @@ void list_cpu_threads(cpu_t* cpu) {
         const char* state_str = "UNKNOWN";
         switch (t->state) {
             case TASK_RUNNING:  state_str = " RUNNING"; break;
-            case TASK_READY:    state_str = "   READY";   break;
-            case TASK_STOPPED:  state_str = " BLOCKED"; break;
+            case TASK_READY:    state_str = "   READY"; break;
+            case TASK_BLOCKED:  state_str = " BLOCKED"; break;
+            case TASK_STOPPED:  state_str = " STOPPED"; break;
             case TASK_SLEEPING: state_str = "SLEEPING"; break;
-            case TASK_ZOMBIE:   state_str = "  ZOMBIE";  break;
+            case TASK_ZOMBIE:   state_str = "  ZOMBIE"; break;
         }
         printf("%5u %5u %5u %s %s\n",
             t->tid,
