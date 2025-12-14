@@ -14,21 +14,38 @@ CustomOSC is a 32-bit IA-32 OS kernel written in C and assembly, demonstrating c
 
 ## Build & Run
 
-1. Clone the repo, navigate to the directory.
-2. Construct filesystem image:
+1. Clone the repo and enter the project directory.
+2. Create a small filesystem image (if needed):
    ```bash
    dd if=/dev/zero of=fs.img bs=1M count=16
    ```
-2. Build with ISO:
-    ```bash
-    mkdir build && cd build
-   cmake ..
-   cmake --build .
-    ```
-3. Run in QEMU:
+3. Configure and build using CMake. From the project root:
    ```bash
-   qemu-system-i386 -smp 4 -cpu pentium3 -boot d -cdrom my-kernel.iso -drive file=fs.img,format=raw,index=0,media=disk -m 4G -d cpu_reset,int -D qemu.log
+   mkdir -p build
+   cd build
+   cmake ..
+   make
    ```
+4. Run the built ISO using the included Makefile target:
+   ```bash
+   make run
+   ```
+
+The `make run` target runs QEMU with the built ISO and the `fs.img` disk image. If you prefer to run QEMU manually, use the previous QEMU invocation with `-cdrom my-kernel.iso` and `-drive file=fs.img,format=raw`.
+
+Additional CMake/Make targets available in the build directory:
+
+- `make cleardrive` — clear or recreate the `fs.img` image used as the guest drive (if supported by the CMake scripts).
+- `make userland` — build userland programs and utilities (rebuilds the `user/` programs).
+- `make install_programs` — install/copy built user programs into the ISO filesystem image so they're available to the kernel at runtime.
+
+Use these from the project root with the top-level wrapper Makefile or by running them inside `build/`, e.g.:
+```bash
+make cleardrive     # clears/recreates fs.img
+make userland       # builds user programs
+make install_programs
+make run
+```
 
 ## Features (Experimental)
 
