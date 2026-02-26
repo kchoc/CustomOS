@@ -1,0 +1,41 @@
+#ifndef VM_OBJECT_H
+#define VM_OBJECT_H
+
+#include "libkern/list.h"
+#include "types.h"
+
+#include "list.h"
+#include <stddef.h>
+
+struct vm_page;
+struct vm_pager;
+
+typedef enum vm_object_type {
+	VM_OBJECT_ANON,
+	VM_OBJECT_VNODE,
+	VM_OBJECT_SWAP,
+	VM_OBJECT_DEVICE
+} vm_object_type_t;
+
+typedef struct vm_object {
+	list_node_t node;
+	vm_object_type_t type;
+	int ref_count;
+
+	struct vm_object* shadow; // Shadow object for copy-on-write
+	vm_ooffset_t shadow_offset; // Offset within the shadow object
+
+	struct vm_pager* pager; // Pager for handling page faults and backing storage
+	list_t pages; // List of vm_page_t
+
+	size_t size; // Size of the object in bytes
+} vm_object_t;
+
+void vm_object_inc_ref(vm_object_t *obj);
+void vm_object_dec_ref(vm_object_t *obj);
+
+int vm_object_init(vm_object_t* obj);
+void vm_object_add_page(vm_object_t* obj, size_t offset, vm_prot_t prot);
+void vm_object_remove_page(vm_object_t* obj, size_t offset);
+
+#endif // VM_OBJECT_H
