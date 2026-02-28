@@ -31,13 +31,20 @@ typedef struct pmap {
 	page_table_t* pd; // Page directory
 } pmap_t;
 
+typedef enum pmap_flags {
+	PMAP_FLAG_NONE = 0x0,
+	PMAP_FLAG_WIRED = 0x1, // Prevent the page from being swapped out
+	PMAP_FLAG_NOCACHE = 0x2, // Disable caching for this page
+	PMAP_FLAG_ZERO = 0x4, // Zero out the page after mapping
+} pmap_flags_t;
+
 pmap_t* pmap_create();
-pmap_t* pmap_fork(pmap_t* parent);
 void pmap_destroy(pmap_t* pmap);
-int  pmap_enter(pmap_t* pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, vm_flags_t flags);
+void pmap_activate(pmap_t* pmap);
+
+int  pmap_enter(pmap_t* pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, pmap_flags_t flags);
 void pmap_remove(pmap_t* pmap, vaddr_t sva, vaddr_t eva);
 void pmap_protect(pmap_t* pmap, vaddr_t sva, vaddr_t eva, vm_prot_t prot);
 paddr_t pmap_extract(pmap_t* pmap, vaddr_t virt);
-void pmap_activate(pmap_t* pmap);
 
 #endif // X86_PMAP_H

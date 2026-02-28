@@ -1,13 +1,17 @@
 #include "machdep.h"
 #include "idt.h"
 #include "gdt.h"
+#include <i386/bios/bda.h>
 #include "vm/kmalloc.h"
 
 #include <machine/bootinfo.h>
 #include <machine/segment_i386.h>
 
 #include <vm/vm_phys.h>
+#include <vm/vm_space.h>
+#include <vm/vm_map.h>
 #include <vm/layout.h>
+
 #include <kern/pcpu.h>
 #include <kern/terminal.h>
 #include <kern/panic.h>
@@ -43,6 +47,10 @@ void init386(void) {
 	if (is_errno(vm_phys_init(bootinfo->memory_map, bootinfo->memory_map_length)))
 		PANIC("Physical memory initialization: FAILED");
 	vm_phys_dump_info();
+
+	kvm_space_init();
+
+	load_bda();
 
 	while (1)
 		asm volatile("nop");

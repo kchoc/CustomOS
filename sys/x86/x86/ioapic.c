@@ -2,6 +2,8 @@
 #include "vm/vm_map.h"
 
 #include <kern/terminal.h>
+#include <kern/errno.h>
+#include <kern/panic.h>
 
 #include <vm/types.h>
 #include <vm/vm.h>
@@ -9,7 +11,7 @@
 
 #include <string.h>
 
-volatile uint32_t* ioapic = (volatile uint32_t*)IOAPIC_BASE;
+static uint32_t* ioapic = 0;
 
 static inline void ioapic_write(uint32_t reg, uint32_t value) {
 	ioapic[0] = reg;
@@ -22,7 +24,8 @@ static inline uint32_t ioapic_read(uint32_t reg) {
 }
 
 void ioapic_init() {
-    vm_map_region(CURRENT_VM_SPACE, IOAPIC_BASE, IOAPIC_BASE, PAGE_SIZE, VM_PROT_READ | VM_PROT_WRITE, VM_MAP_PHYS | VM_MAP_ZERO);
+    ioapic = vm_map_device(IOAPIC_BASE, PAGE_SIZE, VM_PROT_READ | VM_PROT_WRITE, VM_REG_F_NONE);
+    if (IS_ERR(ioapic)) PANIC("Failed to map IOAPIC");
 }
 
 void ioapic_check() {

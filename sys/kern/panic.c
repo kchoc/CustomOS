@@ -32,7 +32,7 @@ void panic_dump_registers(registers_t* regs) {
     printf("EDI: %x\n", regs->edi);
     printf("EBP: %x\n", regs->ebp);
     printf("ESP: %x\n", regs->esp);
-    printf("EIP: %x (phys %x)\n", regs->eip, pmap_extract(&CURRENT_VM_SPACE->arch, regs->eip));
+    printf("EIP: %x (phys %x)\n", regs->eip, pmap_extract(kernel_vm_space->arch, regs->eip));
     printf("EFLAGS: %x\n", regs->eflags);
     halt_system();
 }

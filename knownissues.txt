@@ -1,7 +1,0 @@
-Stability:
- - Currently not race safe for SMP especially in VFS
- - Potential memory leaks in file descriptor management
- - Limited system call error handling leading to undefined behavior in edge cases
-
-Security
- - Possilibty of user program allocating Virtual memory pages that overlap with kernel memory pages leading to privilege escalation. (this might not actually be occuring since I preallocate kernel pages at boot time but needs to be verified)

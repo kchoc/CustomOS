@@ -1,20 +1,24 @@
 #include "lapic.h"
 #include "pit.h"
+#include "vm/types.h"
 
+#include <kern/panic.h>
 #include <vm/vm_map.h>
 #include <dev/port/port_io.h>
 
 #include <string.h>
 
+static void* lapic_address = 0;
+
 /* ---------------- LAPIC Access ---------------- */
 
 static inline uint32_t lapic_read(uint32_t reg) {
-    volatile uint32_t *addr = (volatile uint32_t*)(LAPIC_BASE + reg);
+    volatile uint32_t *addr = (volatile uint32_t*)(lapic_address + reg);
     return *addr;
 }
 
 inline void lapic_write(uint32_t reg, uint32_t value) {
-    volatile uint32_t *addr = (volatile uint32_t*)(LAPIC_BASE + reg);
+    volatile uint32_t *addr = (volatile uint32_t*)(lapic_address + reg);
     *addr = value;
 }
 
@@ -59,8 +63,8 @@ static void lapic_send_ipi(uint32_t apic_id, uint32_t icr_low) {
 
 void lapic_init() {
     // Map LAPIC base
-    vm_map_region(CURRENT_VM_SPACE, LAPIC_BASE, LAPIC_BASE, PAGE_SIZE, VM_PROT_READ | VM_PROT_WRITE, VM_MAP_PHYS | VM_MAP_ZERO);
-
+    lapic_address = vm_map_device(LAPIC_BASE, PAGE_SIZE, VM_PROT_READ | VM_PROT_WRITE, VM_REG_F_NONE);
+    if (!lapic_address) PANIC("Failed to map LAPIC");
 
     // Enable APIC by setting the spurious interrupt vector register (SVR)
     // Set bit 8 (APIC enabled) and set vector to 0xFF (example)

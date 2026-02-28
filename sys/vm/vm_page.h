@@ -34,7 +34,8 @@ inline vm_object_t *vm_page_get_object(vm_page_t* page) {
 }
 
 vm_page_t* vm_page_lookup(vm_object_t *obj, size_t offset);
-vm_page_t *vm_page_allocate(vm_object_t *obj, size_t offset);
+vm_page_t* vm_page_bookmark(vm_object_t *obj, size_t offset, paddr_t phys_addr);
+vm_page_t* vm_page_allocate(vm_object_t *obj, size_t offset);
 void vm_page_free(vm_page_t *page);
 
 #endif // VM_PAGE_H

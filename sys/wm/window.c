@@ -6,6 +6,7 @@
 #include <vm/vm_map.h>
 #include <kern/terminal.h>
 
+#include <kern/errno.h>
 #include <inttypes.h>
 #include <list.h>
 #include <string.h>
@@ -63,12 +64,10 @@ window_t* wm_create_window(uint32_t pid, const char* title, int x, int y, int wi
     
     // Allocate backbuffer - allocate physical pages and map to kernel (32-bit RGBA)
     win->buffer_size = width * height * 4;  // 4 bytes per pixel
-    size_t pages_needed = (win->buffer_size + 0xFFF) / 0x1000;
     
     // Allocate pages (4MB spacing per window to handle large windows)
-    win->backbuffer = (uint32_t*)vm_map_region(CURRENT_VM_SPACE, (vaddr_t)(0xC0500000 + (win->wid * 0x400000)), 0, pages_needed * 0x1000,
-            VM_PROT_READ | VM_PROT_WRITE | VM_PROT_NOCACHE, VM_MAP_ZERO | VM_MAP_FORCE);
-    if (!win->backbuffer) {
+    win->backbuffer = kvm_map(win->buffer_size, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_NOCACHE, VM_REG_F_NONE);
+    if (IS_ERR(win->backbuffer)) {
         kfree(win);
         return NULL;
     }
@@ -89,7 +88,7 @@ void wm_destroy_window(uint32_t wid) {
         if (win->wid == wid) {
             list_remove(node);
             if (win->backbuffer) {
-                vm_unmap_region(CURRENT_VM_SPACE, (vaddr_t)win->backbuffer, win->buffer_size);
+                kvm_unmap(win->backbuffer, win->buffer_size);
             }
             kfree(win);
             // Mark WM as dirty to trigger screen update
@@ -154,12 +153,14 @@ void wm_resize_window(uint32_t wid, int width, int height) {
     size_t new_size = width * height;
     
     // Free old buffer pages
-    vm_unmap_region(CURRENT_VM_SPACE, (vaddr_t)win->backbuffer, win->buffer_size);
+    kvm_unmap(win->backbuffer, win->buffer_size);
     
     // Allocate new physical pages
-    vm_map_region(CURRENT_VM_SPACE, (vaddr_t)(0xC0500000 + (win->wid * 0x100000)), 0, new_size,
-            VM_PROT_READ | VM_PROT_WRITE | VM_PROT_NOCACHE, VM_MAP_PHYS | VM_MAP_ZERO | VM_MAP_FORCE);
-    win->backbuffer = (uint32_t*)pmap_extract(&CURRENT_VM_SPACE->arch, (vaddr_t)(0xC0500000 + (win->wid * 0x100000)));
+    win->backbuffer = kvm_map(new_size, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_NOCACHE, VM_REG_F_NONE);
+    if (IS_ERR(win->backbuffer)) {
+        win->backbuffer = NULL;
+        return;
+    }
     
     win->buffer_size = new_size;
     win->width = width;

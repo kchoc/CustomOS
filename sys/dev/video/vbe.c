@@ -5,7 +5,7 @@
 #include <string.h>
 
 static vbe_mode_info_t current_mode_info;
-static uint32_t* framebuffer_virtual = (uint32_t*)0xE0000000; // Kernel virtual address for FB
+static uint32_t* framebuffer_virtual = 0;
 static int vbe_initialized = 0;
 
 int vbe_init(void) {
@@ -32,8 +32,7 @@ int vbe_init(void) {
     uint32_t fb_size = current_mode_info.pitch * current_mode_info.height;
     
     // Map physical framebuffer to 0xE0000000 virtual
-    vm_map_region(CURRENT_VM_SPACE, (uintptr_t)framebuffer_virtual, current_mode_info.framebuffer, fb_size,
-            VM_PROT_READ | VM_PROT_NOCACHE, VM_MAP_PHYS);
+    framebuffer_virtual = (uint32_t*)vm_map_device(current_mode_info.framebuffer, fb_size, VM_PROT_READ | VM_PROT_WRITE, VM_REG_F_NONE);
     
     vbe_initialized = 1;
     

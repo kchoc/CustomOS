@@ -16,6 +16,8 @@
 #define USER_STACK_TOP 0xC0000000 // 3GB
 #define USER_STACK_BOTTOM (USER_STACK_TOP - STACK_SIZE)
 
+vaddr_t user_stack_bottom = USER_STACK_BOTTOM;
+
 
 static list_t* all_processes = NULL;
 proc_t* idle_process = NULL;
@@ -138,7 +140,7 @@ thread_t* create_kernel_thread(void (*entry)(void), proc_t *p, uint32_t priority
 thread_t* create_user_thread(void (*entry)(void), proc_t *p, uint32_t priority, pcpu_t* pcpu) {
     if (!p) return NULL;
 
-    vm_map(CURRENT_VM_SPACE, USER_STACK_BOTTOM, STACK_SIZE, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER, 0);
+    vm_map_anon(p->vmspace, &user_stack_bottom, STACK_SIZE, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER, 0);
 
     thread_t* t = kmalloc(sizeof(thread_t));
     if (!t) return NULL;
@@ -199,7 +201,7 @@ proc_t* create_process(const char* name) {
         kfree(p);
         return NULL;
     }
-    vm_space_init(p->vmspace);
+    p->vmspace = vm_space_fork(kernel_vm_space); // Start with a copy of the kernel VM space
     
     // Create file descriptor table
     p->fd_table = fd_table_create();
@@ -279,7 +281,6 @@ static void reap_zombies(pcpu_t* pcpu) {
     if (!pcpu || !pcpu->runqueue.head) return;
 
     thread_t* t = (thread_t*)pcpu->runqueue.head;
-    thread_t* start = t;
 
     do {
         thread_t* next = (thread_t*)t->node.next;

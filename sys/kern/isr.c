@@ -48,7 +48,7 @@ void isr_keyboard_handler(registers_t *regs) {
 
 // The page fault ISR handler
 void isr_page_fault_handler(registers_t *regs) {
-    uint32_t* faulting_address;
+    paddr_t faulting_address;
     asm volatile("movl %%cr2, %0" : "=r" (faulting_address));
 
     // printf("===== Page Fault =====\n");
@@ -65,7 +65,7 @@ void isr_page_fault_handler(registers_t *regs) {
     if (!(regs->errorCode & 0x1)) {
       int prot = VM_PROT_READ | (regs->errorCode & 0x4 ? VM_PROT_USER : VM_PROT_GLOBAL);
 
-      if (!vm_map_region(CURRENT_VM_SPACE, (uintptr_t)faulting_address, 0, PAGE_SIZE, prot, VM_MAP_ZERO)) {
+      if (!vm_map_anon(kernel_vm_space, &faulting_address, PAGE_SIZE, prot, 0)) {
         printf("Failed to map page at %x\n", faulting_address);
       }
     }

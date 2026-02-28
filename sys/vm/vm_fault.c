@@ -28,7 +28,8 @@ int vm_fault(vm_space_t *space,
             return -1;
     }
 
-    pmap_enter(&space->arch, page_addr, page->phys_addr, region->prot, 0);
+    // TODO: FIX FLAGS
+    pmap_enter(space->arch, page_addr, page->phys_addr, region->prot, 0);
 
     return 0;
 }

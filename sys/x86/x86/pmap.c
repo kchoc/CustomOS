@@ -40,34 +40,14 @@ pmap_t* pmap_create() {
 	pmap_t* pmap = kmalloc(sizeof(pmap_t));
 	if (!pmap) return NULL;
 
+	pmap->pd = (page_table_t*)vm_phys_alloc_page();
+
 	return pmap;
-}
-
-pmap_t* pmap_fork(pmap_t *parent) {
-	pmap_t *child = pmap_create();
-
-	page_table_t* pd = (page_table_t*)vm_phys_alloc_page();
-	if (IS_ERR(pd)) {
-		kfree(child);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	// This is really dangerous since im assuming that the pmap structure isnt being changed/pd is first
-	pmap_enter((pmap_t*)current_pd, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pd, VM_PROT_READ | VM_PROT_WRITE, VM_MAP_PHYS);
-	memset(edit_pd, 0, PAGE_SIZE);
-
-	// Copy kernel mappings
-	memcpy(edit_pd + (KERNEL_PAGE_ENTRY_START * sizeof(page_entry_t)), parent->pd + (KERNEL_PAGE_ENTRY_START * sizeof(page_entry_t)), KERNEL_PAGE_ENTRIES * sizeof(page_entry_t));
-	pmap_remove((pmap_t*)current_pd, PAGE_TABLE_EDIT_ADDRESS, PAGE_TABLE_EDIT_ADDRESS + PAGE_SIZE); // Unmap the page table we used for copying
-
-	child->pd = pd;
-
-	return child;
 }
 
 static void free_table(page_table_t* table, int level) {
 	for (int i = 0; i < (level == 0 ? KERNEL_PAGE_ENTRY_START : KERNEL_PAGE_ENTRIES); i++) {
-		if (table->entries[i] & VM_PROT_READ && !(table->entries[i]) & VM_PROT_HUGE) {
+		if (table->entries[i] & VM_PROT_READ && !((table->entries[i]) & VM_PROT_HUGE)) {
 			page_table_t* next_table = (page_table_t*)(table->entries[i] & 0xFFFFF000);
 			if (level != PAGE_TABLE_LEVELS - 2) // Don't free page frames, they might be shared and should be freed by the vm system when the last reference is removed
 				free_table(next_table, level + 1);

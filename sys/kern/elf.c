@@ -35,8 +35,8 @@ proc_t *create_process_from_elf(const char *filename) {
         if (ph[i].p_type != 1 /* PT_LOAD */) continue;
 
         // Allocate memory in the process's VM space
-        vm_map_region(p->vmspace, (uintptr_t)ph[i].p_vaddr, 0, ph[i].p_memsz, 
-                               VM_PROT_READ | VM_PROT_USER, VM_MAP_ZERO);
+        vm_map_anon(p->vmspace, &ph[i].p_vaddr, ph[i].p_memsz, 
+                               VM_PROT_READ | VM_PROT_USER, VM_REG_F_PRIVATE);
 
         // Load file data into the mapped memory
         vfs_llseek(file, ph[i].p_offset, 0);

@@ -178,7 +178,7 @@ kern_pt_fill:
     # PDE[0] = identity, PDE[768] = higher-half
     movl $(BOOT_PAGE_TABLE | 3), (PAGE_DIR)
     movl $(KERN_PAGE_TABLE | 3), (PAGE_DIR + 768*4)
-    movl $PAGE_DIR, (PAGE_DIR + 1023*4)   # recursive mapping
+    movl $(PAGE_DIR        | 3), (PAGE_DIR + 1023*4)   # recursive mapping
 
     movl $PAGE_DIR, %eax
     movl %eax, %cr3

@@ -67,7 +67,7 @@ int virtio_pci_setup_queue(pci_device_t *dev, vqueue_t *queue, uint16_t queue_in
 	}
 
 	// Get PFN (address >> 12)
-	paddr_t pfn = pmap_extract(&CURRENT_VM_SPACE->arch, (vaddr_t)queue->vqueue_memory) >> 12;
+	paddr_t pfn = pmap_extract(kernel_vm_space->arch, (vaddr_t)queue->vqueue_memory) >> 12;
 	pci_dev_config_write32(dev, VIRTIO_PCI_QUEUE_PFN & ~3, pfn);
 
 	return 0;

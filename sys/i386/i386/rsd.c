@@ -54,8 +54,7 @@ int rsdt_init() {
     rsdp_t* rsdp = find_rsdp();
     if (!rsdp) return ENOENT;
 
-    rsdt_t* rsdt = (rsdt_t*)(uintptr_t)rsdp->rsdt_address;
-    vm_map_region(CURRENT_VM_SPACE, (vaddr_t)rsdt, (paddr_t)rsdt, sizeof(rsdt_t), VM_PROT_READ, VM_MAP_PHYS);
+    rsdt_t* rsdt = vm_map_device(rsdp->rsdt_address, sizeof(rsdt_t), VM_PROT_READ, VM_REG_F_NONE);
 
     acpi_header_t* madt = find_table(rsdt, "APIC");
     if (!madt) return ENOENT;

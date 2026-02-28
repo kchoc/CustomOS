@@ -12,6 +12,9 @@ typedef struct vm_space {
 	int ref_count;
 } vm_space_t;
 
+extern vm_space_t* kernel_vm_space;
+
+int kvm_space_init();
 vm_space_t* vm_space_create();
 vm_space_t* vm_space_fork(vm_space_t* parent);
 void vm_space_destroy(vm_space_t* space);

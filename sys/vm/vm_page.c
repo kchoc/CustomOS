@@ -17,6 +17,16 @@ vm_page_t* vm_page_lookup(vm_object_t *obj, size_t offset) {
     return NULL;
 }
 
+vm_page_t* vm_page_bookmark(vm_object_t *obj, size_t offset, paddr_t phys_addr) {
+    struct vm_page *page = kmalloc(sizeof(*page));
+    page->phys_addr = phys_addr;
+    page->offset    = offset;
+
+    list_push_head(&obj->pages, &page->node);
+
+    return page;
+}
+
 vm_page_t *vm_page_allocate(vm_object_t *obj, size_t offset) {
     uintptr_t phys = vm_phys_alloc_page();  // your bitmap allocator
 

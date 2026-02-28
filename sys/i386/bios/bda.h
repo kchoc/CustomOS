@@ -26,6 +26,6 @@ typedef struct extended_bios_data_area {
 extern bda_t* bda;
 extern ebda_t* ebda;
 
-int i386_load_bda();
+int load_bda();
 
 #endif // BDA_H

@@ -303,7 +303,7 @@ void* syscall_mmap(uintptr_t addr, size_t length, int prot, int flags, SYSCALL1)
     printf("syscall_mmap: Mapping %u bytes at %p\n", length, addr);
     
     // Map memory in process's VM space
-    if (vm_map_region(proc->vmspace, addr, 0, length, prot | VM_PROT_USER, flags) != 0) {
+    if (vm_map_anon(proc->vmspace, &addr, length, prot, flags) < 0) {
         return NULL;
     }
     
@@ -321,7 +321,7 @@ int syscall_win_create(const char* title, int x, int y, int width, int height) {
     void* user_virt = (void*)(0x80000000 + (win->wid * 0x00400000)); // 4MB per window
 
     // Map each physical page from kernel buffer to user space
-    vm_unmap_region(proc->vmspace, (uintptr_t)user_virt, win->buffer_size);
+    vm_unmap(proc->vmspace, (uintptr_t)user_virt, win->buffer_size);
     // vm_copy_mappings(proc->vmspace,
     //                           (uintptr_t)win->backbuffer,
     //                           (uintptr_t)user_virt,

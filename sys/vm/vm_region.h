@@ -14,7 +14,7 @@ typedef struct vm_region {
 	vaddr_t base;
 	vaddr_t end;
 	vm_prot_t prot;
-	vm_flags_t flags;
+	vm_region_flags_t flags;
 	int ref_count;
 
 	vm_object_t* object;
@@ -36,16 +36,18 @@ vm_region_t* vm_region_lookup_range(vm_space_t *space, uintptr_t addr, size_t si
 
 bool vm_region_overlaps(vm_region_t *region, uintptr_t addr, size_t size);
 
-vm_region_t* vm_region_create(vm_space_t *space, uintptr_t addr, size_t size, vm_prot_t prot, vm_flags_t flags);
+vm_region_t* vm_region_create(vm_space_t *space, uintptr_t *addr, size_t size, vm_object_t* object, vm_ooffset_t offset, vm_prot_t prot, vm_region_flags_t flags);
+vm_region_t* vm_region_fork(vm_region_t *parent);
+
 vm_region_t* vm_region_insert(vm_space_t *space, vm_region_t *new_region);
 
 vm_region_t* vm_region_split(vm_region_t *region, uintptr_t addr);
 vm_region_t* vm_region_merge(vm_region_t *region, vm_region_t *other);
-vm_region_t* vm_region_protect(vm_region_t *region, vm_prot_t new_prot);
-vm_region_t* vm_region_flag(vm_region_t *region, vm_flags_t flags);
-vm_region_t* vm_region_rebase(vm_region_t *region, uintptr_t new_addr);
-vm_region_t* vm_region_resize(vm_region_t *region, uintptr_t new_end);
-vm_region_t* vm_region_remap(vm_region_t *region, uintptr_t new_addr, size_t new_size);
-vm_region_t* vm_region_destroy(vm_region_t *region);
+void vm_region_protect(vm_region_t *region, vm_prot_t new_prot);
+void vm_region_flag(vm_region_t *region, vm_region_flags_t flags);
+int vm_region_rebase(vm_region_t *region, uintptr_t new_addr);
+int vm_region_resize(vm_region_t *region, uintptr_t new_end);
+int vm_region_remap(vm_region_t *region, uintptr_t new_addr, size_t new_size);
+void vm_region_destroy(vm_region_t *region);
 
 #endif // VM_REGION_H

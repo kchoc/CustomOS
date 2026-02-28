@@ -110,7 +110,7 @@ void process_command(char *input) {
             printf("Invalid address: %s\n", args[1]);
             return;
         }
-        uint32_t phys = pmap_extract(&CURRENT_VM_SPACE->arch, addr);
+        uint32_t phys = pmap_extract(kernel_vm_space->arch, addr);
         if (phys) {
             printf("Virtual address %x maps to physical address %x\n", addr, phys);
         } else {
