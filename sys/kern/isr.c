@@ -6,6 +6,8 @@
 #include "lapic.h"
 #include "pcpu.h"
 #include "terminal.h"
+
+#include <vm/vm_fault.h>
 #include "vm/types.h"
 
 #include <dev/port/port_io.h>
@@ -62,13 +64,7 @@ void isr_page_fault_handler(registers_t *regs) {
     // delay(600);
 
     // Map the page
-    if (!(regs->errorCode & 0x1)) {
-      int prot = VM_PROT_READ | (regs->errorCode & 0x4 ? VM_PROT_USER : VM_PROT_GLOBAL);
-
-      if (!vm_map_anon(kernel_vm_space, &faulting_address, PAGE_SIZE, prot, 0)) {
-        printf("Failed to map page at %x\n", faulting_address);
-      }
-    }
+    vm_fault(get_current_process()->vmspace, faulting_address, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER);
 
     // Send an EOI to the LAPIC
     lapic_write(LAPIC_EOI, 0);

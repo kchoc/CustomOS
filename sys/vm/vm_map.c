@@ -49,14 +49,13 @@ int vm_protect(vm_space_t *space, uintptr_t virt, size_t size, vm_prot_t prot) {
     return 0;
 }
 
-
 void* vm_map_device(paddr_t addr, size_t size, vm_prot_t prot, vm_region_flags_t flags) {
     paddr_t aligned_phys = PAGE_ALIGN_DOWN(addr);
     paddr_t end_phys = PAGE_ALIGN_UP(addr + size);
 
     size_t aligned_size = end_phys - aligned_phys;
 
-    vaddr_t virt = (vaddr_t)kvm_alloc(aligned_size, prot, VM_REG_F_WIRED | (flags & VM_REG_F_NOCACHE ? VM_REG_F_NOCACHE : 0));
+    vaddr_t virt = (vaddr_t)kvm_alloc(aligned_size, prot, VM_REG_F_DEVICE | VM_REG_F_WIRED | (flags & VM_REG_F_NOCACHE ? VM_REG_F_NOCACHE : 0));
     if (IS_ERR(virt)) return ERR_PTR(-ENOMEM);
 
     int pmap_flags = PMAP_FLAG_WIRED;

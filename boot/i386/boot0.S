@@ -161,14 +161,14 @@ dap_lba_high:  .long 0
 # ===============================
 .org 0x1BE
 
-# Partition 1 (Active)
+# Partition 1 (Active - Fat16)
 .byte 0x80              # Bootable
 .byte 0x00,0x02,0x00    # Starting CHS (fake but valid)
-.byte 0xFF              # Partition type (0xFF = unknown)
+.byte 0x06              # Partition type (FAT16)
 .byte 0xFF,0xFF,0xFF    # Ending CHS (maxed)
 
 .long 2048              # Starting LBA
-.long 100000            # Size in sectors
+.long 10000             # Size in sectors
 
 # Partition 2 (empty)
 .byte 0x00

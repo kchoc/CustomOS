@@ -2,15 +2,25 @@
 #include "idt.h"
 #include "gdt.h"
 #include <i386/bios/bda.h>
-#include "vm/kmalloc.h"
+#include "rsd.h"
 
 #include <machine/bootinfo.h>
 #include <machine/segment_i386.h>
+#include <kern/syscalls.h>
+#include <kern/process.h>
+#include <kern/elf.h>
 
+#include "vm/kmalloc.h"
 #include <vm/vm_phys.h>
 #include <vm/vm_space.h>
 #include <vm/vm_map.h>
 #include <vm/layout.h>
+
+#include <fs/vfs.h>
+#include <fs/sockfs.h>
+#include <fs/fat16.h>
+
+#include <dev/pci/pci.h>
 
 #include <kern/pcpu.h>
 #include <kern/terminal.h>
@@ -19,7 +29,7 @@
 #include <kern/errno.h>
 
 void init386(void) {
-	region_desc_t r_gdt, r_idt;
+	region_desc_t r_gdt;
 
 	terminal_init();
 
@@ -49,8 +59,34 @@ void init386(void) {
 	vm_phys_dump_info();
 
 	kvm_space_init();
+	printf("Kernel VM space initialized.\n");
 
-	load_bda();
+	if (is_errno(load_bda()))
+		PANIC("BDA initialization: FAILED");
+
+	if (is_errno(rsdt_init()))
+		PANIC("RSDT initialization: FAILED");
+
+	syscalls_init();	
+
+	idt_init();
+
+	asm volatile("sti"); // Enable interrupts
+	printf("Interrupts enabled.\n");
+
+	pcpu_init();
+
+	tasking_init();
+
+	pci_discover_devices();
+
+    // Initialize and mount root filesystem
+    printf("VFS: %s\n", vfs_mount_drive("QEMU HARDDISK", "/", &fat16_fs_type) == 0 ? "OK" : "FAILED");
+
+    // Initialize sockfs
+    printf("Sockfs: %s\n", sockfs_init() == 0 ? "OK" : "FAILED");
+
+    create_process_from_elf("terminal.elf");
 
 	while (1)
 		asm volatile("nop");

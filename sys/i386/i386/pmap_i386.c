@@ -2,7 +2,9 @@
 #include <machine/page_table.h>
 
 #include <vm/vm_phys.h>
+#include <vm/kmalloc.h>
 #include <kern/errno.h>
+#include <kern/panic.h>
 
 #include "string.h"
 #include "vm/types.h"
@@ -10,6 +12,25 @@
 
 #define TABLE_IDX(virt)      ((uint32_t)virt >> 22)
 #define ENTRY_IDX(virt)      (((uint32_t)virt >> 12) & 0x3FF)
+
+void pmap_destroy(pmap_t* pmap) {
+	page_table_t* old_pd = *current_pd_addr;
+	switch_page_directory(&pmap->pd); // Switch to the kernel page directory
+
+	// Assumes that all user-space mappings have been removed, so we only need to free the page tables
+	for (int i = 0; i < KERNEL_PAGE_ENTRY_START; i++) {
+		if (current_pd->entries[i] & 0x1) {
+			page_table_t *table = (page_table_t*)(current_pd->entries[i] & 0xFFFFF000);
+			memset(&current_pts[0], 0, PAGE_SIZE);
+			vm_phys_free_page((paddr_t)table);
+		}
+	}
+
+	switch_page_directory(&old_pd); // Switch back to the original page directory
+ 
+	vm_phys_free_page((paddr_t)pmap->pd);
+	kfree(pmap);
+}
 
 int pmap_enter(pmap_t *pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, pmap_flags_t flags) {
 	SWITCH_SPACE(pmap);

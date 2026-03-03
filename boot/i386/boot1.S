@@ -1,24 +1,64 @@
-.code16
+.code16gcc
 .global _start
 
 # --------------------------------------------------
 # Configuration
 # --------------------------------------------------
-.equ KERNEL_LBA,      2049
-.equ KERNEL_LOAD,     0x00010000    # initial load at 64KB
-.equ KERNEL_LOAD_SEG, 0x1000        # segment for initial load (64KB)
-.equ KERNEL_DEST,     0x00100000    # copy kernel to above 1MB
-.equ PAGE_DIR,        0x0007D000
-.equ BOOT_PAGE_TABLE, 0x0007E000
-.equ KERN_PAGE_TABLE, 0x0007F000
-.equ KERNEL_SIZE,     KERNEL_SECTORS*512   # kernel size in bytes
-.equ READ_QUANTUM,    64
-.equ SEGMENT_INCREMENT, 0x1000 / 128 * READ_QUANTUM  # how much to increment segment for each read
+.equ FAT_TABLE_SEG,   0x1300
+.equ RDT_LOAD_SEG,    0x1100
+.equ BOOT2_DEST_SEG,  0x7e0
+.equ BOOT2_DEST,      BOOT2_DEST_SEG << 4
+
+# --------------------------------------------------
+# MBR Setup (BIOS Parameter Block)
+# --------------------------------------------------
+_start:
+    jmp boot_start
+    nop
+
+    os_name:
+    .ascii "OS_FAT16" # OEM Name
+    bytes_per_sector:
+    .word 512
+    sectors_per_cluster:
+    .byte 1
+    reserved_sectors:
+    .word 1
+    num_fats:
+    .byte 2
+    max_root_entries:
+    .word 512
+    total_sectors_short:
+    .word 63488
+    media_descriptor:
+    .byte 0xF8
+    sectors_per_fat:
+    .word 246
+    sectors_per_track:
+    .word 63
+    num_heads:
+    .word 16
+    hidden_sectors:
+    .long 2048
+    total_sectors_long:
+    .long 0
+    drive_number:
+    .byte 0x00
+    reserved:
+    .byte 0
+    boot_signature: 
+    .byte 0x29
+    volume_id:
+    .long 0x12345678
+    volume_label:
+    .ascii "NO NAME    "
+    fs_type:
+    .ascii "FAT16   "
 
 # --------------------------------------------------
 # Entry
 # --------------------------------------------------
-_start:
+boot_start:
     cli
     xorw %ax, %ax
     movw %ax, %ds
@@ -26,7 +66,7 @@ _start:
     movw %cs, %ax
     movw %ax, %ds
     movw $0x7C00, %sp
-    push %ds
+    pushw %ds
 
     movb %dl, boot_drive
 
@@ -51,153 +91,194 @@ _start:
     outb %al, $0x92
 
 # --------------------------------------------------
-# Check INT 15h for memory size (0xE820)
+# Read the FAT root directory
+# read_sectors:
+#   START (BX) = num_fats * sectors_per_fat + reserved_sectors + hidden_sectors
+#   COUNT (CX) = max_root_entries * 32 / 512 (number of sectors to read)
+#   DEST  (DX) = RDT_LOAD_SEG
 # --------------------------------------------------
-    push %es # I should probably find a better way to do this, but I want to be able to use es:di for the memory map buffer
+    movw max_root_entries, %ax
+    shlw $5, %ax # 32 bytes per entry
+    movw $512, %bx
+    xorw %dx, %dx
+    divw %bx
+    movw %ax, %cx # number of sectors to read
+    
     xorw %ax, %ax
-    movw %ax, %es
-    movw $(memory_map), %di
-    xorl %ebx, %ebx          # continuation value
-    xorl %esi, %esi          # entry counter
+    movb num_fats, %al
+    movw sectors_per_fat, %bx
+    mulw %bx
+    addw reserved_sectors, %ax # add reserved sectors to get to FAT tables
+    addl hidden_sectors, %eax # add hidden sectors for LBA calculation
+    movw %ax, %bx               # starting LBA of root directory
 
-next_entry:
-    movl $0xE820, %eax
-    movl $0x534D4150, %edx   # "SMAP"
-    movl $24, %ecx
-    int $0x15
-    jc done_memory
+    movw $RDT_LOAD_SEG, %dx
 
-    addw $24, %di
-    inc %si
-    cmp $0, %ebx
+    call read_sector_lba
+
+# --------------------------------------------------
+# Read the FAT tables (just after root directory)
+# read_sectors:
+#   START (BX) = reserved_sectors + hidden_sectors
+#   COUNT (CX) = num_fats * sectors_per_fat
+#   DEST  (DX) = FAT_TABLE_SEG
+# --------------------------------------------------
+    xorw %ax, %ax
+    movb num_fats, %al
+    movw sectors_per_fat, %bx
+    mulw %bx
+    # movw %ax, %cx # number of sectors to read
+    movw $64, %cx # read 64 sectors to load both FAT tables (246 sectors each is too much for the bootloader)
+    
+    movw reserved_sectors, %ax
+    addl hidden_sectors, %eax # add hidden sectors for LBA calculation
+    movw %ax, %bx # starting LBA of FAT tables
+
+    movw $FAT_TABLE_SEG, %dx
+
+    call read_sector_lba
+
+# --------------------------------------------------
+# Find BOOT2.BIN in the root directory
+# --------------------------------------------------
+
+load_boot2:
+    movw $boot2_name, %bx
+    movw $BOOT2_DEST_SEG, %cx
+    call load_file
+    # For some reason the load_file return starts executing garbage so buffer the jump to BOOT2.BIN
+    xorw %ax, %ax
+    xorw %bx, %bx
+    xorw %cx, %cx
+    xorw %dx, %dx
+    jmp BOOT2_DEST
+
+# --------------------------------------------------
+# Load file by name from root directory
+# Inputs:
+#   BX = pointer to filename (11 bytes, space-padded)
+#   CX = destination segment
+# --------------------------------------------------
+load_file:
+    pushw %ds
+    pushw %es
+    pushw %cx
+
+    # Use the ES to point to the root directory for easy access to entries
+    movw $RDT_LOAD_SEG, %ax
+    # Not sure why i cant use ax -> es
+    pushw %ax
+    popw %es
+
+    xorw %ax, %ax
+    movw %ax, %ds          # DS = 0 for filename comparison
+    xorw %si, %si          # start at first root directory entry
+
+search_rdt:
+    # Check entry presence
+    movw %es:(%si), %ax        # read first 2 bytes of filename
+    cmpw $0, %ax
+    je file_not_found
+
+    # Check entry type
+    movb %es:11(%si), %al      # attributes
+    cmpb $0x20, %al        # 0x20 = archive (normal file)
     jne next_entry
 
-done_memory:
-    pop %es
-    movl %esi, (bootinfo + 4)   # store number of entries in bootinfo
+    # Check entry name
+    pushw %si
+    pushw %bx
+    movw $11, %cx
+compare_name:
+    movb %es:(%si), %al
+    cmpb (%bx), %al
+    jne not_match
+    incw %si
+    incw %bx
+    loop compare_name
+    jmp file_found
+not_match:
+    popw %bx
+    popw %si
 
-# --------------------------------------------------
-# Load Kernel Directly Above 64KB in 64KB Chunks
-# --------------------------------------------------
-    movw $KERNEL_LOAD_SEG, %di   # destination segment
-    movw $KERNEL_SECTORS, %cx    # remaining sectors
-    movw $KERNEL_LBA, %bx        # starting LBA
+next_entry:
+    addw $32, %si          # next directory entry
+    jmp search_rdt
 
-read_loop:
-    test %cx, %cx
-    jz kernel_loaded
-
-    movw $READ_QUANTUM, %ax
-    cmp %cx, %ax        # ax - cx
-    jbe 1f              # if ax <= cx → keep ax (quantum)
-    mov %cx, %ax        # else ax = remaining
-1:
-    mov %ax, %dx
-
-    # setup DAP
-    lea dap, %si
-    movb $0x10, dap
-    movb $0, dap+1
-    movw %dx, dap+2
-    movw $0, dap+4
-    movw %di, dap+6
-    movl %ebx, dap+8
-    movl $0, dap+12
-
-    movb $0x42, %ah
-    movb boot_drive, %dl
-    int $0x13
-    jc disk_error
-
-    addw dap+2, %bx   # increment LBA
-    subw dap+2, %cx   # decrement remaining sectors
-    addw $SEGMENT_INCREMENT, %di
-
-    jmp read_loop
-
-kernel_loaded:
-
-# --------------------------------------------------
-# Copy kernel from 64KB to 1MB
-# --------------------------------------------------
-    movl $KERNEL_LOAD, %esi        # source: 64KB
-    movl $KERNEL_DEST, %edi        # destination: 1MB
-    movl $KERNEL_SIZE, %ecx
-    rep movsb
-
-# --------------------------------------------------
-# Setup Paging & Protected Mode
-# --------------------------------------------------
-    cli
-    lgdt gdt_desc
-
-    movl %cr0, %eax
-    orl $0x00000001, %eax    # enable PG + PE
-    movl %eax, %cr0
-
-    ljmp $0x08, $protected_entry
-
-.code32
-protected_entry:
-    movl $0x10, %eax
-    movw %ax, %ds
+file_found:
+    popw %bx
+    popw %si
+    movw %es:26(%si), %di      # starting cluster
+    movw $FAT_TABLE_SEG, %ax
     movw %ax, %es
-    movw %ax, %fs
-    movw %ax, %gs
-    movw %ax, %ss
+    popw %si
 
-    # Clear Page Directory
-    movl $PAGE_DIR, %edi
-    xorl %eax, %eax
-    movl $1024, %ecx
-    rep stosl
+follow_clusters:
+    movw %di, %ax
+    subw $2, %ax                        # cluster numbers start at 2
+    xorw %bx, %bx
+    movb sectors_per_cluster, %bl
+    mulw %bx                           # AX = (cluster_number - 2) * sectors_per_cluster
 
-    # Build identity-mapped page table for bootloader (1MB)
-    movl $BOOT_PAGE_TABLE, %edi
-    movl $0x00000003, %eax
-    movl $16, %ecx
+    # Add reserved sectors + hidden sectors
+    addw reserved_sectors, %ax
+    addl hidden_sectors, %eax # add hidden sectors for LBA calculation
+    movw %ax, %bx
 
-boot_pt_fill:
-    stosl
-    addl $0x1000, %eax
-    loop boot_pt_fill
+    # Add FAT table sectors
+    xorw %ax, %ax
+    movb num_fats, %al
+    movw sectors_per_fat, %cx
+    mulw %cx                            # DX:AX = sectors_per_fat * num_fats
+    addw %ax, %bx
 
-    # Build higher-half page table for kernel (4MB)
-    movl $KERN_PAGE_TABLE, %edi
-    movl $0x00010003, %eax
-    movl $1023, %ecx
+    # Add root directory sectors
+    xorw %dx, %dx
+    movw max_root_entries, %ax
+    shlw $5, %ax # 32 bytes per entry
+    movw $512, %cx
+    divw %cx
+    addw %ax, %bx
 
-kern_pt_fill:
-    stosl
-    addl $0x1000, %eax
-    loop kern_pt_fill
+    # Number of sectors to read
+    xorw %cx, %cx
+    movb sectors_per_cluster, %cl
 
-    # Map VGA framebuffer (0xB8000) to last kB of higher-half
-    movl $(0xB8000 | 3), (KERN_PAGE_TABLE + (1023*4))
+    movw %si, %dx
+    pushw %si
 
-    # PDE[0] = identity, PDE[768] = higher-half
-    movl $(BOOT_PAGE_TABLE | 3), (PAGE_DIR)
-    movl $(KERN_PAGE_TABLE | 3), (PAGE_DIR + 768*4)
-    movl $(PAGE_DIR        | 3), (PAGE_DIR + 1023*4)   # recursive mapping
+    call read_sector_lba
 
-    movl $PAGE_DIR, %eax
-    movl %eax, %cr3
+    popw %si
 
-    movl %cr0, %eax
-    orl $0x80000000, %eax    # enable PG + PE
-    movl %eax, %cr0
+    # Update file destination offset
+    addw $32, %si # +32 segments = 512 bytes = 1 sector
 
-    movl $bootinfo, %ebx   # pass bootinfo pointer in ebx
+    # -----------------------------
+    # Read next cluster from FAT table
+    # -----------------------------
+    movw %di, %ax                         # AX = current cluster number
+    shlw $1, %ax                          # FAT16 entry = 2 bytes
+    movw %ax, %bx
+    movw %es:(%bx), %di                   # read FAT entry for current cluster
+    cmpw $0xFFFF, %di
+    je file_loaded
+    cmpw $0, %di
+    je file_not_found
+    jmp follow_clusters
 
-    movl $0xC0000000, %eax   # higher-half entry point
-    jmp *%eax
+file_loaded:
+    popw %es
+    popw %ds
+    ret
+
+file_not_found:
+    jmp hang
 
 # --------------------------------------------------
 # Errors
 # --------------------------------------------------
-.code16
 disk_error:
-    xorw %ax, %ax
 no_lba:
     cli
 hang:
@@ -205,34 +286,45 @@ hang:
     jmp hang
 
 # --------------------------------------------------
+# Read sector using LBA (OR CHS fallback if LBA not supported TODO)
+# --------------------------------------------------
+# Inputs: BX = LBA address, CX = number of sectors, DX = destination segment
+read_sector_lba:
+    lea dap, %si
+    movb $0x10, dap
+    movb $0, dap+1
+    movw %cx, dap+2
+    movw $0, dap+4
+    movw %dx, dap+6
+    movl %ebx, dap+8
+    movl $0, dap+12
+
+    movb $0x42, %ah
+    movb boot_drive, %dl
+    int $0x13
+    jc disk_error
+    ret
+
+# --------------------------------------------------
 # Data
 # --------------------------------------------------
 boot_drive:
     .byte 0
 
+load_addr:
+    .long BOOT2_DEST_SEG
+
+boot2_name:
+    .ascii "BOOT2   BIN" # 11 bytes, space-padded
+
 .align 4
 dap:
-    .byte 0x10
-    .byte 0
-    .word 0
-    .word 0
-    .word 0
-    .quad 0
+    .byte 0x10  # size of DAP structure (16 bytes)
+    .byte 0     # reserved
+    .word 0     # number of sectors to read
+    .word 0     # transfer buffer offset
+    .word 0     # transfer buffer segment
+    .quad 0     # starting LBA address
 
-.align 4
-bootinfo:
-    .long memory_map
-    .long 0 # Number of memory map entries, will be filled in by the bootloader
-
-.align 8
-gdt:
-    .quad 0x0000000000000000
-    .quad 0x00CF9A000000FFFF
-    .quad 0x00CF92000000FFFF
-gdt_end:
-
-gdt_desc:
-    .word gdt_end - gdt - 1
-    .long gdt
-
-memory_map: # No need to reserve space here since we just write directly to it
+.space 510 - (. - _start), 0
+    .word 0xAA55

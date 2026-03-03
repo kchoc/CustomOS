@@ -16,6 +16,8 @@ proc_t *create_process_from_elf(const char *filename) {
     file_t* file = vfs_open(filename, 0, 0);
     if (!file) { free_process(p); return NULL; }
 
+    printf("Loading ELF executable: %s\n", filename);
+
     Elf32_Ehdr eh;
     vfs_read(file, (uint8_t *)&eh, sizeof(Elf32_Ehdr), NULL);
 

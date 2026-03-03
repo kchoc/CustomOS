@@ -38,6 +38,7 @@ typedef enum pmap_flags {
 	PMAP_FLAG_ZERO = 0x4, // Zero out the page after mapping
 } pmap_flags_t;
 
+int pmap_init();
 pmap_t* pmap_create();
 void pmap_destroy(pmap_t* pmap);
 void pmap_activate(pmap_t* pmap);

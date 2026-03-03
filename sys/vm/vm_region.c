@@ -1,4 +1,5 @@
 #include "vm_region.h"
+#include "types.h"
 #include "vm_space.h"
 #include "vm_object.h"
 #include "layout.h"
@@ -9,6 +10,8 @@
 #include <kern/terminal.h>
 #include <kern/errno.h>
 
+#include <kern/panic.h>
+
 void vm_region_inc_ref(vm_region_t *region) {
 	__sync_fetch_and_add(&region->ref_count, 1);
 }
@@ -16,8 +19,10 @@ void vm_region_inc_ref(vm_region_t *region) {
 void vm_region_dec_ref(vm_region_t *region) {
 	if (__sync_sub_and_fetch(&region->ref_count, 1) == 0) {
 		// Free the region and its object if this was the last reference
-		pmap_remove(vm_space_from_region(region)->arch, region->base, region->end);
+		if (!(region->flags & VM_REG_F_KERNEL))
+			pmap_remove(vm_space_from_region(region)->arch, region->base, region->end);		
 		vm_object_dec_ref(region->object);
+		list_remove(&region->node);
 		kfree(region);
 	}
 }
@@ -39,7 +44,11 @@ vm_region_t* vm_region_lookup(vm_space_t *space, uintptr_t addr) {
 }
 
 vaddr_t vm_find_free_region(vm_space_t *space, size_t size, vm_region_flags_t flags) {
-	uintptr_t last_end = (flags & VM_REG_F_KERNEL) ? KERNEL_BASE : 0;
+	uintptr_t last_end;
+	if (flags & VM_REG_F_DEVICE) last_end = DEVICE_BASE;
+	else if (flags & VM_REG_F_KERNEL) last_end = KERNEL_BASE;
+	else last_end = 0;
+
 	list_node_t *node;
 	list_for_each(node, &space->regions) {
 		vm_region_t *region = list_node_to_region(node);
@@ -50,9 +59,8 @@ vaddr_t vm_find_free_region(vm_space_t *space, size_t size, vm_region_flags_t fl
 	}
 
 	// Check for space after the last region
-	if (UINTPTR_MAX - last_end >= size) {
+	if (ADDRESS_LIMIT - last_end >= size)
 		return last_end;
-	}
 
 	return -ENOMEM; // No suitable free region found
 }
@@ -126,7 +134,7 @@ vm_region_t *vm_region_fork(vm_region_t *parent) {
     bool writable = parent->prot & VM_PROT_WRITE;
     bool cow_capable = vm_object_supports_cow(parent->object->type);
 
-    if (private && writable && cow_capable) {
+    if (private && writable && cow_capable && !(parent->flags & VM_REG_F_KERNEL)) {
         vm_object_t *parent_shadow = vm_object_create_shadow(parent->object, 0);
         if (IS_ERR(parent_shadow)) {
             kfree(child);
@@ -139,10 +147,13 @@ vm_region_t *vm_region_fork(vm_region_t *parent) {
             kfree(child);
             return ERR_PTR(-ENOMEM);
         }
+
         vm_object_dec_ref(parent->object); // The parent region will now point to the shadow object, so we need to decrement the ref count of the original object
 
         parent->object = parent_shadow;
         child->object  = child_shadow;
+
+        return child;
 
         pmap_protect(vm_space_from_region(parent)->arch, parent->base, parent->end, parent->prot & ~VM_PROT_WRITE);
     } else {
@@ -216,7 +227,6 @@ vm_region_t* vm_region_insert(vm_space_t *space, vm_region_t *new_region) {
         new_region->offset + (new_region->end - new_region->base) == next->offset)
     {
         new_region->end = next->end;
-        list_remove(&next->node);
         vm_region_dec_ref(next); // Free the next region since we're merging it into new_region
     }
 
@@ -261,7 +271,6 @@ vm_region_t* vm_region_merge(vm_region_t *region, vm_region_t *other) {
 			region->offset = other->offset;
 		}
 
-		list_remove(&other->node);
 		vm_region_dec_ref(other); // Free the other region since we're merging it into region
 		return region;
 	}
@@ -329,6 +338,5 @@ int vm_region_remap(vm_region_t *region, uintptr_t new_addr, size_t new_size) {
 }
 
 void vm_region_destroy(vm_region_t *region) {
-	list_remove(&region->node);
 	vm_region_dec_ref(region); // This will free the region and its object if this was the last reference
 }

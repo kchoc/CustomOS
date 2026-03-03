@@ -8,6 +8,7 @@
 #include <dev/ide/ide.h>
 
 #include <kern/terminal.h>
+#include <kern/panic.h>
 
 #include <string.h>
 #include <inttypes.h>
@@ -365,6 +366,11 @@ dentry_t *vfs_lookup(dentry_t *start, const char *path) {
         // Check cache first
         next = dentry_cache_lookup(current, dir);
 
+        printf("vfs_lookup: Looking for '%s' under '%s' - %s\n",
+            dir,
+            current->d_name ? current->d_name : "<root>",
+            next ? "Found in cache" : "Not in cache");
+
         // If not in cache, use lookup operation
         if (!next) {
             next = current->d_inode->i_ops->lookup(current->d_inode, dir, 0);
@@ -373,6 +379,11 @@ dentry_t *vfs_lookup(dentry_t *start, const char *path) {
                 list_push_head(&current->children, &next->node);
             }
         }
+
+        printf("vfs_lookup: After lookup, '%s' under '%s' - %s\n",
+            dir,
+            current->d_name ? current->d_name : "<root>",
+            next ? "Found" : "Not found");
 
         if (!next) return NULL; // Not found
 
@@ -440,6 +451,8 @@ file_t *vfs_open(const char *path, int flags, umode_t mode) {
     dentry_t *dentry = vfs_lookup(NULL, path);
     if (!dentry) return NULL;
     if (!dentry->d_inode) return NULL;
+
+    printf("vfs_open: Found dentry for path '%s' with inode number %lu\n", path, dentry->d_inode->i_ino);
 
     file_t *file = alloc_file(dentry, flags);
     if (!file) return NULL;

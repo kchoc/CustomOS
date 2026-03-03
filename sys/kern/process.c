@@ -19,7 +19,7 @@
 vaddr_t user_stack_bottom = USER_STACK_BOTTOM;
 
 
-static list_t* all_processes = NULL;
+static list_t all_processes; // Global list of all processes in the system
 proc_t* idle_process = NULL;
 
 static uint32_t next_pid = 1;
@@ -43,7 +43,7 @@ void idle_task() {
 
 // Add a thread to the runqueue (circular linked list); handle empty list case
 static void runqueue_add(pcpu_t* pcpu, thread_t *t) {
-    list_push_tail(GET_RUNQUEUE, (list_node_t*)&t->node);
+    list_push_tail(&pcpu->runqueue, (list_node_t*)&t->node);
     pcpu->total_priority += t->priority;
 }
 
@@ -58,12 +58,12 @@ static void runqueue_remove(pcpu_t* pcpu, thread_t *t) {
 
 // Add a process to the global process list
 static void proc_list_add(proc_t* p) {
-    list_push_tail(all_processes, (list_node_t*)&p->node);
+    list_push_tail(&all_processes, (list_node_t*)&p->node);
 }
 
 // Remove a process from the global process list
 static void proc_list_remove(proc_t* p) {
-    list_node_t* node = list_find(all_processes, &p->node);
+    list_node_t* node = list_find(&all_processes, &p->node);
     if (!node) return;
     list_remove(node);
 }
@@ -82,9 +82,7 @@ static void proc_remove_thread(proc_t* p, thread_t* t) {
 
 /* ---------------- Allocation / Creation ---------------- */
 void tasking_init(void) {
-    all_processes = kmalloc(sizeof(list_t));
-    if (!all_processes) PANIC("tasking_init: Out of memory");
-    memset(all_processes, 0, sizeof(list_t));
+    list_init(&all_processes, 0);
 
     // bootstrap "idle" thread and process
     proc_t *p = create_process("idle");
@@ -94,7 +92,6 @@ void tasking_init(void) {
 
     pcpus[0].current_thread = t;
 
-    
     p->main_thread = t;
     proc_add_thread(p, t);
 }
@@ -177,6 +174,8 @@ thread_t* create_user_thread(void (*entry)(void), proc_t *p, uint32_t priority, 
     t->tcb.ss = 0x23; // User mode stack segment
     t->tcb.eflags = 0x202; // Enable interrupts
 
+    return t;
+
     proc_add_thread(p, t);
     if (!pcpu) pcpu = select_pcpu();
     runqueue_add(pcpu, t);
@@ -196,11 +195,6 @@ proc_t* create_process(const char* name) {
     }
 
     list_init(&p->threads, 0);
-    p->vmspace = (vm_space_t*)kmalloc(sizeof(vm_space_t));
-    if (!p->vmspace) {
-        kfree(p);
-        return NULL;
-    }
     p->vmspace = vm_space_fork(kernel_vm_space); // Start with a copy of the kernel VM space
     
     // Create file descriptor table
@@ -253,6 +247,8 @@ void free_thread(pcpu_t* pcpu, thread_t *t) {
 
 void free_process(proc_t *p) {
     if (!p) return;
+
+    printf("Freeing process %d (%s)\n", p->pid, p->name);
 
     proc_list_remove(p);
 
@@ -448,7 +444,7 @@ void list_tasks() {
     printf("CPU   PID   TID   PPID  STATE    NAME\n");
     printf("==========================================\n");
 
-    list_node_t* node = all_processes->head;
+    list_node_t* node = all_processes.head;
     while (node) {
         proc_t* p = PROC_FROM_NODE(node);
         thread_t* t = p->main_thread;

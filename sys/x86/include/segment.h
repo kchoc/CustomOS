@@ -14,7 +14,7 @@
 	(seg).sd_high_base = ((base) >> 24) & 0xFF;   \
 }
 
-typedef struct segment_descriptor_t {
+typedef struct segment_descriptor {
 	unsigned sd_low_limit  : 16;
 	unsigned sd_low_base   : 24;
 	unsigned sd_type	   : 5;
@@ -27,7 +27,20 @@ typedef struct segment_descriptor_t {
 	unsigned sd_high_base  : 8;
 } __packed seg_desc_t;
 
-_Static_assert(sizeof(seg_desc_t) == 8, "GDT entry must be 8 bytes");
+#ifdef __i386__
+
+typedef struct gate_descriptor {
+	unsigned gd_low_offset	: 16;
+	unsigned gd_selector  	: 16;
+	unsigned gd_stackcpy 	: 5;	// Number of stack words to copy (for call gates)
+	unsigned gd_reserved	: 3; 	// Reserved, should be zero
+	unsigned gd_type		: 5; 	// Type of gate (e.g. interrupt, trap, task)
+	unsigned gd_dpl			: 2; 	// Descriptor Privilege Level
+	unsigned gd_present		: 1; 	// Present bit
+	unsigned gd_high_offset	: 16;
+} __packed gate_desc_t;
+
+#endif
 
 /*
  * Selectors

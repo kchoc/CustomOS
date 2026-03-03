@@ -370,6 +370,8 @@ void terminal_print_registers(registers_t* regs) {
 
 void delay(uint32_t ms) {
     for (uint32_t i = 0; i < ms; i++) {
-        for (uint32_t j = 0; j < 1000000; j++) {}
+        for (uint32_t j = 0; j < 1000000; j++) {
+            __asm__ __volatile__("nop");
+        }
     }
 }

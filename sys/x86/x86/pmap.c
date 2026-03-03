@@ -1,5 +1,6 @@
 #include <machine/pmap.h>
 #include <machine/page_table.h>
+#include <vm/vm_space.h>
 
 #include <kern/errno.h>
 #include <vm/layout.h>
@@ -7,6 +8,8 @@
 #include <vm/vm_phys.h>
 #include "string.h"
 #include "vm/types.h"
+
+#include <kern/panic.h>
 
 void tlb_invlpg(void* addr) {
 	asm volatile("invlpg (%0)" : : "r"(addr) : "memory");
@@ -41,30 +44,13 @@ pmap_t* pmap_create() {
 	if (!pmap) return NULL;
 
 	pmap->pd = (page_table_t*)vm_phys_alloc_page();
+	pmap_enter(kernel_vm_space->arch, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pmap->pd, VM_PROT_READ | VM_PROT_WRITE, PMAP_FLAG_NONE);
+	for (int i = KERNEL_PAGE_ENTRIES; i < PAGE_ENTRIES_PER_TABLE; i++) {
+		edit_pd->entries[i] = current_pd->entries[i];
+	}
+	pmap_remove(kernel_vm_space->arch, PAGE_TABLE_EDIT_ADDRESS, PAGE_TABLE_EDIT_ADDRESS + PAGE_SIZE);
 
 	return pmap;
-}
-
-static void free_table(page_table_t* table, int level) {
-	for (int i = 0; i < (level == 0 ? KERNEL_PAGE_ENTRY_START : KERNEL_PAGE_ENTRIES); i++) {
-		if (table->entries[i] & VM_PROT_READ && !((table->entries[i]) & VM_PROT_HUGE)) {
-			page_table_t* next_table = (page_table_t*)(table->entries[i] & 0xFFFFF000);
-			if (level != PAGE_TABLE_LEVELS - 2) // Don't free page frames, they might be shared and should be freed by the vm system when the last reference is removed
-				free_table(next_table, level + 1);
-			vm_phys_free_page((paddr_t)next_table);
-		}
-	}
-}
-
-void pmap_destroy(pmap_t* pmap) {
-	if (!pmap) return;
-
-	// Free page tables but not the page frames since they might be shared and should be freed by the vm system when the last reference is removed
-	// Im going to use recursion to free all page tables but this could be optimized by keeping track of allocated page tables in the pmap structure and freeing them iteratively instead
-	free_table((page_table_t*)pmap->pd, 0);
-
-	vm_phys_free_page((paddr_t)pmap->pd);
-	kfree(pmap);
 }
 
 void pmap_activate(pmap_t *pmap) {

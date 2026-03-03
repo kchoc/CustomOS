@@ -24,9 +24,11 @@ typedef struct pcpu {
 	uint8_t started; /* Has this CPU been started? */
 	vm_space_t* vmspace; /* The kernel VM space, shared across all CPUs */
 	PCPU_MD_FIELDS
-} __packed pcpu_t;
+} pcpu_t;
 
 extern pcpu_t pcpus[];
 extern uint32_t cpu_count;
+
+int pcpu_init();
 
 #endif // PCPU_H

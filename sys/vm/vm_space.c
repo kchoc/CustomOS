@@ -4,6 +4,9 @@
 #include "vm_phys.h"
 #include "vm_region.h"
 
+#include <kern/panic.h>
+#include <kern/terminal.h>
+
 #include "kmalloc.h"
 #include <kern/pcpu.h>
 #include "libkern/list.h"
@@ -12,16 +15,29 @@
 vm_space_t* kernel_vm_space = NULL;
 
 int kvm_space_init() {
-	kernel_vm_space = vm_space_create();
+	kernel_vm_space = kmalloc(sizeof(vm_space_t));
 	if (IS_ERR(kernel_vm_space)) return (int)kernel_vm_space;
-	vm_phys_free_page((paddr_t)(kernel_vm_space->arch->pd)); // Free the page allocated for the kernel page directory since we'll be using the one identity mapped by the bootloader
+
+	kernel_vm_space->ref_count = 1;
+	list_init(&kernel_vm_space->regions, 0);
+	kernel_vm_space->arch = kmalloc(sizeof(pmap_t));
+	if (IS_ERR(kernel_vm_space->arch)) {
+		kfree(kernel_vm_space);
+		return (int)kernel_vm_space->arch;
+	}
+
 	kernel_vm_space->arch->pd = *current_pd_addr; // Use the page directory set up by the bootloader
 	pcpus[0].vmspace = kernel_vm_space;
 
 	// Since this is the first kvm call, the start is at 0xC0000000, so we can allocate that
 	vaddr_t virt = KERNEL_BASE;
     int ret = vm_map_anon(kernel_vm_space, &virt, 0x00400000, VM_PROT_READ | VM_PROT_WRITE, VM_REG_F_KERNEL);
-	return ret;
+	if (IS_ERR(ret)) return ret;
+
+	pmap_init();
+
+    // TODO: Need to bookkeep the vm_pages from the bootloader
+	return 0;
 }
 
 vm_space_t* vm_space_create() {
@@ -59,10 +75,10 @@ vm_space_t* vm_space_fork(vm_space_t* parent) {
 void vm_space_destroy(vm_space_t* space) {
 	if (!space) return;
 
+
 	// Decrement reference counts for all regions and their objects (this will free them if this was the last reference)
 	while (space->regions.head) {
 	    vm_region_t* region = list_node_to_region(space->regions.head);
-	    list_remove(&region->node);
 	    vm_region_dec_ref(region);
 	}
 
@@ -70,6 +86,7 @@ void vm_space_destroy(vm_space_t* space) {
 	pmap_destroy(space->arch);
 
 	kfree(space);
+
 }
 
 void vm_space_activate(vm_space_t *space) {
