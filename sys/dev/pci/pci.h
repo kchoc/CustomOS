@@ -1,6 +1,9 @@
 #ifndef PCI_H
 #define PCI_H
 
+#include <sys/bus.h>
+#include <sys/device.h>
+
 #include <inttypes.h>
 
 #define PCI_CONFIG_ADDRESS 0xCF8
@@ -26,12 +29,17 @@ uint32_t pci_dev_config_read32(pci_device_t* dev, uint8_t offset);
 uint16_t pci_dev_config_read16(pci_device_t* dev, uint8_t offset);
 uint32_t pci_dev_config_write32(pci_device_t* dev, uint8_t offset, uint32_t value);
 
-void pci_discover_devices(void);
+uint32_t pci_read_bar(pci_device_t* dev, uint8_t bar_index);
 
 // Enumerate PCI devices and print their info
-void pci_enumerate_devices(void);
+int pci_enumerate(bus_t* bus);
+int pci_match(device_t* dev, driver_t* drv);
+int pci_probe(device_t* dev, driver_t* drv);
+int pci_remove(device_t* dev);
 
 // Get the base address register (BAR) of a PCI device
 uint32_t pci_get_bar(uint8_t bus, uint8_t slot, uint8_t function, uint8_t bar_index);
+
+extern bus_t pci_bus;
 
 #endif // PCI_H

@@ -5,10 +5,9 @@
 
 #include <vm/kmalloc.h>
 
-#include <dev/ide/ide.h>
-
 #include <kern/terminal.h>
 #include <kern/panic.h>
+#include <kern/pit.h>
 
 #include <string.h>
 #include <inttypes.h>
@@ -35,6 +34,15 @@ block_device_t* vfs_get_block_device(const char* name) {
             return g_block_devices[i];
     }
     return NULL;
+}
+
+void vfs_list_block_devices(void) {
+    printf("Registered Block Devices:\n");
+    for (int i = 0; i < g_block_device_count; i++) {
+        block_device_t* bdev = g_block_devices[i];
+        printf(" - %s: %lu sectors of %u bytes\n",
+            bdev->name, bdev->sector_count, bdev->sector_size);
+    }
 }
 
 /*  ========================
@@ -188,7 +196,7 @@ vfsmount_t *lookup_mnt_for_dentry(dentry_t *dentry) {
  * @param mnt_root Pointer to the root dentry of the filesystem being mounted.
  * @return 0 on success, -1 on failure.
  */
-int mount_fs(super_block_t* sb, dentry_t* mountpoint, dentry_t* mnt_root, block_device_t* device) {
+int mount_fs(super_block_t* sb, dentry_t* mountpoint, dentry_t* mnt_root) {
     if (!sb || !mnt_root) return -1;
 
     vfsmount_t *mnt = alloc_vfsmount();
@@ -265,7 +273,7 @@ int vfs_mount_drive(const char *device_name, const char *mount_path, file_system
     dentry_t *mnt_root = fs_type->mount(fs_type, 0, device, NULL);
     if (!mnt_root || !mnt_root->d_inode) return -1;
 
-    if (mount_fs(mnt_root->d_sb, mnt_point, mnt_root, device)) {
+    if (mount_fs(mnt_root->d_sb, mnt_point, mnt_root)) {
         dentry_cache_release(mnt_root);
         return -1;
     }
@@ -366,11 +374,6 @@ dentry_t *vfs_lookup(dentry_t *start, const char *path) {
         // Check cache first
         next = dentry_cache_lookup(current, dir);
 
-        printf("vfs_lookup: Looking for '%s' under '%s' - %s\n",
-            dir,
-            current->d_name ? current->d_name : "<root>",
-            next ? "Found in cache" : "Not in cache");
-
         // If not in cache, use lookup operation
         if (!next) {
             next = current->d_inode->i_ops->lookup(current->d_inode, dir, 0);
@@ -379,11 +382,6 @@ dentry_t *vfs_lookup(dentry_t *start, const char *path) {
                 list_push_head(&current->children, &next->node);
             }
         }
-
-        printf("vfs_lookup: After lookup, '%s' under '%s' - %s\n",
-            dir,
-            current->d_name ? current->d_name : "<root>",
-            next ? "Found" : "Not found");
 
         if (!next) return NULL; // Not found
 
@@ -451,8 +449,6 @@ file_t *vfs_open(const char *path, int flags, umode_t mode) {
     dentry_t *dentry = vfs_lookup(NULL, path);
     if (!dentry) return NULL;
     if (!dentry->d_inode) return NULL;
-
-    printf("vfs_open: Found dentry for path '%s' with inode number %lu\n", path, dentry->d_inode->i_ino);
 
     file_t *file = alloc_file(dentry, flags);
     if (!file) return NULL;

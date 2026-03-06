@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <vm/kmalloc.h>
 #include <kern/spinlock.h>
 #include <kern/terminal.h>
@@ -135,11 +136,17 @@ void kfree(void *ptr) {
 void memory_usage() {
     spin_lock(&kmalloc_lock);
     kmalloc_unit_t *u = head;
+    uint32_t total_free = 0, total_used = 0;
     int i = 0;
     while (u) {
         printf("Block %d: %d bytes, %s\n", i, u->size, u->state == KMALLOC_STATE_FREE ? "free" : "used");
+        if (u->state == KMALLOC_STATE_FREE)
+            total_free += u->size;
+        else
+            total_used += u->size;
         u = u->next;
         i++;
     }
+    printf("Total used: %u bytes, Total free: %u bytes\n", total_used, total_free);
     spin_unlock(&kmalloc_lock);
 }

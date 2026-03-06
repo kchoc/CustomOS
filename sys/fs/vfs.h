@@ -2,8 +2,10 @@
 #define VFS_H
 
 #include "file.h"
-#include <dev/ide/ide.h>
 #include <list.h>
+
+#include <sys/device.h>
+
 #include <kern/compiler.h>
 #include <kern/socket.h>
 
@@ -174,6 +176,7 @@ struct vfsmount {
 /* Block Device Register */
 int             vfs_register_block_device(block_device_t* bdev);
 block_device_t* vfs_get_block_device(const char* device_name);
+void            vfs_list_block_devices(void);
 
 /* VFS Structure Allocators */
 
@@ -191,7 +194,7 @@ file_system_type_t* get_fs_type(const char* name);
 vfsmount_t* alloc_vfsmount(void);
 int         free_vfsmount(vfsmount_t* mnt);
 vfsmount_t* lookup_mnt_for_dentry(dentry_t* dentry);
-int         mount_fs(super_block_t* sb, dentry_t* mountpoint, dentry_t* mnt_root, block_device_t* device);
+int         mount_fs(super_block_t* sb, dentry_t* mountpoint, dentry_t* mnt_root);
 int         unmount_fs(dentry_t* mountpoint);
 void        vfs_unmount(vfsmount_t* mnt);
 int         vfs_mount_root(block_device_t* device);

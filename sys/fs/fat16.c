@@ -3,8 +3,9 @@
 #include "path.h"
 #include "file.h"
 
-#include <dev/ide/ide.h>
 #include <vm/kmalloc.h>
+#include <kern/pit.h>
+#include <kern/terminal.h>
 
 #include <inttypes.h>
 #include <string.h>
@@ -40,7 +41,7 @@ dentry_t* fat16_mount(file_system_type_t* fs_type, int flags,
                         block_device_t* device, void* data) {
     if (!fs_type || strcmp(fs_type->name, "fat16") != 0) return NULL;
 
-    fat16_init();
+    fat16_init(device);
 
     super_block_t* sb = alloc_superblock(fs_type, NULL);
     if (!sb) return NULL;
@@ -168,13 +169,13 @@ typedef bool (*fat16_entry_cb)(fat16_dir_entry_t* entry, void* context, uint16_t
 
 #define MAX_ITTERATIONS 1024 // Prevent infinite loops incase of corruption
 
-static bool fat16_iterate_dir(uint16_t cluster, fat16_entry_cb cb, void* context) {
+static bool fat16_iterate_dir(block_device_t* bdev, uint16_t cluster, fat16_entry_cb cb, void* context) {
     KMALLOC_RET(buf, void, SECTOR_SIZE, false);
     fat16_dir_entry_t* entries = (fat16_dir_entry_t*)buf;
     int itter = 0;
     while (cluster < FAT16_CLUSTER_EOF && itter++ < MAX_ITTERATIONS) {
         uint32_t lba = cluster_to_lba(cluster);
-        ide_read_sector(lba, buf);
+        bdev->ops->read(bdev, lba, 1, buf);
 
         for (int i = 0; i < ENTRIES_PER_SECTOR; i++) {
             if (!cb(&entries[i], context, lba, i))
@@ -185,13 +186,13 @@ static bool fat16_iterate_dir(uint16_t cluster, fat16_entry_cb cb, void* context
     return false; // Completed iteration without callback signaling to stop
 }
 
-static bool fat16_iterate_root(fat16_entry_cb cb, void* context) {
-    KMALLOC_RET(buf, void, SECTOR_SIZE, false);
+static bool fat16_iterate_root(block_device_t* bdev, fat16_entry_cb cb, void* context) {
+    uint8_t buf[SECTOR_SIZE];
     fat16_dir_entry_t* entries = (fat16_dir_entry_t*)buf;
-    uint32_t lba;
+    uint64_t lba;
     for (uint16_t sector = 0; sector < ROOT_DIR_SECTORS; sector++) {
         lba = ROOT_DIR_LBA + sector;
-        ide_read_sector(lba, buf);
+        bdev->ops->read(bdev, lba, 1, buf);
 
         for (int i = 0; i < ENTRIES_PER_SECTOR; i++) {
             if (!cb(&entries[i], context, lba, i))
@@ -201,45 +202,45 @@ static bool fat16_iterate_root(fat16_entry_cb cb, void* context) {
     return false; // Completed iteration without callback signaling to stop
 }
 
-static bool fat16_iterate(inode_t* inode, fat16_entry_cb cb, void* context) {
+static bool fat16_iterate(block_device_t* bdev, inode_t* inode, fat16_entry_cb cb, void* context) {
     if (inode->i_ino == 0)
-        return fat16_iterate_root(cb, context);
+        return fat16_iterate_root(bdev, cb, context);
     else
-        return fat16_iterate_dir(inode->i_ino, cb, context);
+        return fat16_iterate_dir(bdev, inode->i_ino, cb, context);
 }
 
 /* --------------------
    FAT16 DIRECTORY OPERATIONS
    -------------------- */
 
-static void fat16_dir_update_entry(uint32_t lba, uint16_t index, uint32_t file_size) {
+static void fat16_dir_update_entry(block_device_t* bdev, uint32_t lba, uint16_t index, uint32_t file_size) {
     KMALLOC_RET(buf, void, SECTOR_SIZE, );
-    ide_read_sector(lba, buf);
+    bdev->ops->read(bdev, lba, 1, buf);
     fat16_dir_entry_t* entries = (fat16_dir_entry_t*)buf;
 
     entries[index].file_size = file_size;
 
-    ide_write_sector(lba, buf);
+    bdev->ops->write(bdev, lba, 1, buf);
 }
 
-static void fat16_dir_add_entry(uint32_t lba, uint16_t index, fat16_dir_entry_t* new_entry) {
+static void fat16_dir_add_entry(block_device_t* bdev, uint32_t lba, uint16_t index, fat16_dir_entry_t* new_entry) {
     KMALLOC_RET(buf, void, SECTOR_SIZE, );
-    ide_read_sector(lba, buf);
+    bdev->ops->read(bdev, lba, 1, buf);
     fat16_dir_entry_t* entries = (fat16_dir_entry_t*)buf;
 
     memcpy(&entries[index], new_entry, sizeof(fat16_dir_entry_t));
 
-    ide_write_sector(lba, buf);
+    bdev->ops->write(bdev, lba, 1, buf);
 }
 
-static void fat16_dir_remove_entry(uint32_t lba, uint16_t index) {
+static void fat16_dir_remove_entry(block_device_t* bdev, uint32_t lba, uint16_t index) {
     KMALLOC_RET(buf, void, SECTOR_SIZE, );
-    ide_read_sector(lba, buf);
+    bdev->ops->read(bdev, lba, 1, buf);
     fat16_dir_entry_t* entries = (fat16_dir_entry_t*)buf;
 
     entries[index].name[0] = 0xE5; // Mark as deleted
 
-    ide_write_sector(lba, buf);
+    bdev->ops->write(bdev, lba, 1, buf);
 }
 
 /* ----------------------
@@ -281,6 +282,7 @@ loff_t fat16_llseek(file_t* file, loff_t offset, int whence) {
 ssize_t fat16_read(file_t* file, char* __user buf, size_t count, loff_t* offset) {
     if (!file || !file->private) return -1; // Invalid parameters
     if (offset) *offset = file->f_pos;
+    block_device_t* bdev = file->f_dentry->d_sb->device;
 
     KMALLOC_RET(cluster_buf, void, SECTOR_SIZE, -1);
 
@@ -301,7 +303,7 @@ ssize_t fat16_read(file_t* file, char* __user buf, size_t count, loff_t* offset)
             fat_file->current_cluster = current_cluster;
         }
 
-        ide_read_sector(cluster_to_lba(current_cluster), cluster_buf);
+        bdev->ops->read(bdev, cluster_to_lba(current_cluster), 1, cluster_buf);
         read_now = SECTOR_SIZE - cluster_offset;
         if (read_now > to_read) read_now = to_read;
         memcpy((uint8_t*)buf + total_read, (uint8_t*)cluster_buf + cluster_offset, read_now);
@@ -318,6 +320,7 @@ ssize_t fat16_read(file_t* file, char* __user buf, size_t count, loff_t* offset)
 ssize_t fat16_write(file_t* file, const char* __user buf, size_t count, loff_t* offset) {
     if (!file || !file->private || !buf) return -1; // Invalid parameters
     if (offset) *offset = file->f_pos;
+    block_device_t* bdev = file->f_dentry->d_sb->device;
 
     KMALLOC_RET(cluster_buf, void, SECTOR_SIZE, -1);
 
@@ -345,12 +348,11 @@ ssize_t fat16_write(file_t* file, const char* __user buf, size_t count, loff_t* 
             fat_file->current_cluster = current_cluster;
         }
 
-
-        ide_read_sector(cluster_to_lba(current_cluster), cluster_buf);
+        bdev->ops->read(bdev, cluster_to_lba(current_cluster), 1, cluster_buf);
         write_now = SECTOR_SIZE - cluster_offset;
         if (write_now > to_write) write_now = to_write;
         memcpy((uint8_t*)cluster_buf + cluster_offset, (uint8_t*)buf + total_written, write_now);
-        ide_write_sector(cluster_to_lba(current_cluster), cluster_buf);
+        bdev->ops->write(bdev, cluster_to_lba(current_cluster), 1, cluster_buf);
         total_written += write_now;
         to_write -= write_now;
         cluster_offset = file->f_pos % SECTOR_SIZE;
@@ -360,7 +362,7 @@ ssize_t fat16_write(file_t* file, const char* __user buf, size_t count, loff_t* 
     if (file->f_pos > fat_file->file_size)
         fat_file->file_size = file->f_pos;
 
-    fat16_flush();
+    fat16_flush(bdev);
 
     return total_written; // Number of bytes written
 }
@@ -390,6 +392,7 @@ int fat16_open(inode_t* inode, file_t* file) {
 
 int fat16_release(inode_t* inode, file_t* file) {
     if (!inode || !file || !file->private) return -1; // Invalid parameters
+    block_device_t* bdev = file->f_dentry->d_sb->device;
 
     fat16_file_t* fdata = file->private;
     fat16_node_info_t* node_info = (fat16_node_info_t*)inode->private;
@@ -399,7 +402,7 @@ int fat16_release(inode_t* inode, file_t* file) {
         node_info->start_cluster = fdata->start_cluster;
 
         // Update directory entry on disk
-        fat16_dir_update_entry(fdata->parent_dir_lba, fdata->parent_dir_index, fdata->file_size);
+        fat16_dir_update_entry(bdev, fdata->parent_dir_lba, fdata->parent_dir_index, fdata->file_size);
     }
 
     kfree(fdata);
@@ -410,16 +413,17 @@ int fat16_release(inode_t* inode, file_t* file) {
 
 int fat16_iterate_shared(file_t* file, dir_context_t* ctx) {
     if (!file || !file->private || !ctx) return -1; // Invalid parameters
+    block_device_t* bdev = file->f_dentry->d_sb->device;
 
     fat16_file_t* fdata = file->private;
     if (fdata->start_cluster == 0) {
         // Root directory
         readdir_ctx_t rctx = { .lba = 0, .index = 0, .dir = ctx };
-        fat16_iterate_root(fat16_readdir_cb, &rctx);
+        fat16_iterate_root(bdev, fat16_readdir_cb, &rctx);
     } else {
         // Subdirectory
         readdir_ctx_t rctx = { .lba = 0, .index = 0, .dir = ctx };
-        fat16_iterate_dir(fdata->start_cluster, fat16_readdir_cb, &rctx);
+        fat16_iterate_dir(bdev, fdata->start_cluster, fat16_readdir_cb, &rctx);
     }
 
     return 0; // Success
@@ -443,12 +447,13 @@ fat16_node_info_t* alloc_fat16_node_info(uint16_t start_cluster, uint32_t file_s
  
 dentry_t *fat16_lookup(inode_t* dir, const char* name, unsigned int flags) {
     if (!dir || !name) return NULL; // Invalid parameters
+    block_device_t* bdev = dir->i_sb->device;
 
     fat16_dir_entry_t found_entry = {0};
     lookup_ctx_t ctx = { .name = 0, .found = &found_entry };
     if (format_filename_83(name, (char*)ctx.name)) return NULL;
 
-    fat16_iterate(dir, fat16_lookup_cb, &ctx);
+    fat16_iterate(bdev, dir, fat16_lookup_cb, &ctx);
 
     if (found_entry.name[0] == 0) return NULL; // Entry not found
 
@@ -483,6 +488,7 @@ dentry_t *fat16_lookup(inode_t* dir, const char* name, unsigned int flags) {
 
 int fat16_create(inode_t* dir, dentry_t* dentry, umode_t mode, bool excl) {
     if (!dir || !dentry || !dentry->d_name) return -1;
+    block_device_t* bdev = dir->i_sb->device;
 
     char name_83[11];
     if (format_filename_83(dentry->d_name, name_83)) return -1; // invalid name
@@ -491,7 +497,7 @@ int fat16_create(inode_t* dir, dentry_t* dentry, umode_t mode, bool excl) {
     fat16_dir_entry_t entry = {0};
     lookup_ctx_t ctx = { .found = &entry };
     strncpy(ctx.name, name_83, 11);
-    fat16_iterate(dir, fat16_lookup_cb, &ctx);
+    fat16_iterate(bdev, dir, fat16_lookup_cb, &ctx);
     if (entry.name[0] != 0) {
         if (excl) return -1; // file exists & exclusive flag set
         // otherwise overwrite 
@@ -500,7 +506,7 @@ int fat16_create(inode_t* dir, dentry_t* dentry, umode_t mode, bool excl) {
 
     // Find an empty entry
     empty_ctx_t empty_ctx = { .lba = 0xFFFFFFFF, .index = 0xFFFF };
-    if (!fat16_iterate(dir, fat16_find_empty_cb, &empty_ctx)) return -1;
+    if (!fat16_iterate(bdev, dir, fat16_find_empty_cb, &empty_ctx)) return -1;
 
     if (empty_ctx.lba == 0xFFFFFFFF) return -1; // No free entry found
 
@@ -511,7 +517,7 @@ int fat16_create(inode_t* dir, dentry_t* dentry, umode_t mode, bool excl) {
     strncpy(entry.name, name_83, 11);
 
     // Write directory entry
-    fat16_dir_add_entry(empty_ctx.lba, empty_ctx.index, &entry);
+    fat16_dir_add_entry(bdev, empty_ctx.lba, empty_ctx.index, &entry);
 
     // Create inode for new file
     inode_t* new_inode = alloc_inode(0, 0x8000, 0, &fat16_inode_ops, &fat16_file_ops);
@@ -528,13 +534,14 @@ int fat16_create(inode_t* dir, dentry_t* dentry, umode_t mode, bool excl) {
 
     dentry->d_inode = new_inode;
 
-    fat16_flush();
+    fat16_flush(bdev);
     return 0;
 }
 
 int fat16_link(inode_t* dir, dentry_t* old_dentry, dentry_t* new_dentry) {
     if (!dir || !old_dentry || !new_dentry || !old_dentry->d_inode || !old_dentry->d_inode->private || !new_dentry->d_name)
         return -1; // Invalid parameters
+    block_device_t* bdev = dir->i_sb->device;
 
     char name_83[11];
     if (format_filename_83(new_dentry->d_name, name_83)) return -1; // Invalid filename format
@@ -543,11 +550,11 @@ int fat16_link(inode_t* dir, dentry_t* old_dentry, dentry_t* new_dentry) {
     fat16_dir_entry_t entry = {0};
     lookup_ctx_t ctx = { .name = 0, .found = &entry };
     strncpy(ctx.name, name_83, 11);
-    if (fat16_iterate(dir, fat16_lookup_cb, &ctx)) return -1; // Entry already exists
+    if (fat16_iterate(bdev, dir, fat16_lookup_cb, &ctx)) return -1; // Entry already exists
 
     // Find an empty entry
     empty_ctx_t empty_ctx = { .lba = 0xFFFFFFFF, .index = 0xFFFF };
-    if (!fat16_iterate(dir, fat16_find_empty_cb, &empty_ctx)) return -1; // No free entry found
+    if (!fat16_iterate(bdev, dir, fat16_find_empty_cb, &empty_ctx)) return -1; // No free entry found
     if (empty_ctx.lba == 0xFFFFFFFF) return -1; // No free entry found
 
     fat16_node_info_t* old_node_info = (fat16_node_info_t*)old_dentry->d_inode->private;
@@ -561,7 +568,7 @@ int fat16_link(inode_t* dir, dentry_t* old_dentry, dentry_t* new_dentry) {
     entry.file_size = old_node_info->file_size;
 
     // Write the new entry to disk
-    fat16_dir_add_entry(empty_ctx.lba, empty_ctx.index, &entry);
+    fat16_dir_add_entry(bdev, empty_ctx.lba, empty_ctx.index, &entry);
 
     // Create inode for new link
     inode_t* new_inode = alloc_inode(old_node_info->start_cluster,
@@ -582,13 +589,14 @@ int fat16_link(inode_t* dir, dentry_t* old_dentry, dentry_t* new_dentry) {
     new_inode->private = node_info;
     new_inode->i_sb = dir->i_sb;
     new_dentry->d_inode = new_inode;
-    fat16_flush(); // Flush FAT changes to disk
+    fat16_flush(bdev); // Flush FAT changes to disk
     return 0; // Success
 }
 
 int fat16_unlink(inode_t* inode, dentry_t* dentry) {
     if (!inode || !(inode->i_mode & 0x4000) || !dentry || !dentry->d_inode || !dentry->d_inode->private)
         return -1; // Invalid parameters
+    block_device_t* bdev = inode->i_sb->device;
 
     fat16_node_info_t* node_info = (fat16_node_info_t*)dentry->d_inode->private;
     if (!node_info) return -1; // Invalid inode info
@@ -598,19 +606,20 @@ int fat16_unlink(inode_t* inode, dentry_t* dentry) {
         fat16_free_cluster_chain(node_info->start_cluster);
 
     // Remove directory entry
-    fat16_dir_remove_entry(node_info->dir_lba, node_info->dir_index);
+    fat16_dir_remove_entry(bdev, node_info->dir_lba, node_info->dir_index);
 
     // Free inode and its private data
     kfree(node_info);
     kfree(dentry->d_inode);
     dentry->d_inode = NULL;
 
-    fat16_flush(); // Flush FAT changes to disk
+    fat16_flush(bdev); // Flush FAT changes to disk
     return 0; // Success
 }
 
 int fat16_mkdir(inode_t* inode, dentry_t* dentry, umode_t mode) {
     if (!inode || !(inode->i_mode & 0x4000)  || !dentry || !dentry->d_name) return -1; // Invalid parameters
+    block_device_t* bdev = inode->i_sb->device;
 
     char name_83[11];
     if (format_filename_83(dentry->d_name, name_83)) return -1; // Invalid filename format
@@ -618,11 +627,11 @@ int fat16_mkdir(inode_t* inode, dentry_t* dentry, umode_t mode) {
     // Check if directory already exists
     fat16_dir_entry_t entry = {0};
     lookup_ctx_t ctx = { .name = 0, .found = &entry };
-    if (fat16_iterate(inode, fat16_lookup_cb, &ctx)) return -1;
+    if (fat16_iterate(bdev, inode, fat16_lookup_cb, &ctx)) return -1;
 
     // Find an empty entry
     empty_ctx_t empty_ctx = { .lba = 0xFFFFFFFF, .index = 0xFFFF };
-    if (!fat16_iterate(inode, fat16_find_empty_cb, &empty_ctx)) return -1; // No free entry found
+    if (!fat16_iterate(bdev, inode, fat16_find_empty_cb, &empty_ctx)) return -1; // No free entry found
     if (empty_ctx.lba == 0xFFFFFFFF) return -1; // No free entry found
 
     // KMALLOC buffer before allocating a new cluster for easier error handling
@@ -640,7 +649,7 @@ int fat16_mkdir(inode_t* inode, dentry_t* dentry, umode_t mode) {
     entry.file_size = 0;
 
     // Write the new entry to disk
-    fat16_dir_add_entry(empty_ctx.lba, empty_ctx.index, &entry);
+    fat16_dir_add_entry(bdev, empty_ctx.lba, empty_ctx.index, &entry);
 
     // Initialize the new directory cluster with '.' and '..' entries
     memset(buf, 0, SECTOR_SIZE);
@@ -659,9 +668,9 @@ int fat16_mkdir(inode_t* inode, dentry_t* dentry, umode_t mode) {
     entries[1].start_cluster = inode->i_ino; // Parent directory cluster
     entries[1].file_size = 0;
 
-    ide_write_sector(cluster_to_lba(new_cluster), buf);
+    bdev->ops->write(bdev, cluster_to_lba(new_cluster), 1, buf);
 
-    fat16_flush(); // Flush FAT changes to disk
+    fat16_flush(bdev); // Flush FAT changes to disk
 
     return 0; // Success
 }
@@ -669,13 +678,14 @@ int fat16_mkdir(inode_t* inode, dentry_t* dentry, umode_t mode) {
 int fat16_rmdir(inode_t* inode, dentry_t* dentry) {
     if (!inode || !(inode->i_mode & 0x4000) || !dentry || !dentry->d_inode || !dentry->d_inode->private)
         return -1; // Invalid parameters
+    block_device_t* bdev = inode->i_sb->device;
 
     fat16_node_info_t* node_info = (fat16_node_info_t*)dentry->d_inode->private;
     if (!node_info) return -1; // Invalid inode info
 
     // Check if directory is empty (only '.' and '..' allowed)
     bool is_empty = true;
-    fat16_iterate_dir(node_info->start_cluster, fat16_check_empty_dir_cb, &is_empty);
+    fat16_iterate_dir(bdev, node_info->start_cluster, fat16_check_empty_dir_cb, &is_empty);
     if (!is_empty) return -1; // Directory not empty
 
     // Free the cluster chain
@@ -683,23 +693,23 @@ int fat16_rmdir(inode_t* inode, dentry_t* dentry) {
         fat16_free_cluster_chain(node_info->start_cluster);
 
     // Remove directory entry
-    fat16_dir_remove_entry(node_info->dir_lba, node_info->dir_index);
+    fat16_dir_remove_entry(bdev, node_info->dir_lba, node_info->dir_index);
 
     // Free inode and its private data
     kfree(node_info);
     kfree(dentry->d_inode);
     dentry->d_inode = NULL;
 
-    fat16_flush(); // Flush FAT changes to disk
+    fat16_flush(bdev); // Flush FAT changes to disk
     return 0; // Success
 }
 
 int fat16_rename(inode_t* old_dir, dentry_t* old_dentry, inode_t* new_dir, dentry_t* new_dentry, unsigned int flags) {
     if (!old_dir || !(old_dir->i_mode & 0x4000) || !new_dir || !(new_dir->i_mode & 0x4000) ||
         !old_dentry || !old_dentry->d_inode || !old_dentry->d_inode->private ||
-        !new_dentry || !new_dentry->d_name) {
+        !new_dentry || !new_dentry->d_name)
         return -1; // Invalid parameters
-    }
+    block_device_t* bdev = old_dir->i_sb->device;
 
     char new_name_83[11];
     if (format_filename_83(new_dentry->d_name, new_name_83)) return -1; // Invalid filename format
@@ -708,11 +718,11 @@ int fat16_rename(inode_t* old_dir, dentry_t* old_dentry, inode_t* new_dir, dentr
     fat16_dir_entry_t entry = {0};
     lookup_ctx_t ctx = { .name = 0, .found = &entry };
     strncpy(ctx.name, new_name_83, 11);
-    if (fat16_iterate(new_dir, fat16_lookup_cb, &ctx)) return -1; // Entry already exists
+    if (fat16_iterate(bdev, new_dir, fat16_lookup_cb, &ctx)) return -1; // Entry already exists
 
     // Find an empty entry in the new directory
     empty_ctx_t empty_ctx = { .lba = 0xFFFFFFFF, .index = 0xFFFF };
-    if (!fat16_iterate(new_dir, fat16_find_empty_cb, &empty_ctx)) return -1; // No free entry found
+    if (!fat16_iterate(bdev, new_dir, fat16_find_empty_cb, &empty_ctx)) return -1; // No free entry found
     if (empty_ctx.lba == 0xFFFFFFFF) return -1; // No free entry found
 
     fat16_node_info_t* old_node_info = (fat16_node_info_t*)old_dentry->d_inode->private;
@@ -726,11 +736,11 @@ int fat16_rename(inode_t* old_dir, dentry_t* old_dentry, inode_t* new_dir, dentr
     entry.file_size = old_node_info->file_size;
 
     // Write the new entry to disk
-    fat16_dir_add_entry(empty_ctx.lba, empty_ctx.index, &entry);
+    fat16_dir_add_entry(bdev, empty_ctx.lba, empty_ctx.index, &entry);
 
     // Remove the old directory entry
-    fat16_dir_remove_entry(old_node_info->dir_lba, old_node_info->dir_index);
-    fat16_flush(); // Flush FAT changes to disk
+    fat16_dir_remove_entry(bdev, old_node_info->dir_lba, old_node_info->dir_index);
+    fat16_flush(bdev); // Flush FAT changes to disk
     // Update inode info
     old_node_info->dir_lba = empty_ctx.lba;
     old_node_info->dir_index = empty_ctx.index;
@@ -756,7 +766,7 @@ int fat16_validate() {
     return 0; // Valid BPB
 }
 
-void fat16_create_boot_sector() {
+void fat16_create_boot_sector(block_device_t* bdev) {
     // Validate or setup BPB
     memset(bpb, 0, sizeof(bpb_t));
 
@@ -791,32 +801,32 @@ void fat16_create_boot_sector() {
 
     boot_sector[510] = 0x55;
     boot_sector[511] = 0xAA;
-    ide_write_sector(0, boot_sector);
+    bdev->ops->write(bdev, 0, 1, boot_sector);    
 }
 
-void fat16_flush() {
+void fat16_flush(block_device_t* bdev) {
     for (int i = 0; i < FAT_SECTORS; i++) {
         // Write both copies of the FAT
-        ide_write_sector(1 + i, ((uint8_t*)fat) + i * SECTOR_SIZE);
-        ide_write_sector(1 + FAT_SECTORS + i, ((uint8_t*)fat) + i * SECTOR_SIZE);
+        bdev->ops->write(bdev, RESERVED_SECTORS + i, 1, ((uint8_t*)fat) + i * SECTOR_SIZE);
+        bdev->ops->write(bdev, RESERVED_SECTORS + FAT_SECTORS + i, 1, ((uint8_t*)fat) + i * SECTOR_SIZE);
     }
 }
 
-void fat16_init() {
+void fat16_init(block_device_t* bdev) {
     uint8_t* boot_sector = kmalloc(SECTOR_SIZE);
-    ide_read_sector(0, boot_sector);
+    bdev->ops->read(bdev, 0, 1, boot_sector);
     bpb = (bpb_t*)boot_sector;
 
     if (fat16_validate())
-        fat16_create_boot_sector();
+        fat16_create_boot_sector(bdev);
 
     for (int i = 0; i < FAT_SECTORS; i++)
-        ide_read_sector(RESERVED_SECTORS + i, fat + i * SECTOR_SIZE);
+        bdev->ops->read(bdev, RESERVED_SECTORS + i, 1, fat + i * SECTOR_SIZE);
 
     // Check for media descriptor in FAT
     if (fat[0] != 0xF8) {
         fat[0] = 0xF8; // Set media descriptor if not set
-        fat16_flush();
+        // fat16_flush(bdev);
     }
 
     kfree(boot_sector);
@@ -852,38 +862,4 @@ void fat16_free_cluster_chain(uint16_t start) {
         if (next == FAT16_CLUSTER_EOF) break;
         start = next;
     }
-}
-
-void fat16_read_cluster_chain(uint16_t start_cluster, uint8_t* buffer, uint32_t max_clusters) {
-    uint16_t cluster = start_cluster;
-    uint32_t offset = 0;
-
-    while (cluster < FAT16_CLUSTER_EOF && max_clusters--) {
-        ide_read_sector(cluster_to_lba(cluster), ((uint8_t*)buffer) + offset);
-        offset += SECTOR_SIZE;
-        cluster = fat[cluster];
-    }
-}
-
-int fat16_write_cluster_chain(uint16_t start_cluster, void* buffer, uint32_t clusters) {
-    uint16_t current_cluster = start_cluster;
-    uint32_t offset = 0;
-
-    for (uint32_t i = 0; i < clusters; i++) {
-        if (i > 0) {
-            uint16_t next_cluster = fat16_alloc_cluster();
-            if (next_cluster == 0) {
-                fat16_free_cluster_chain(start_cluster);
-                return -1; // No free clusters available
-            }
-            fat16_set_fat_entry(current_cluster, next_cluster);
-            current_cluster = next_cluster;
-        }
-
-        ide_write_sector(cluster_to_lba(current_cluster), ((uint8_t*)buffer) + offset);
-        offset += SECTOR_SIZE;
-    }
-
-    fat16_set_fat_entry(current_cluster, FAT16_CLUSTER_EOF); // Mark the end of the chain
-    return 0; // Success
 }

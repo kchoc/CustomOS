@@ -92,6 +92,21 @@ static void itoa_base(uint32_t value, char *buf, int base, bool uppercase) {
     reverse(buf, i);
 }
 
+static void itoa_base64(uint64_t value, char *buf, int base, bool uppercase) {
+    const char *digits = uppercase ? "0123456789ABCDEF" : "0123456789abcdef";
+    int i = 0;
+    if (value == 0) {
+        buf[i++] = '0';
+    } else {
+        while (value) {
+            buf[i++] = digits[value % base];
+            value /= base;
+        }
+    }
+    buf[i] = '\0';
+    reverse(buf, i);
+}
+
 // Output context for formatting functions
 typedef struct {
     char *buffer;       // For sprintf/snprintf: buffer pointer
@@ -132,6 +147,16 @@ static void print_uint(output_ctx_t *ctx, uint32_t val, int base, int width, cha
     output_string(ctx, buf);
 }
 
+static void print_ulong(output_ctx_t *ctx, uint64_t val, int base, int width, char pad_char, bool uppercase) {
+    char buf[65]; // Enough for 64-bit binary + null
+    itoa_base64(val, buf, base, uppercase);
+    int len = strlen(buf);
+    for (int i = len; i < width; i++) {
+        output_char(ctx, pad_char);
+    }
+    output_string(ctx, buf);
+}
+
 static void print_int(output_ctx_t *ctx, int32_t val, int width, char pad_char) {
     if (val < 0) {
         output_char(ctx, '-');
@@ -139,6 +164,15 @@ static void print_int(output_ctx_t *ctx, int32_t val, int width, char pad_char) 
         width--;
     }
     print_uint(ctx, (uint32_t)val, 10, width, pad_char, false);
+}
+
+static void print_long(output_ctx_t *ctx, int64_t val, int width, char pad_char) {
+    if (val < 0) {
+        output_char(ctx, '-');
+        val = -val;
+        width--;
+    }
+    print_ulong(ctx, (uint64_t)val, 10, width, pad_char, false);
 }
 
 // Internal formatting function used by printf, sprintf, and snprintf
@@ -169,27 +203,54 @@ static int vformat(output_ctx_t *ctx, const char *fmt, va_list args) {
             fmt++;
         }
 
+        bool long_modifier = false;
+
+        if (*fmt == 'l') {
+            fmt++;
+            long_modifier = true;
+        }
+
         // format specifiers
         switch (*fmt) {
             case 'd':
             case 'i': {
-                int32_t v = va_arg(args, int32_t);
-                print_int(ctx, v, width, pad_char);
+                if (long_modifier) {
+                    int64_t v = va_arg(args, int64_t);
+                    print_long(ctx, v, width, pad_char);
+                } else {
+                    int32_t v = va_arg(args, int32_t);
+                    print_int(ctx, v, width, pad_char);
+                }
                 break;
             }
             case 'u': {
-                uint32_t v = va_arg(args, uint32_t);
-                print_uint(ctx, v, 10, width, pad_char, false);
+                if (long_modifier) {
+                    uint64_t v = va_arg(args, uint64_t);
+                    print_ulong(ctx, v, 10, width, pad_char, false);
+                } else {
+                    uint32_t v = va_arg(args, uint32_t);
+                    print_uint(ctx, v, 10, width, pad_char, false);
+                }
                 break;
             }
             case 'x': {
-                uint32_t v = va_arg(args, uint32_t);
-                print_uint(ctx, v, 16, width, pad_char, false);
+                if (long_modifier) {
+                    uint64_t v = va_arg(args, uint64_t);
+                    print_ulong(ctx, v, 16, width, pad_char, false);
+                } else {
+                    uint32_t v = va_arg(args, uint32_t);
+                    print_uint(ctx, v, 16, width, pad_char, false);
+                }
                 break;
             }
             case 'X': {
-                uint32_t v = va_arg(args, uint32_t);
-                print_uint(ctx, v, 16, width, pad_char, true);
+                if (long_modifier) {
+                    uint64_t v = va_arg(args, uint64_t);
+                    print_ulong(ctx, v, 16, width, pad_char, true);
+                } else {
+                    uint32_t v = va_arg(args, uint32_t);
+                    print_uint(ctx, v, 16, width, pad_char, true);
+                }
                 break;
             }
             case 'p': {
@@ -200,6 +261,7 @@ static int vformat(output_ctx_t *ctx, const char *fmt, va_list args) {
             }
             case 's': {
                 const char *str = va_arg(args, const char *);
+                // print_uint(ctx, (uintptr_t)str, 16, width, pad_char, false); // Print pointer value for debugging
                 if (!str) str = "(null)";
                 output_string(ctx, str);
                 break;

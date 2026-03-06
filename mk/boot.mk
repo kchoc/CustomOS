@@ -86,7 +86,7 @@ $(KERNEL_BIN): $(KERNEL_ELF)
 # Disk Image (Option B: MBR + FAT16 at LBA 1)
 # --------------------------------------------------
 
-$(IMAGE): $(BOOT0_BIN) $(BOOT1_BIN) $(BOOT2_BIN) $(KERNEL_BIN)
+$(IMAGE): $(BOOT0_BIN) $(BOOT1_BIN) $(BOOT2_BIN) $(KERNEL_BIN) check_boot0_size check_boot1_size
 	@echo "[IMG] Creating raw FAT16 disk (no mkfs)"
 	@{ \
 		set -e; \
@@ -104,6 +104,8 @@ $(IMAGE): $(BOOT0_BIN) $(BOOT1_BIN) $(BOOT2_BIN) $(KERNEL_BIN)
 		echo "[IMG] Adding files to FAT16"; \
 		mcopy -i "$(IMAGE)@@2048S" $(BOOT2_BIN) ::; \
 		mcopy -i "$(IMAGE)@@2048S" $(KERNEL_BIN) ::; \
+		mcopy -i "$(IMAGE)@@2048S" test.txt ::; \
+# 		$(MAKE) install-userland IMAGE=$(IMAGE); \
 		\
 		echo "[IMG] Write boot1 (BPB) @ LBA2048"; \
 		dd if=$(BOOT1_BIN) of=$(IMAGE) bs=512 seek=2048 conv=notrunc; \

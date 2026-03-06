@@ -2,17 +2,16 @@
 #define FAT16_H
 
 #include "vfs.h"
-#include <dev/ide/ide.h>
 
 #include <inttypes.h>
 
 #define SECTOR_SIZE         512
-#define FAT_SECTORS         32
+#define FAT_SECTORS         246
 #define FAT_COUNT           2
 #define ROOT_ENTRY_COUNT    512
 #define ROOT_DIR_SECTORS    ((ROOT_ENTRY_COUNT * 32) / SECTOR_SIZE)
 #define RESERVED_SECTORS    1
-#define TOTAL_SECTORS       8192  // 4MB disk
+#define TOTAL_SECTORS       (RESERVED_SECTORS + FAT_COUNT * FAT_SECTORS + ROOT_DIR_SECTORS + 4096) // 4096 data sectors for simplicity
 
 #define DATA_CLUSTER_OFFSET (RESERVED_SECTORS + FAT_COUNT * FAT_SECTORS + ROOT_DIR_SECTORS)
 #define ROOT_DIR_LBA        (RESERVED_SECTORS + FAT_COUNT * FAT_SECTORS)
@@ -86,7 +85,7 @@ typedef struct __attribute__((packed)) {
 fat16_node_info_t* alloc_fat16_node_info(uint16_t start_cluster, uint32_t file_size, uint32_t dir_lba, uint16_t dir_index);
 
 dentry_t* fat16_mount(file_system_type_t* fs_type, int flags,
-                          block_device_t* dev_name, void* data);
+                          block_device_t* bdev, void* data);
 void fat16_kill_sb(super_block_t* sb);
 
 dentry_t*   fat16_lookup(   inode_t* dir, const char* name, unsigned int flags);
@@ -107,10 +106,10 @@ int     fat16_release(      inode_t* inode, file_t* file);
 int     fat16_iterate_shared(file_t* file, dir_context_t* ctx);
 
 // OLD Implementation of FAT16 filesystem
-void fat16_flush();
+void fat16_flush(block_device_t* bdev);
 
 // Initialization
-void fat16_init();
+void fat16_init(block_device_t* bdev);
 
 // Low-level
 uint16_t fat16_alloc_cluster();

@@ -1,4 +1,4 @@
-.code16gcc
+.code16
 .global _start
 
 # --------------------------------------------------
@@ -39,7 +39,7 @@ _start:
     num_heads:
     .word 16
     hidden_sectors:
-    .long 2048
+    .long 0
     total_sectors_long:
     .long 0
     drive_number:
@@ -60,6 +60,8 @@ _start:
 # --------------------------------------------------
 boot_start:
     cli
+    movw %bx, partition_lba # save partition LBA for later use (for LBA calculations)
+    movw %cx, partition_lba+2
     xorw %ax, %ax
     movw %ax, %ds
     movw %ax, %ss
@@ -75,7 +77,6 @@ boot_start:
 # --------------------------------------------------
     movb $0x41, %ah
     movw $0x55AA, %bx
-    movb boot_drive, %dl
     int $0x13
     jc no_lba
     cmpw $0xAA55, %bx
@@ -99,7 +100,7 @@ boot_start:
 # --------------------------------------------------
     movw max_root_entries, %ax
     shlw $5, %ax # 32 bytes per entry
-    movw $512, %bx
+    movw bytes_per_sector, %bx
     xorw %dx, %dx
     divw %bx
     movw %ax, %cx # number of sectors to read
@@ -110,11 +111,12 @@ boot_start:
     mulw %bx
     addw reserved_sectors, %ax # add reserved sectors to get to FAT tables
     addl hidden_sectors, %eax # add hidden sectors for LBA calculation
+    addl partition_lba, %eax # add partition LBA for absolute LBA
     movw %ax, %bx               # starting LBA of root directory
 
     movw $RDT_LOAD_SEG, %dx
 
-    call read_sector_lba
+    callw read_sector_lba
 
 # --------------------------------------------------
 # Read the FAT tables (just after root directory)
@@ -127,16 +129,16 @@ boot_start:
     movb num_fats, %al
     movw sectors_per_fat, %bx
     mulw %bx
-    # movw %ax, %cx # number of sectors to read
     movw $64, %cx # read 64 sectors to load both FAT tables (246 sectors each is too much for the bootloader)
     
     movw reserved_sectors, %ax
     addl hidden_sectors, %eax # add hidden sectors for LBA calculation
+    addl partition_lba, %eax # add partition LBA for absolute LBA
     movw %ax, %bx # starting LBA of FAT tables
 
     movw $FAT_TABLE_SEG, %dx
 
-    call read_sector_lba
+    callw read_sector_lba
 
 # --------------------------------------------------
 # Find BOOT2.BIN in the root directory
@@ -145,7 +147,7 @@ boot_start:
 load_boot2:
     movw $boot2_name, %bx
     movw $BOOT2_DEST_SEG, %cx
-    call load_file
+    callw load_file
     # For some reason the load_file return starts executing garbage so buffer the jump to BOOT2.BIN
     xorw %ax, %ax
     xorw %bx, %bx
@@ -166,12 +168,9 @@ load_file:
 
     # Use the ES to point to the root directory for easy access to entries
     movw $RDT_LOAD_SEG, %ax
-    # Not sure why i cant use ax -> es
-    pushw %ax
-    popw %es
+    movw %ax, %es
 
     xorw %ax, %ax
-    movw %ax, %ds          # DS = 0 for filename comparison
     xorw %si, %si          # start at first root directory entry
 
 search_rdt:
@@ -223,6 +222,7 @@ follow_clusters:
     # Add reserved sectors + hidden sectors
     addw reserved_sectors, %ax
     addl hidden_sectors, %eax # add hidden sectors for LBA calculation
+    addl partition_lba, %eax # add partition LBA for absolute LBA
     movw %ax, %bx
 
     # Add FAT table sectors
@@ -247,7 +247,7 @@ follow_clusters:
     movw %si, %dx
     pushw %si
 
-    call read_sector_lba
+    callw read_sector_lba
 
     popw %si
 
@@ -270,7 +270,7 @@ follow_clusters:
 file_loaded:
     popw %es
     popw %ds
-    ret
+    retw
 
 file_not_found:
     jmp hang
@@ -303,13 +303,15 @@ read_sector_lba:
     movb boot_drive, %dl
     int $0x13
     jc disk_error
-    ret
+    retw
 
 # --------------------------------------------------
 # Data
 # --------------------------------------------------
 boot_drive:
     .byte 0
+partition_lba:
+    .long 0
 
 load_addr:
     .long BOOT2_DEST_SEG

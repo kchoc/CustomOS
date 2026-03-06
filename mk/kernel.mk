@@ -1,7 +1,9 @@
 KERNEL_MI_DIRS := \
 	sys/kern \
 	sys/dev \
+	sys/sys \
 	sys/fs \
+	sys/disk \
 	sys/libkern \
 	sys/vm \
 	sys/wm
@@ -31,4 +33,4 @@ LATE_OBJS  := $(filter-out $(EARLY_OBJS),$(KERNEL_OBJS))
 KERNEL_ELF := $(BUILDDIR)/kernel.elf
 
 $(KERNEL_ELF): $(HDR_STAMP) $(EARLY_OBJS) $(LATE_OBJS)
-	$(LD) $(LDFLAGS) -o $@ $(EARLY_OBJS) $(LATE_OBJS)
+	$(LD) $(LDFLAGS) -o $@ $(EARLY_OBJS) $(LATE_OBJS) $(LATE_ARCH_LDFLAGS)

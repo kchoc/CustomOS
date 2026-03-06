@@ -65,20 +65,23 @@ found:
 # -------------------------------
     movw 8(%si), %ax         # Starting LBA lower 16 bits
     movw 10(%si), %dx        # Starting LBA upper 16 bits
-    movw %ax, dap_lba
-    movw %dx, dap_lba+2
+
+    movw %ax, dap_lba-LOAD_ADDR+RELOC_ADDR
+    movw %ax, partition_lba-LOAD_ADDR+RELOC_ADDR
+    movw %dx, dap_lba-LOAD_ADDR+RELOC_ADDR+2
+    movw %dx, partition_lba-LOAD_ADDR+RELOC_ADDR+2
 
     # Unneeded, already set by compiler initialization
-    # movb $16, dap_size
-    # movb $0, dap_reserved
+    movb $16, dap_size-LOAD_ADDR+RELOC_ADDR
+    movb $0, dap_reserved-LOAD_ADDR+RELOC_ADDR
 
-    movw $1, dap_sectors
-    movw $0x7C00, dap_offset
-    movw $0x0000, dap_segment
-    movl $0, dap_lba_high
+    movw $1, dap_sectors-LOAD_ADDR+RELOC_ADDR
+    movw $0x7C00, dap_offset-LOAD_ADDR+RELOC_ADDR
+    movw $0x0000, dap_segment-LOAD_ADDR+RELOC_ADDR
+    movl $0, dap_lba_high-LOAD_ADDR+RELOC_ADDR
 
     movb $0x42, %ah
-    movw $dap, %si
+    movw $(dap-LOAD_ADDR+RELOC_ADDR), %si
     movb boot_drive, %dl
     int $0x13
     jc disk_error
@@ -106,6 +109,8 @@ use_chs:
 # Jump to partition boot sector
 # -------------------------------
 boot_partition:
+    movw partition_lba-LOAD_ADDR+RELOC_ADDR, %bx
+    movw partition_lba-LOAD_ADDR+RELOC_ADDR+2, %cx
     ljmp $0,$0x7C00
 
 # -------------------------------
@@ -145,6 +150,9 @@ partition_not_found:
 # ===============================
 boot_drive:
     .byte 0
+
+partition_lba:
+    .long 0
 
 .align 16
 dap:

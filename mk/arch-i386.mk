@@ -1,5 +1,6 @@
-ARCH_CFLAGS  := -m32
+ARCH_CFLAGS  := -m32 -lgcc
 ARCH_LDFLAGS := -m32
+LATE_ARCH_LDFLAGS := -lgcc
 
 QEMU     := qemu-system-i386
 QEMU_CPU := pentium3

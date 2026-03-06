@@ -26,6 +26,8 @@
 #include <kern/terminal.h>
 #include <kern/panic.h>
 
+#include <kern/pit.h>
+
 #include <kern/errno.h>
 
 void init386(void) {
@@ -78,15 +80,29 @@ void init386(void) {
 
 	tasking_init();
 
-	pci_discover_devices();
+	// memory_usage();
+
+	printf("PCI Enumeration:\n");
+	pci_bus.enumerate(&pci_bus);
+
+	vfs_list_block_devices();
 
     // Initialize and mount root filesystem
-    printf("VFS: %s\n", vfs_mount_drive("QEMU HARDDISK", "/", &fat16_fs_type) == 0 ? "OK" : "FAILED");
+    printf("VFS: %s\n", vfs_mount_drive("hdap1", "/", &fat16_fs_type) == 0 ? "OK" : "FAILED");
 
     // Initialize sockfs
     printf("Sockfs: %s\n", sockfs_init() == 0 ? "OK" : "FAILED");
 
-    create_process_from_elf("terminal.elf");
+    vfs_ls("/");
+
+    file_t* file = vfs_open("test.txt", 0, FMODE_READ);
+    char buf[128];
+    vfs_read(file, buf, sizeof(buf) - 1, NULL);
+    buf[127] = '\0';
+    printf("Content of test.txt: %s\n", buf);
+    vfs_close(file);
+
+    // create_process_from_elf("terminal.elf");
 
 	while (1)
 		asm volatile("nop");

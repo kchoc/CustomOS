@@ -5,6 +5,7 @@ HDR_DIRS := \
 	sys/kern \
 	sys/dev \
 	sys/fs \
+	sys/disk \
 	sys/libkern \
 	sys/vm \
 	sys/wm \
