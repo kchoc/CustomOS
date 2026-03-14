@@ -1,7 +1,7 @@
-$(BUILDDIR)/%.o: %.c $(HDR_STAMP)
-	mkdir -p $(dir $@)
+$(BUILDDIR)/%.o: %.c
+	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-$(BUILDDIR)/%.o: %.S $(HDR_STAMP)
-	mkdir -p $(dir $@)
+$(BUILDDIR)/%.o: %.S
+	@mkdir -p $(@D)
 	$(CC) $(ASFLAGS) $(INCLUDES) -c $< -o $@

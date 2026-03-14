@@ -1,14 +1,15 @@
+#include <vm/vm_phys.h>
+#include <vm/kmalloc.h>
+#include <vm/types.h>
+
 #include <machine/pmap.h>
 #include <machine/page_table.h>
 
-#include <vm/vm_phys.h>
-#include <vm/kmalloc.h>
+#include <kern/terminal.h>
 #include <kern/errno.h>
 #include <kern/panic.h>
 
-#include "string.h"
-#include "vm/types.h"
-#include <kern/terminal.h>
+#include <string.h>
 
 #define TABLE_IDX(virt)      ((uint32_t)virt >> 22)
 #define ENTRY_IDX(virt)      (((uint32_t)virt >> 12) & 0x3FF)
@@ -20,8 +21,8 @@ void pmap_destroy(pmap_t* pmap) {
 	// Assumes that all user-space mappings have been removed, so we only need to free the page tables
 	for (int i = 0; i < KERNEL_PAGE_ENTRY_START; i++) {
 		if (current_pd->entries[i] & 0x1) {
-			page_table_t *table = (page_table_t*)(current_pd->entries[i] & 0xFFFFF000);
-			memset(&current_pts[0], 0, PAGE_SIZE);
+			page_table_t *table = (page_table_t*)(current_pd->entries[i] & ~PAGE_MASK);
+			memset(&current_pts[i], 0, PAGE_SIZE);
 			vm_phys_free_page((paddr_t)table);
 		}
 	}
@@ -41,9 +42,8 @@ int pmap_enter(pmap_t *pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, pmap_fl
 	page_table_t *table = current_pd;
 	if (!(table->entries[table_idx] & 0x1)) {
 		page_table_t *new_table = (page_table_t*)vm_phys_alloc_page();
-		if (is_errno((paddr_t)new_table)) return ENOMEM;
-
-		table->entries[table_idx] = (page_entry_t)new_table | VM_PROT_READ | VM_PROT_WRITE;
+		if (is_errno((paddr_t)new_table)) return -ENOMEM;
+		table->entries[table_idx] = (page_entry_t)new_table | VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER;
 		tlb_invlpg(&current_pts[table_idx]);
 		memset(&current_pts[table_idx], 0, PAGE_SIZE);
 	}
@@ -51,7 +51,7 @@ int pmap_enter(pmap_t *pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, pmap_fl
 	page_entry_t *entry = &current_pts[table_idx].entries[entry_idx];
 
 	if (*entry & VM_PROT_READ) {
-		return EEXIST; // Already mapped
+		return -EEXIST; // Already mapped
 	}
 
 	if (flags & PMAP_FLAG_NOCACHE) {
@@ -130,4 +130,3 @@ paddr_t pmap_extract(pmap_t *pmap, vaddr_t virt) {
 
 	return (paddr_t)(*entry & 0xFFFFF000);
 }
-

@@ -58,7 +58,7 @@ ISR_NO_ERROR_CODE  30
 ISR_NO_ERROR_CODE  31
 ISR_NO_ERROR_CODE  32
 ISR_NO_ERROR_CODE  33
-ISR_NO_ERROR_CODE  64
+ISR_NO_ERROR_CODE  40
 ISR_NO_ERROR_CODE  128
 
 /* ============================================================
@@ -89,6 +89,7 @@ ISR_NO_ERROR_CODE  128
     movw $0x10, %bx        /* kernel data segment */
     movw %bx, %ds
     movw %bx, %es
+    movw $0x08, %bx /* pcpu segment */
     movw %bx, %fs
     movw %bx, %gs
     popl %ebx

@@ -1,8 +1,9 @@
 #include "vm_fault.h"
-#include "machine/pmap.h"
 #include "vm_region.h"
 #include "vm_page.h"
 #include "types.h"
+
+#include <machine/pmap.h>
 
 int vm_fault(vm_space_t *space,
              uintptr_t addr,

@@ -1,10 +1,10 @@
 #include "vm_phys.h"
-#include "vm_page.h"
 
 #include <vm/layout.h>
 
-#include <kern/terminal.h>
 #include <libkern/bitmap.h>
+
+#include <kern/terminal.h>
 #include <kern/errno.h>
 #include <kern/panic.h>
 

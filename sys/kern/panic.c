@@ -1,10 +1,11 @@
 #include "panic.h"
-#include <machine/pmap.h>
 #include "terminal.h"
-#include "vm/vm_map.h"
 
-#include <vm/vm.h>
 #include <dev/port/port_io.h>
+
+#include <vm/vm_map.h>
+
+#include <machine/pmap.h>
 
 #include <string.h>
 

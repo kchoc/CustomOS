@@ -5,8 +5,10 @@
 
 #include <vm/layout.h>
 #include <vm/types.h>
-#include <stddef.h>
+
 #include <kern/compiler.h>
+
+#include <stddef.h>
 
 //TODO: Add compiler check for i386 or amd64 for PTLs
 #define PAGE_TABLE_LEVELS 2
@@ -14,10 +16,10 @@
 #define PAGE_ENTRIES_PER_TABLE 1024
 #define KERNEL_PAGE_ENTRY_START (PAGE_ENTRIES_PER_TABLE - KERNEL_PAGE_ENTRIES)
 
-static page_table_t** current_pd_addr = (page_table_t **)0xFFFFFFFC;
-static page_table_t* current_pd = (page_table_t *)PAGE_DIRECTORY_ADDRESS;
-static page_table_t* current_pts = (page_table_t *)PAGE_TABLES_ADDRESS;
-static page_table_t* edit_pd = (page_table_t*)PAGE_TABLE_EDIT_ADDRESS;
+extern page_table_t** current_pd_addr;
+extern page_table_t* current_pd;
+extern page_table_t* current_pts;
+extern page_table_t* edit_pd;
 
 void tlb_invlpg(void* addr);
 void tlb_flush();
@@ -40,6 +42,7 @@ typedef enum pmap_flags {
 
 int pmap_init();
 pmap_t* pmap_create();
+void pmap_debug(pmap_t* pmap);
 void pmap_destroy(pmap_t* pmap);
 void pmap_activate(pmap_t* pmap);
 

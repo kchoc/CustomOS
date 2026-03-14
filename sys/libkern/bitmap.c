@@ -1,4 +1,5 @@
 #include "bitmap.h"
+
 #include <vm/kmalloc.h>
 
 bitmap_t *create_bitmap(uint32_t blocks) {

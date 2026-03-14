@@ -1,9 +1,10 @@
 #ifndef TERMINAL_H
 #define TERMINAL_H
 
+#include <libkern/common.h>
+
 #include <inttypes.h>
 #include <stddef.h>
-#include <libkern/common.h>
 
 // Initialize the terminal
 int terminal_init(void);

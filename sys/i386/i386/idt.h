@@ -1,5 +1,5 @@
-#ifndef IDT_H
-#define IDT_H
+#ifndef I386_IDT_H
+#define I386_IDT_H
 
 #include <inttypes.h>
 
@@ -41,10 +41,10 @@ extern void isr30();
 extern void isr31();
 extern void isr32();
 extern void isr33();
-extern void isr64();
+extern void isr40();
 extern void isr128();
 
 void load_idt();
 int idt_init(void);
 
-#endif // IDT_H
+#endif // I386_IDT_H

@@ -2,8 +2,8 @@
 #define VM_MAP_H
 
 #include "vm_space.h"
-
 #include "types.h"
+
 #include <stddef.h>
 
 typedef struct vm_space vm_space_t;

@@ -1,5 +1,5 @@
-#ifndef x86_I386_TSS_H
-#define x86_I386_TSS_H
+#ifndef I386_TSS_H
+#define I386_TSS_H
 
 #include <inttypes.h>
 #include <machine/segment.h>
@@ -36,8 +36,8 @@ typedef struct tss {
     uint16_t iomap_base;
 } __attribute__((packed)) tss_t;
 
-void write_tss(seg_desc_t *gdt, int num, tss_t *tss, uint32_t ss0, uint32_t esp0);
+void write_tss(tss_t *tss, uint32_t ss0, uint32_t esp0);
 
 extern void load_tss(uint16_t tss_selector);
 
-#endif // x86_I386_TSS_H
+#endif // I386_TSS_H

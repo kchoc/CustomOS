@@ -1,5 +1,5 @@
-#ifndef PORT_IO_H
-#define PORT_IO_H
+#ifndef DEV_PORT_IO_H
+#define DEV_PORT_IO_H
 
 #include <inttypes.h>
 
@@ -27,4 +27,4 @@ void outsw(uint16_t port, const void* addr, int count);
 // Read a block of words from a port
 void insw(uint16_t port, void* addr, int count);
 
-#endif // PORT_IO_H
+#endif // DEV_PORT_IO_H

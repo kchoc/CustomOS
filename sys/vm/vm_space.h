@@ -2,7 +2,8 @@
 #define VM_SPACE_H
 
 #include <machine/pmap.h>
-#include "list.h"
+
+#include <list.h>
 
 typedef struct vm_region vm_region_t;
 
@@ -19,5 +20,6 @@ vm_space_t* vm_space_create();
 vm_space_t* vm_space_fork(vm_space_t* parent);
 void vm_space_destroy(vm_space_t* space);
 void vm_space_activate(vm_space_t *space);
+void vm_space_debug(vm_space_t *space);
 
 #endif

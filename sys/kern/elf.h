@@ -73,8 +73,8 @@ typedef struct {
 #define PF_W 2 // Write
 #define PF_R 4 // Read
 
-typedef struct process proc_t;
+typedef struct thread thread_t;
 
-proc_t* create_process_from_elf(const char *filename);
+int load_elf(const char* path, thread_t* thread);
 
 #endif // ELF_H

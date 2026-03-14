@@ -29,7 +29,7 @@ typedef struct fd_table {
 /* File descriptor table management */
 fd_table_t* fd_table_create(void);
 void fd_table_destroy(fd_table_t* table);
-fd_table_t* fd_table_clone(fd_table_t* src);
+fd_table_t* fd_table_fork(fd_table_t* src);
 
 /* File descriptor operations */
 int fd_alloc(proc_t* proc, file_t* file, int flags);

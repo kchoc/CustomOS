@@ -1,19 +1,36 @@
 #include "vm_map.h"
-#include "kmalloc.h"
-#include "types.h"
-#include "vm/types.h"
 #include "vm_page.h"
-#include "vm_phys.h"
 #include "vm_region.h"
 #include "vm_space.h"
+#include "types.h"
 
+#include <kern/terminal.h>
 #include <kern/panic.h>
 #include <kern/errno.h>
 
+#include <string.h>
+
 // TODO: Add flags
 int vm_map(vm_space_t* space, vaddr_t* virt, size_t size, vm_prot_t prot, vm_region_flags_t flags, vm_object_t* object, vm_ooffset_t offset) {
-    vm_region_t* region = vm_create_region(space, virt, size, object, offset, prot, flags);
-    if (IS_ERR(region)) return ERR_PTR(region);
+    vm_region_t* region = vm_region_create(space, virt, size, object, offset, prot, flags);
+    if (IS_ERR(region)) return (int)region;
+
+    if (!(flags & VM_REG_F_EARLYENTER)) return 0;
+  
+    pmap_flags_t pmap_flags = PMAP_FLAG_NONE; 
+    vm_object_t* obj = region->object;
+    for (size_t offset = region->base; offset < region->end; offset += PAGE_SIZE) {
+        vm_page_t* page = vm_page_allocate(obj, offset);
+        if (IS_ERR(page)) {
+            vm_region_dec_ref(region);
+            return (int)page;
+        }
+        int ret = pmap_enter(space->arch, offset, page->phys_addr, prot, pmap_flags);
+        if (IS_ERR(ret)) {
+            vm_region_dec_ref(region);
+            return ret;
+        }
+    }
     return 0;
 }
 

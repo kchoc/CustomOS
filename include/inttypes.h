@@ -1,5 +1,5 @@
-#ifndef INTTYPES_H
-#define INTTYPES_H
+#ifndef _INTTYPES_H_
+#define _INTTYPES_H_
 
 typedef unsigned char       uint8_t;
 typedef unsigned short      uint16_t;
@@ -20,4 +20,4 @@ typedef unsigned int		uintptr_t;
 	#error "Unsupported architecture"
 #endif
 
-#endif // INTTYPES_H
+#endif // _INTTYPES_H_

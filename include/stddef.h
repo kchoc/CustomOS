@@ -1,5 +1,5 @@
-#ifndef STDDEF_H
-#define STDDEF_H
+#ifndef _STDDEF_H_
+#define _STDDEF_H_
 
 #define NULL ((void *)0)
 
@@ -10,4 +10,4 @@ typedef int ssize_t;
 #define offsetof(type, member) ((size_t) &((type *)0)->member)
 #endif
 
-#endif // STDDEF_H
+#endif // _STDDEF_H_

@@ -1,16 +1,19 @@
 #include "ata.h"
-#include <dev/port/port_io.h>
+
 #include <fs/vfs.h>
-#include <stdint.h>
 #include <vm/kmalloc.h>
-#include <kern/pit.h>
 #include <disk/mbr.h>
-#include <dev/pci/pci.h>
 #include <sys/device.h>
 
+#include <dev/pci/pci.h>
+#include <dev/port/port_io.h>
+
+#include <kern/pit.h>
 #include <kern/terminal.h>
 #include <kern/errno.h>
+
 #include <string.h>
+#include <stdint.h>
 
 #define ATA_REG_DATA            0x00
 #define ATA_REG_ERROR           0x01

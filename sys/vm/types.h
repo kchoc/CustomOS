@@ -1,14 +1,14 @@
-#ifndef MM_TYPES_H
-#define MM_TYPES_H
+#ifndef VM_TYPES_H
+#define VM_TYPES_H
 
 #include <inttypes.h>
 #include <stdbool.h>
 
-#define PAGE_SIZE			4096
-#define PAGE_MASK			(PAGE_SIZE - 1)
+#define PAGE_SIZE				4096
+#define PAGE_MASK				(PAGE_SIZE - 1)
 #define PAGE_ALIGN_DOWN(addr)	((addr) & ~PAGE_MASK)
 #define PAGE_ALIGN_UP(addr)		(((addr) + PAGE_MASK) & ~PAGE_MASK)
-#define VM_REGION_ALLOCATE_ADDR		((uintptr_t) -1)
+#define VM_REGION_ALLOCATE_ADDR	((uintptr_t) -1)
 
 typedef uintptr_t vaddr_t;
 typedef uintptr_t paddr_t;
@@ -40,9 +40,8 @@ typedef enum vm_region_flags {
 	VM_REG_F_FIXED 		= 0x20,	// Must use exact address
 	VM_REG_F_KERNEL 	= 0x40,	// Map in kernel space (ignored for user regions)
 	VM_REG_F_NOCACHE 	= 0x80,	// Don't allow caching of this region
+  VM_REG_F_EARLYENTER = 0x100, 
 } vm_region_flags_t;
-
-
 
 typedef enum vm_obj_flags {
 	VM_OBJ_F_KERNEL 	= 0x1,	// Map in kernel space
@@ -51,7 +50,6 @@ typedef enum vm_obj_flags {
 	VM_OBJ_F_INTERNAL 	= 0x8,	// Used for VM internally
 	VM_OBJ_F_SHADOWED 	= 0x10,	// This object is shadowed by another object (used for copy-on-write)
 	VM_OBJ_F_WIRED 		= 0x20,	// Pages backing this object should be wired (i.e. not pageable)
-
 } vm_obj_flags_t;
 
 typedef enum vm_dev_flags {
@@ -60,4 +58,4 @@ typedef enum vm_dev_flags {
 	VM_DEV_NOCACHE = 0x4, // Device memory should not be cached
 } vm_dev_flags_t;
 
-#endif // MM_TYPES_H
+#endif // VM_TYPES_H

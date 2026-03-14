@@ -1,5 +1,5 @@
-#ifndef FILE_H
-#define FILE_H
+#ifndef FS_FILE_H
+#define FS_FILE_H
 
 #include <inttypes.h>
 
@@ -21,4 +21,4 @@ typedef struct file {
 	void 				*private;
 } file_t;
 
-#endif // FILE_H
+#endif // FS_FILE_H

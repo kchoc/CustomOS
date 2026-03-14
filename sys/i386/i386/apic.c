@@ -1,6 +1,8 @@
-#include <kern/pcpu.h>
-#include <inttypes.h>
+#include <sys/pcpu.h>
+
 #include <vm/layout.h>
+
+#include <inttypes.h>
 
 #define LAPIC_REG(id)  ((volatile uint32_t*)(LAPIC_BASE + (id)))
 
@@ -37,14 +39,4 @@ inline void lapic_write(uint32_t reg, uint32_t value) {
 uint32_t get_local_apic_id(void) {
     uint32_t val = lapic_read(LAPIC_ID);
     return (val >> 24) & 0xFF;
-}
-
-pcpu_t* get_current_pcpu(void) {
-	uint32_t apic_id = get_local_apic_id();
-	for (uint32_t i = 0; i < cpu_count; i++) {
-		if (pcpus[i].apic_id == apic_id) {
-			return &pcpus[i];
-		}
-	}
-	return NULL;
 }

@@ -3,6 +3,7 @@
 #include "terminal.h"
 
 #include <fs/file.h>
+
 #include <vm/kmalloc.h>
 
 #include <string.h>
@@ -55,7 +56,7 @@ void fd_table_destroy(fd_table_t* table) {
 /**
  * Clone a file descriptor table (for fork)
  */
-fd_table_t* fd_table_clone(fd_table_t* src) {
+fd_table_t* fd_table_fork(fd_table_t* src) {
     if (!src) return NULL;
     
     fd_table_t* table = fd_table_create();

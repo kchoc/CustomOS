@@ -9,6 +9,7 @@ include mk/kernel.mk
 include mk/boot.mk
 include mk/rules.mk
 include mk/userland.mk
+include mk/disk.mk
 
 RUN:= ${QEMU} -cpu $(QEMU_CPU) -m 512M -serial file:serial.log -D qemu.log -no-reboot
 GDB ?= gdb
@@ -27,3 +28,7 @@ gdb: $(IMAGE)
 
 clean:
 	rm -rf $(BUILDDIR)
+	@mkdir -p $(BUILDDIR)
+	touch $(IMAGE)
+
+-include $(shell find $(BUILDDIR) -name '*.d' 2>/dev/null)

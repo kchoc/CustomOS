@@ -1,14 +1,16 @@
 #include "lapic.h"
 #include "pit.h"
-#include "vm/types.h"
+
+#include <dev/port/port_io.h>
+
+#include <vm/vm_map.h>
+#include <vm/types.h>
 
 #include <kern/panic.h>
-#include <vm/vm_map.h>
-#include <dev/port/port_io.h>
 
 #include <string.h>
 
-static void* lapic_address = 0;
+static void* lapic_address = (void*)LAPIC_BASE;
 
 /* ---------------- LAPIC Access ---------------- */
 

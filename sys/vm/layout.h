@@ -11,6 +11,8 @@
 
 #define BLOCK_PHYS_START_ADDRESS 0x01000000
 
+#define KERNEL_STACK_TOP 0xC0000000 + 16 * 1024 // 16KB stack for the idle thread (shared with boot code)
+
 #define KERNEL_BASE 0xC0000000
 #define DEVICE_BASE 0xF0000000
 #define ADDRESS_LIMIT 0xFFBFF000

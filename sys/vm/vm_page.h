@@ -1,9 +1,10 @@
 #ifndef VM_PAGE_H
 #define VM_PAGE_H
 
-#include "list.h"
 #include "types.h"
 #include "vm_object.h"
+
+#include <list.h>
 
 typedef enum vm_page_flags {
 	VM_PAGE_FLAG_FREE,

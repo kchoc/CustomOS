@@ -1,8 +1,9 @@
-#ifndef X86_I386_BOOTINFO_H
-#define X86_I386_BOOTINFO_H
+#ifndef _I386_BOOTINFO_H_
+#define _I386_BOOTINFO_H_
+
+#include <vm/vm_phys.h>
 
 #include <inttypes.h>
-#include <vm/vm_phys.h>
 
 typedef struct bootinfo_t {
 	memory_map_entry_t* memory_map;
@@ -11,4 +12,4 @@ typedef struct bootinfo_t {
 
 extern bootinfo_t* bootinfo;
 
-#endif // X86_I386_BOOTINFO_H
+#endif // _I386_BOOTINFO_H_

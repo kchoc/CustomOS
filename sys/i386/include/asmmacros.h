@@ -1,5 +1,5 @@
-#ifndef I386_ASMMACROS_H
-#define I386_ASMMACROS_H
+#ifndef _I386_ASMMACROS_H_
+#define _I386_ASMMACROS_H_
 
 // Macros to link C and assembly code
 #define ENTRY(name)       	\
@@ -10,4 +10,4 @@ name:
 #define END(name)          \
 	.size name, .-name
 
-#endif // I386_ASMMACROS_H
+#endif // _I386_ASMMACROS_H_

@@ -1,7 +1,7 @@
 #ifndef VM_PHYS_H
 #define VM_PHYS_H
 
-#include <vm/types.h>
+#include "types.h"
 
 #include <inttypes.h>
 #include <stddef.h>

@@ -1,24 +1,26 @@
 #include "idt.h"
-#include "machine/segment_i386.h"
-#include "x86/include/segment.h"
-#include <machine/segment.h>
-#include <kern/isr.h>
+
 #include <dev/port/port_io.h>
+
+#include <machine/segment_i386.h>
+#include <machine/segment.h>
+
+#include <kern/isr.h>
 
 // The IDT and IDT pointer
 gate_desc_t idt[IDT_SIZE];
 region_desc_t ip;
 
 // Function to set an IDT entry
-static void set_idt_entry(int index, uint32_t base, uint16_t selector, uint8_t type_attr, int dpl) {
-    idt[index].gd_low_offset = base & 0xFFFF;
-    idt[index].gd_selector = selector;
-    idt[index].gd_stackcpy = 0;
-    idt[index].gd_reserved = 0;
-    idt[index].gd_type = type_attr & 0x1F; // Ensure type is only 5 bits
-    idt[index].gd_dpl = dpl;
-    idt[index].gd_present = 1; // Mark the entry as present
-    idt[index].gd_high_offset = (base >> 16) & 0xFFFF;
+static void set_idt_entry(int index, uint32_t base, uint16_t selector, uint8_t type_attr, uint8_t dpl) {
+  idt[index].gd_reserved1 = 0; // Ensure the reserved bit is cleared
+  idt[index].gd_reserved2 = 0; // Ensure the reserved bit is cleared
+  idt[index].gd_present = 1; // Clear the present bit until we set up the entry 
+  idt[index].gd_low_offset = base & 0xFFFF;
+  idt[index].gd_selector = selector;
+  idt[index].gd_type = type_attr & 0xF; // Ensure type is only 5 bits
+  idt[index].gd_dpl = dpl & 0x3; // Ensure DPL is only 2 bits
+  idt[index].gd_high_offset = (base >> 16) & 0xFFFF;
 }
 
 static void remap_pic() {
@@ -34,8 +36,8 @@ static void remap_pic() {
     outb(0x21, 0x01); // 8086/88 (MCS-80/85) mode
     outb(0xA1, 0x01); // 8086/88 (MCS-80/85) mode
 
-    outb(0x21, 0xFF); // Mask all interrupts on Master PIC
-    outb(0xA1, 0xFF); // Mask all interrupts on Slave PIC
+    outb(0x21, 0xFC); // Unmask all interrupts on Master PIC except IRQ0 (timer) and IRQ1 (keyboard)
+    outb(0xA1, 0xFF); // Unmask all interrupts on Slave PIC (if needed, adjust this to unmask specific IRQs on the slave)
 }
 
 // Load the IDT into the CPU using the LIDT instruction
@@ -47,45 +49,45 @@ void load_idt() {
 int idt_init() {
     // Set up the default handler for all interrupts (for unused vectors)
     for (int i = 0; i < IDT_SIZE; ++i) {
-        set_idt_entry(i, 0, 0x08, 0x8E, 0); // Default to kernel privilege level
+        idt[i].gd_present = 0; // Mark all entries as not present
     }
 
-    set_idt_entry( 0, (uint32_t)isr0 , 0x08, 0x8E, 0); // Divide by zero exception
-    set_idt_entry( 1, (uint32_t)isr1 , 0x08, 0x8E, 0); // Debug exception
-    set_idt_entry( 2, (uint32_t)isr2 , 0x08, 0x8E, 0); // Non-maskable interrupt
-    set_idt_entry( 3, (uint32_t)isr3 , 0x08, 0x8E, 0); // Breakpoint exception
-    set_idt_entry( 4, (uint32_t)isr4 , 0x08, 0x8E, 0); // Overflow exception
-    set_idt_entry( 5, (uint32_t)isr5 , 0x08, 0x8E, 0); // Bound range exceeded exception
-    set_idt_entry( 6, (uint32_t)isr6 , 0x08, 0x8E, 0); // Invalid opcode exception
-    set_idt_entry( 7, (uint32_t)isr7 , 0x08, 0x8E, 0); // Device not available exception
-    set_idt_entry( 8, (uint32_t)isr8 , 0x08, 0x8E, 0); // Double fault exception
-    set_idt_entry( 9, (uint32_t)isr9 , 0x08, 0x8E, 0); // Coprocessor segment overrun
-    set_idt_entry(10, (uint32_t)isr10, 0x08, 0x8E, 0); // Invalid TSS exception
-    set_idt_entry(11, (uint32_t)isr11, 0x08, 0x8E, 0); // Segment not present exception
-    set_idt_entry(12, (uint32_t)isr12, 0x08, 0x8E, 0); // Stack segment fault
-    set_idt_entry(13, (uint32_t)isr13, 0x08, 0x8E, 0); // General protection fault
-    set_idt_entry(14, (uint32_t)isr14, 0x08, 0x8E, 0); // Page fault exception
-    set_idt_entry(15, (uint32_t)isr15, 0x08, 0x8E, 0); // Reserved
-    set_idt_entry(16, (uint32_t)isr16, 0x08, 0x8E, 0); // x87 FPU Floating-Point Error
-    set_idt_entry(17, (uint32_t)isr17, 0x08, 0x8E, 0); // Alignment Check Exception
-    set_idt_entry(18, (uint32_t)isr18, 0x08, 0x8E, 0); // Machine Check Exception
-    set_idt_entry(19, (uint32_t)isr19, 0x08, 0x8E, 0); // SIMD Floating-Point Exception
-    set_idt_entry(20, (uint32_t)isr20, 0x08, 0x8E, 0); // Virtualization Exception
-    set_idt_entry(21, (uint32_t)isr21, 0x08, 0x8E, 0); // Control Protection Exception
-    set_idt_entry(22, (uint32_t)isr22, 0x08, 0x8E, 0); // Reserved
-    set_idt_entry(23, (uint32_t)isr23, 0x08, 0x8E, 0); // Reserved
-    set_idt_entry(24, (uint32_t)isr24, 0x08, 0x8E, 0); // Reserved
-    set_idt_entry(25, (uint32_t)isr25, 0x08, 0x8E, 0); // Reserved
-    set_idt_entry(26, (uint32_t)isr26, 0x08, 0x8E, 0); // Reserved
-    set_idt_entry(27, (uint32_t)isr27, 0x08, 0x8E, 0); // Reserved
-    set_idt_entry(28, (uint32_t)isr28, 0x08, 0x8E, 0); // Reserved
-    set_idt_entry(29, (uint32_t)isr29, 0x08, 0x8E, 0); // Reserved
-    set_idt_entry(30, (uint32_t)isr30, 0x08, 0x8E, 0); // Reserved
-    set_idt_entry(31, (uint32_t)isr31, 0x08, 0x8E, 0); // Reserved
-    set_idt_entry(32, (uint32_t)isr32, 0x08, 0x8E, 0); // Reserved (IRQ0 - Programmable Interval Timer)
-    set_idt_entry(33, (uint32_t)isr33, 0x08, 0x8E, 0); // Keyboard interrupt (IRQ1)
-    set_idt_entry(64, (uint32_t)isr64, 0x08, 0x8E, 0); // IRQ8 (Real-time clock)
-    set_idt_entry(128,(uint32_t)isr128,0x08, 0xEE, 3); // System call interrupt (INT 0x80)
+    set_idt_entry( 0, (uint32_t)isr0 , 0x20, 0xE, 0); // Divide by zero exception
+    set_idt_entry( 1, (uint32_t)isr1 , 0x20, 0xE, 0); // Debug exception
+    set_idt_entry( 2, (uint32_t)isr2 , 0x20, 0xE, 0); // Non-maskable interrupt
+    set_idt_entry( 3, (uint32_t)isr3 , 0x20, 0xE, 0); // Breakpoint exception
+    set_idt_entry( 4, (uint32_t)isr4 , 0x20, 0xE, 0); // Overflow exception
+    set_idt_entry( 5, (uint32_t)isr5 , 0x20, 0xE, 0); // Bound range exceeded exception
+    set_idt_entry( 6, (uint32_t)isr6 , 0x20, 0xE, 0); // Invalid opcode exception
+    set_idt_entry( 7, (uint32_t)isr7 , 0x20, 0xE, 0); // Device not available exception
+    set_idt_entry( 8, (uint32_t)isr8 , 0x20, 0xE, 0); // Double fault exception
+    set_idt_entry( 9, (uint32_t)isr9 , 0x20, 0xE, 0); // Coprocessor segment overrun
+    set_idt_entry(10, (uint32_t)isr10, 0x20, 0xE, 0); // Invalid TSS exception
+    set_idt_entry(11, (uint32_t)isr11, 0x20, 0xE, 0); // Segment not present exception
+    set_idt_entry(12, (uint32_t)isr12, 0x20, 0xE, 0); // Stack segment fault
+    set_idt_entry(13, (uint32_t)isr13, 0x20, 0xE, 0); // General protection fault
+    set_idt_entry(14, (uint32_t)isr14, 0x20, 0xE, 0); // Page fault exception
+    set_idt_entry(15, (uint32_t)isr15, 0x20, 0xE, 0); // Reserved
+    set_idt_entry(16, (uint32_t)isr16, 0x20, 0xE, 0); // x87 FPU Floating-Point Error
+    set_idt_entry(17, (uint32_t)isr17, 0x20, 0xE, 0); // Alignment Check Exception
+    set_idt_entry(18, (uint32_t)isr18, 0x20, 0xE, 0); // Machine Check Exception
+    set_idt_entry(19, (uint32_t)isr19, 0x20, 0xE, 0); // SIMD Floating-Point Exception
+    set_idt_entry(20, (uint32_t)isr20, 0x20, 0xE, 0); // Virtualization Exception
+    set_idt_entry(21, (uint32_t)isr21, 0x20, 0xE, 0); // Control Protection Exception
+    set_idt_entry(22, (uint32_t)isr22, 0x20, 0xE, 0); // Reserved
+    set_idt_entry(23, (uint32_t)isr23, 0x20, 0xE, 0); // Reserved
+    set_idt_entry(24, (uint32_t)isr24, 0x20, 0xE, 0); // Reserved
+    set_idt_entry(25, (uint32_t)isr25, 0x20, 0xE, 0); // Reserved
+    set_idt_entry(26, (uint32_t)isr26, 0x20, 0xE, 0); // Reserved
+    set_idt_entry(27, (uint32_t)isr27, 0x20, 0xE, 0); // Reserved
+    set_idt_entry(28, (uint32_t)isr28, 0x20, 0xE, 0); // Reserved
+    set_idt_entry(29, (uint32_t)isr29, 0x20, 0xE, 0); // Reserved
+    set_idt_entry(30, (uint32_t)isr30, 0x20, 0xE, 0); // Reserved
+    set_idt_entry(31, (uint32_t)isr31, 0x20, 0xE, 0); // Reserved
+    set_idt_entry(32, (uint32_t)isr32, 0x20, 0xE, 0); // Reserved (IRQ0 - Programmable Interval Timer)
+    set_idt_entry(33, (uint32_t)isr33, 0x20, 0xE, 0); // Keyboard interrupt (IRQ1)
+    set_idt_entry(40, (uint32_t)isr40, 0x20, 0xE, 0); // IRQ8 (Real-time clock)
+    set_idt_entry(128,(uint32_t)isr128,0x20, 0xE, 3); // System call interrupt (INT 0x80)
 
     interrupt_register( 0, isr_divide_by_zero);
     interrupt_register( 1, isr_debug);
@@ -108,10 +110,8 @@ int idt_init() {
     interrupt_register(18, isr_machine_check);
     interrupt_register(19, isr_simd_floating_point);
 
-
+    interrupt_register(32, isr_timer_handler);
     interrupt_register(33, isr_keyboard_handler);
-
-    interrupt_register(64, isr_timer_handler);
 
     interrupt_register(128,isr_syscall);
 

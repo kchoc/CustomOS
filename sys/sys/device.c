@@ -1,7 +1,8 @@
 #include "device.h"
 
-#include <disk/mbr.h>
 #include <dev/ata/ata.h>
+
+#include <disk/mbr.h>
 
 // For now im doing to use a static list of drivers
 driver_t drivers[] = {

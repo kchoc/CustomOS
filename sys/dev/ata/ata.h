@@ -1,5 +1,5 @@
-#ifndef ATA_H
-#define ATA_H
+#ifndef DEV_ATA_H
+#define DEV_ATA_H
 
 #include <sys/device.h>
 
@@ -48,4 +48,4 @@ int ata_write(block_device_t* bdev, uint64_t lba, uint32_t count, const uint8_t*
 
 int ata_software_reset(ata_drive_t* dev);
 
-#endif // ATA_H
+#endif // DEV_ATA_H

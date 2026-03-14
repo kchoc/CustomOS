@@ -1,5 +1,5 @@
-#ifndef MADT_H
-#define MADT_H
+#ifndef I386_MADT_H
+#define I386_MADT_H
 
 #include "rsd.h"
 
@@ -22,4 +22,4 @@ typedef struct local_apic_entry {
 
 void parse_madt(acpi_header_t *madt_header);
 
-#endif // MADT_H
+#endif // I386_MADT_H

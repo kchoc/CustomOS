@@ -1,19 +1,21 @@
 #ifndef SYSCALLS_H
 #define SYSCALLS_H
 
-#include <inttypes.h>
-#include <stddef.h>
 #include <libkern/common.h>
 
-#define SYSCALL_COUNT 256
+#include <inttypes.h>
+#include <stddef.h>
 
-#define SYSCALL_EXIT    0
-#define SYSCALL_PRINT   1
-#define SYSCALL_OPEN    2
-#define SYSCALL_CLOSE   3
-#define SYSCALL_READ    4
-#define SYSCALL_WRITE   5
-#define SYSCALL_SOCKET  6
+#define SYSCALL_COUNT 512
+
+#define SYSCALL_EXIT    1
+#define SYSCALL_FORK    2
+#define SYSCALL_READ    3
+#define SYSCALL_WRITE   4
+#define SYSCALL_OPEN    5
+#define SYSCALL_CLOSE   6
+
+#define SYSCALL_SOCKET  19
 #define SYSCALL_CONNECT 7
 #define SYSCALL_LISTEN  8
 #define SYSCALL_ACCEPT  9
@@ -26,6 +28,12 @@
 #define SYSCALL_WIN_UPDATE  16
 #define SYSCALL_WIN_GETBUF  17
 #define SYSCALL_READ_STDIN  18
+
+#define SYSCALL_EXECVE 59
+
+#define SYSCALL_PRINT 100
+
+#define SYSCALL_THREAD_NEW 455
 
 // Macro to define syscall function prototypes so that syscalls using < 5 args can be defined easily
 #define SYSCALL1 uint32_t arg2, uint32_t arg3, uint32_t arg4, uint32_t arg5
@@ -70,5 +78,8 @@ void* syscall_win_getbuf(uint32_t wid, SYSCALL1);
 
 /* Input syscalls */
 int syscall_read_stdin(char* buffer, int count, SYSCALL1);
+
+/* Exec syscall */
+int syscall_execve(const char* path, char* const argv[], char* const envp[], SYSCALL2);
 
 #endif //SYSCALLS_H

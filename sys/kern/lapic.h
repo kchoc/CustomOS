@@ -2,6 +2,7 @@
 #define LAPIC_H
 
 #include <vm/layout.h>
+
 #include <inttypes.h>
 
 #define LAPIC_REG(id)  ((volatile uint32_t*)(LAPIC_BASE + (id)))

@@ -1,5 +1,5 @@
-#ifndef PCI_H
-#define PCI_H
+#ifndef DEV_PCI_H
+#define DEV_PCI_H
 
 #include <sys/bus.h>
 #include <sys/device.h>
@@ -42,4 +42,4 @@ uint32_t pci_get_bar(uint8_t bus, uint8_t slot, uint8_t function, uint8_t bar_in
 
 extern bus_t pci_bus;
 
-#endif // PCI_H
+#endif // DEV_PCI_H

@@ -1,4 +1,5 @@
 #include "bda.h"
+
 #include <vm/vm_map.h>
 #include <vm/layout.h>
 #include <vm/kmalloc.h>
@@ -14,7 +15,7 @@ ebda_t* ebda = NULL;
 int load_bda() {
     // Map and read BDA
     bda = vm_map_device(BDA_PHYSICAL_ADDRESS, sizeof(bda_t), VM_PROT_READ, VM_REG_F_NONE);
-    if (IS_ERR(bda)) return ERR_PTR(bda);
+    if (IS_ERR(bda)) return (int)bda;
     
     if (!bda->ebda_segment) return 0;
 

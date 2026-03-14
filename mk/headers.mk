@@ -1,29 +1,31 @@
 INCDIR := $(BUILDDIR)/include
-HDR_STAMP := $(INCDIR)/.installed
+MACHINE_DIR := $(INCDIR)/machine
 
-HDR_DIRS := \
-	sys/kern \
-	sys/dev \
-	sys/fs \
-	sys/disk \
-	sys/libkern \
-	sys/vm \
-	sys/wm \
-	sys/sys \
-	sys/x86 \
-	include \
-	sys/$(ARCH)
+ARCH_MACHINE_HEADERS := $(wildcard sys/$(ARCH)/include/*.h)
+X86_MACHINE_HEADERS  := $(wildcard sys/x86/include/*.h)
 
-INCLUDES := -I$(INCDIR) -I$(INCDIR)/sys -I$(INCDIR)/include
+MACHINE_HEADERS := $(notdir $(ARCH_MACHINE_HEADERS) $(X86_MACHINE_HEADERS))
 
-$(HDR_STAMP):
-	@echo "Staging headers"
-	rm -rf $(INCDIR)
-	mkdir -p $(INCDIR)/machine
-	for d in $(HDR_DIRS); do \
-		find $$d -name '*.h' -exec cp --parents {} $(INCDIR) \; ; \
-	done
-	for d in $(ARCH_HDRDIRS); do \
-		cp $$d/*.h $(INCDIR)/machine; \
-	done
-	touch $@
+INCLUDES := \
+	-Isys \
+	-Iinclude \
+	-I$(INCDIR) \
+	$(foreach d,$(ARCH_SRCDIRS),-I$(d))
+
+$(MACHINE_DIR):
+	@mkdir -p $@
+
+define MACHINE_HEADER_RULE
+$(MACHINE_DIR)/$(1): | $(MACHINE_DIR)
+	@if [ -f sys/$(ARCH)/include/$(1) ]; then \
+		ln -sf $(abspath sys/$(ARCH)/include/$(1)) $$@; \
+	else \
+		ln -sf $(abspath sys/x86/include/$(1)) $$@; \
+	fi
+endef
+
+$(foreach h,$(MACHINE_HEADERS),$(eval $(call MACHINE_HEADER_RULE,$(h))))
+
+MACHINE_LINKS := $(addprefix $(MACHINE_DIR)/,$(MACHINE_HEADERS))
+
+headers: $(MACHINE_LINKS)

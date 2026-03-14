@@ -1,5 +1,5 @@
-#ifndef BDA_H
-#define BDA_H
+#ifndef I386_BIOS_BDA_H
+#define I386_BIOS_BDA_H
 
 #include <inttypes.h>
 
@@ -21,6 +21,7 @@ typedef struct bios_data_area {
 
 typedef struct extended_bios_data_area {
 	uint8_t size_kb;        // 0x000, size of EBDA in KB
+	// ... (other EBDA fields can be added as needed)
 } ebda_t;
 
 extern bda_t* bda;
@@ -28,4 +29,4 @@ extern ebda_t* ebda;
 
 int load_bda();
 
-#endif // BDA_H
+#endif // I386_BIOS_BDA_H

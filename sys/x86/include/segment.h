@@ -1,5 +1,5 @@
-#ifndef x86_SEGMENT_H
-#define x86_SEGMENT_H
+#ifndef X86_SEGMENT_H
+#define X86_SEGMENT_H
 
 #include <kern/compiler.h>
 
@@ -32,15 +32,21 @@ typedef struct segment_descriptor {
 typedef struct gate_descriptor {
 	unsigned gd_low_offset	: 16;
 	unsigned gd_selector  	: 16;
-	unsigned gd_stackcpy 	: 5;	// Number of stack words to copy (for call gates)
-	unsigned gd_reserved	: 3; 	// Reserved, should be zero
-	unsigned gd_type		: 5; 	// Type of gate (e.g. interrupt, trap, task)
-	unsigned gd_dpl			: 2; 	// Descriptor Privilege Level
-	unsigned gd_present		: 1; 	// Present bit
+	unsigned gd_reserved1   : 8; 	// Should be zero for interrupt and trap gate_descripto
+	unsigned gd_type		    : 4; 	// Type of gate (e.g. interrupt, trap, task)
+  unsigned gd_reserved2   : 1; 	// Should be zero for interrupt and trap gate_descriptor
+	unsigned gd_dpl			    : 2; 	// Descriptor Privilege Level
+	unsigned gd_present		  : 1; 	// Present bit
 	unsigned gd_high_offset	: 16;
 } __packed gate_desc_t;
 
 #endif
+
+/*
+ * Eflags Register
+ */
+#define PSL_KERNEL 0x200
+#define PSL_USER 0x3200
 
 /*
  * Selectors
@@ -74,7 +80,7 @@ typedef struct gate_descriptor {
 #define	GBIOSUTIL_SEL	16	// BIOS interface (Utility)
 #define	GBIOSARGS_SEL	17	// BIOS interface (Arguments)
 #define	GNDIS_SEL		18	// For the NDIS layer
-#define	NGDT			8 	// TODO: Increase this when we need more segments
+#define	NGDT			10 	// TODO: Increase this when we need more segments
 
 // System segments
 #define SEL_SYS_NULL			0
@@ -102,4 +108,4 @@ typedef struct gate_descriptor {
 #define SEL_MEM_ECR				30 // execute, read-only, conforming
 #define SEL_MEM_ECRA			31 // execute, read-only, conforming, accessed
 
-#endif // SEGMENT_H
+#endif // X86_SEGMENT_H

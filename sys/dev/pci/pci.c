@@ -3,14 +3,8 @@
 #include <dev/port/port_io.h>
 
 #include <vm/kmalloc.h>
+
 #include <kern/terminal.h>
-
-#define CLASS_CODE_MASS_STORAGE_CONTROLLER 0x01
-
-#define PCI_VENDOR_INTEL 0x8086
-#define PCI_DEVICE_PIIX4 0x7010 // Intel 82371AB/EB/MB PIIX4 ISA Bridge
-
-#define PCI_CLASS_DISPLAY_CONTROLLER 0x03
 
 bus_t pci_bus = {
     .name = "PCI",

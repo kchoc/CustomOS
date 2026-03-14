@@ -1,5 +1,5 @@
-#ifndef KEYBOARD_H
-#define KEYBOARD_H
+#ifndef DEV_KEYBOARD_H
+#define DEV_KEYBOARD_H
 
 #include <inttypes.h>
 #include <list.h>
@@ -15,4 +15,4 @@ char keyboard_getchar(void);
 // Wait queue for stdin blocking
 list_t* get_stdin_wait_queue(void);
 
-#endif // KEYBOARD_H
+#endif // DEV_KEYBOARD_H

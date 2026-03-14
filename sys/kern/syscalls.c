@@ -1,18 +1,24 @@
 #include "syscalls.h"
 #include "process.h"
 #include "fd.h"
+#include "exec.h"
 #include "terminal.h"
+
+#include <dev/input/keyboard.h>
 
 #include <fs/vfs.h>
 #include <fs/sockfs.h>
 #include <fs/file.h>
+
 #include <vm/kmalloc.h>
 #include <vm/vm_map.h>
 #include <wm/window.h>
-#include <dev/input/keyboard.h>
+
+#include <sys/pcpu.h>
+
+#include <libkern/common.h>
 
 #include <string.h>
-#include <libkern/common.h>
 #include <stdarg.h>
 
 void* g_syscalls[SYSCALL_COUNT];
@@ -20,11 +26,9 @@ void* g_syscalls[SYSCALL_COUNT];
 void syscalls_init() {
     memset((uint8_t*)g_syscalls, 0, sizeof(void*) * SYSCALL_COUNT);
 
-    // Process syscalls
-    g_syscalls[SYSCALL_EXIT] = syscall_exit;
+    g_syscalls[SYSCALL_PRINT] = syscall_print;
     
     // I/O syscalls
-    g_syscalls[SYSCALL_PRINT] = syscall_print;
     g_syscalls[SYSCALL_OPEN] = syscall_open;
     g_syscalls[SYSCALL_CLOSE] = syscall_close;
     g_syscalls[SYSCALL_READ] = syscall_read;
@@ -50,10 +54,13 @@ void syscalls_init() {
     
     // Input syscalls
     g_syscalls[SYSCALL_READ_STDIN] = syscall_read_stdin;
+
+    // Process Syscalls
+    g_syscalls[SYSCALL_EXECVE] = syscall_execve;
+    g_syscalls[SYSCALL_EXIT] = syscall_exit;
 }
 
 int syscall_exit(registers_t* regs) {
-    printf("Process exiting...\n");
     thread_exit(regs);
     return 0; // Success
 }
@@ -71,7 +78,7 @@ int syscall_print(const char* str, SYSCALL1) {
 int syscall_open(const char* path, int flags, uint32_t mode, SYSCALL2) {
     if (!path) return -1;
     
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return -1;
     
     // Open the file via VFS
@@ -89,7 +96,7 @@ int syscall_open(const char* path, int flags, uint32_t mode, SYSCALL2) {
 }
 
 int syscall_close(int fd, SYSCALL1) {
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return -1;
     
     // Get the file from fd
@@ -106,7 +113,7 @@ int syscall_close(int fd, SYSCALL1) {
 int syscall_read(int fd, void* buf, size_t count, SYSCALL2) {
     if (!buf) return -1;
     
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return -1;
     
     // Get the file from fd
@@ -120,7 +127,7 @@ int syscall_read(int fd, void* buf, size_t count, SYSCALL2) {
 int syscall_write(int fd, const void* buf, size_t count, SYSCALL2) {
     if (!buf) return -1;
     
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return -1;
     
     // Get the file from fd
@@ -136,7 +143,7 @@ int syscall_write(int fd, const void* buf, size_t count, SYSCALL2) {
    ================ */
 
 int syscall_socket(int type, SYSCALL1) {
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc || !proc->fd_table) return -1;
     
     // Generate a unique socket name for this process
@@ -173,7 +180,7 @@ int syscall_socket(int type, SYSCALL1) {
 int syscall_connect(int sockfd, const char* path, SYSCALL2) {
     if (!path) return -1;
     
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return -1;
     
     // Get the socket file from fd
@@ -192,7 +199,7 @@ int syscall_connect(int sockfd, const char* path, SYSCALL2) {
 }
 
 int syscall_listen(int sockfd, int backlog, SYSCALL2) {
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return -1;
     
     // Get the socket file from fd
@@ -207,7 +214,7 @@ int syscall_listen(int sockfd, int backlog, SYSCALL2) {
 }
 
 int syscall_accept(int sockfd, SYSCALL1) {
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return -1;
     
     // Get the socket file from fd
@@ -234,7 +241,7 @@ int syscall_accept(int sockfd, SYSCALL1) {
 int syscall_send(int sockfd, const void* buf, size_t len, int flags, SYSCALL1) {
     if (!buf) return -1;
     
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return -1;
     
     // Get the socket file from fd
@@ -248,7 +255,7 @@ int syscall_send(int sockfd, const void* buf, size_t len, int flags, SYSCALL1) {
 int syscall_recv(int sockfd, void* buf, size_t len, int flags, SYSCALL1) {
     if (!buf) return -1;
     
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return -1;
     
     // Get the socket file from fd
@@ -297,7 +304,7 @@ int syscall(uint32_t syscall_id, int arg_count, ...) {
 }
 
 void* syscall_mmap(uintptr_t addr, size_t length, int prot, int flags, SYSCALL1) {
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc || !proc->vmspace) return NULL;
     
     printf("syscall_mmap: Mapping %u bytes at %p\n", length, addr);
@@ -311,7 +318,7 @@ void* syscall_mmap(uintptr_t addr, size_t length, int prot, int flags, SYSCALL1)
 }
 
 int syscall_win_create(const char* title, int x, int y, int width, int height) {
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return -1;
     
     window_t* win = wm_create_window(proc->pid, title, x, y, width, height);
@@ -333,7 +340,7 @@ int syscall_win_create(const char* title, int x, int y, int width, int height) {
 
 int syscall_win_destroy(uint32_t wid, SYSCALL1) {
     // Verify window belongs to calling process
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return -1;
     
     window_t* win = wm_get_window(wid);
@@ -345,7 +352,7 @@ int syscall_win_destroy(uint32_t wid, SYSCALL1) {
 
 int syscall_win_update(uint32_t wid, SYSCALL1) {
     // Verify window belongs to calling process
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return -1;
 
     window_t* win = wm_get_window(wid);
@@ -358,7 +365,7 @@ int syscall_win_update(uint32_t wid, SYSCALL1) {
 
 void* syscall_win_getbuf(uint32_t wid, SYSCALL1) {
     // Verify window belongs to calling process
-    proc_t* proc = get_current_process();
+    proc_t* proc = PCPU_GET(current_thread)->proc;
     if (!proc) return NULL;
     
     window_t* win = wm_get_window(wid);
@@ -398,3 +405,12 @@ int syscall_read_stdin(char* buffer, int count, SYSCALL1) {
     
     return read_count;
 }
+
+int syscall_execve(const char* path, char* const argv[], char* const envp[], SYSCALL2) {
+    if (!path) return -1;
+
+    printf("syscall_execve: Executing %s\n", path);
+    
+    return execve(path, argv, envp);
+}
+

@@ -1,7 +1,8 @@
-#ifndef SOCKFS_H
-#define SOCKFS_H
+#ifndef FS_SOCKFS_H
+#define FS_SOCKFS_H
 
 #include "vfs.h"
+
 #include <kern/socket.h>
 
 #include <inttypes.h>
@@ -24,4 +25,4 @@ int sockfs_unlink_socket(const char* name);
 const socket_ops_t* sockfs_get_socket_ops(void);
 void sockfs_list_sockets(void);
 
-#endif //SOCKFS_H
+#endif // FS_SOCKFS_H

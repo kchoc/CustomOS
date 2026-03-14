@@ -1,5 +1,5 @@
-#ifndef RSD_H
-#define RSD_H
+#ifndef I386_RSD_H
+#define I386_RSD_H
 
 #include <inttypes.h>
 
@@ -34,4 +34,4 @@ int rsdt_init();
 rsdp_t* find_rsdp();
 acpi_header_t* find_table(rsdt_t* rsdt, const char* signature);
 
-#endif // RSD_H
+#endif // I386_RSD_H

@@ -30,7 +30,7 @@ void spin_unlock(spinlock_t *l) {
 
 /*
  * Try to acquire (non-blocking)
- * Returns 1 on success, 0 otherwise.
+ * Returns 0 on success, non-zero if lock is already held
  */
 int spin_trylock(spinlock_t *l) {
     uint32_t expected = 0;
@@ -40,5 +40,5 @@ int spin_trylock(spinlock_t *l) {
         : "r"(1U), "m"(*l), "a"(expected)
         : "memory"
     );
-    return expected == 0;
+    return expected; // 0 if acquired, non-zero if already held
 }

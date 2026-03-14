@@ -2,6 +2,7 @@
 #define VM_PAGER_H
 
 #include "types.h"
+
 #include <stddef.h>
 
 typedef struct vm_object vm_object_t;

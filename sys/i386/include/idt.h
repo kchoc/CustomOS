@@ -1,6 +1,6 @@
-#ifndef _IDT_H_
-#define _IDT_H_
+#ifndef _I386_IDT_H_
+#define _I386_IDT_H_
 
 #include <i386/i386/idt.h>
 
-#endif // _IDT_H_
+#endif // _I386_IDT_H_

@@ -1,20 +1,22 @@
 #include "commands.h"
-#include "machine/pmap.h"
 #include "terminal.h"
 #include "process.h"
 #include "elf.h"
-#include "pcpu.h"
 #include "socket.h"
 
 #include <dev/port/port_io.h>
 #include <dev/video/vga.h>
 #include <dev/video/vbe.h>
 
+#include <sys/pcpu.h>
+
 #include <fs/vfs.h>
 #include <fs/sockfs.h>
 
 #include <vm/kmalloc.h>
 #include <vm/vm_map.h>
+
+#include <machine/pmap.h>
 
 #include <inttypes.h>
 #include <string.h>
@@ -330,7 +332,6 @@ void process_command(char *input) {
             printf("Usage: exec <binary>\n");
             return;
         }
-        create_process_from_elf(args[1]);
         return;
     }
 

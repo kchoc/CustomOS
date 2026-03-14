@@ -1,7 +1,9 @@
-#include <stdint.h>
-#include <vm/kmalloc.h>
+#include "kmalloc.h"
+
 #include <kern/spinlock.h>
 #include <kern/terminal.h>
+
+#include <stdint.h>
 
 #define KUNIT sizeof(struct kmalloc_unit)
 #define KMALLOC_STATE_FREE 0x11

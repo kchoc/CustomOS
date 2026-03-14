@@ -1,5 +1,5 @@
-#ifndef FAT16_H
-#define FAT16_H
+#ifndef FS_FAT16_H
+#define FS_FAT16_H
 
 #include "vfs.h"
 
@@ -123,4 +123,4 @@ static file_system_type_t fat16_fs_type = {
     .mount = fat16_mount,
 };
 
-#endif //FAT16_H
+#endif // FS_FAT16_H

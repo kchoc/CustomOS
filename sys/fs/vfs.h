@@ -1,8 +1,7 @@
-#ifndef VFS_H
-#define VFS_H
+#ifndef FS_VFS_H
+#define FS_VFS_H
 
 #include "file.h"
-#include <list.h>
 
 #include <sys/device.h>
 
@@ -10,6 +9,7 @@
 #include <kern/socket.h>
 
 #include <inttypes.h>
+#include <list.h>
 
 typedef struct file file_t;
 typedef struct inode inode_t;
@@ -235,4 +235,4 @@ void vfs_print_mounts(void);
 void vfs_print_tree(dentry_t* dir, int depth);
 void vfs_ls(const char* path);
 
-#endif // VFS_H
+#endif // FS_VFS_H

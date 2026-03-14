@@ -1,10 +1,9 @@
 #ifndef VM_OBJECT_H
 #define VM_OBJECT_H
 
-#include "libkern/list.h"
 #include "types.h"
 
-#include "list.h"
+#include <list.h>
 #include <stddef.h>
 
 struct vm_page;

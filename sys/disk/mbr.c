@@ -1,14 +1,15 @@
 #include "mbr.h"
 
+#include <dev/ata/ata.h>
+
 #include <fs/vfs.h>
-#include <stdint.h>
 #include <vm/kmalloc.h>
 
-#include <dev/ata/ata.h>
 #include <kern/pit.h>
-
 #include <kern/terminal.h>
 #include <kern/errno.h>
+
+#include <stdint.h>
 
 block_ops_t mbr_block_ops = {
 	.read = partition_read,

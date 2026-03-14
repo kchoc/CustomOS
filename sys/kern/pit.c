@@ -1,4 +1,5 @@
 #include "pit.h"
+
 #include <dev/port/port_io.h>
 
 #define PIT_FREQUENCY 1193182  // PIT input clock frequency

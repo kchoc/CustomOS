@@ -1,5 +1,5 @@
-#ifndef PAGE_TABLE_H
-#define PAGE_TABLE_H
+#ifndef X86_PAGE_TABLE_H
+#define X86_PAGE_TABLE_H
 
 #include <inttypes.h>
 
@@ -16,4 +16,4 @@ typedef struct page_table_t {
 	page_entry_t entries[1024];
 } page_table_t __attribute__((aligned(4096)));
 
-#endif // PAGE_TABLE_H
+#endif // X86_PAGE_TABLE_H

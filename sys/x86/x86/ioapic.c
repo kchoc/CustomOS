@@ -1,13 +1,12 @@
 #include "ioapic.h"
-#include "vm/vm_map.h"
+
+#include <vm/vm_map.h>
+#include <vm/types.h>
+#include <vm/layout.h>
 
 #include <kern/terminal.h>
 #include <kern/errno.h>
 #include <kern/panic.h>
-
-#include <vm/types.h>
-#include <vm/vm.h>
-#include <vm/layout.h>
 
 #include <string.h>
 

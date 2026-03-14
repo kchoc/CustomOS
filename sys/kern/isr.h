@@ -1,8 +1,9 @@
 #ifndef ISR_H
 #define ISR_H
 
-#include <inttypes.h>
 #include <libkern/common.h>
+
+#include <inttypes.h>
 
 extern IsrFunction g_interrupt_handlers[];
 

@@ -4,6 +4,7 @@
 #include "file.h"
 
 #include <vm/kmalloc.h>
+
 #include <kern/pit.h>
 #include <kern/terminal.h>
 
@@ -11,8 +12,6 @@
 #include <string.h>
 
 #define ENTRY_FREE(entry) ((entry)->name[0] == 0 || (entry)->name[0] == (char)0xE5)
-
-// FAT16 Filesystem Implementation
 
 inode_ops_t fat16_inode_ops = {
     .lookup = fat16_lookup,

@@ -2,9 +2,9 @@
 #define VM_REGION_H
 
 #include "vm_object.h"
-
-#include "list.h"
 #include "types.h"
+
+#include <list.h>
 
 typedef struct vm_object vm_object_t;
 typedef struct vm_space vm_space_t;
@@ -36,7 +36,7 @@ vm_region_t* vm_region_lookup_range(vm_space_t *space, uintptr_t addr, size_t si
 
 bool vm_region_overlaps(vm_region_t *region, uintptr_t addr, size_t size);
 
-vm_region_t* vm_region_create(vm_space_t *space, uintptr_t *addr, size_t size, vm_object_t* object, vm_ooffset_t offset, vm_prot_t prot, vm_region_flags_t flags);
+vm_region_t* vm_region_create(vm_space_t *space, vaddr_t *addr, size_t size, vm_object_t* object, vm_ooffset_t offset, vm_prot_t prot, vm_region_flags_t flags);
 vm_region_t* vm_region_fork(vm_region_t *parent);
 
 vm_region_t* vm_region_insert(vm_space_t *space, vm_region_t *new_region);

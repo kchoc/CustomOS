@@ -1,7 +1,7 @@
 #ifndef X86_ACPI_H
 #define X86_ACPI_H
 
-#include <kern/types.h>
+#include <inttypes.h>
 
 int x86_acpi_init();
 uint32_t x86_acpi_get_cpu_apic_id();

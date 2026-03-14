@@ -1,19 +1,22 @@
 #include "isr.h"
-#include "machine/pmap.h"
 #include "panic.h"
 #include "syscalls.h"
 #include "process.h"
 #include "lapic.h"
-#include "pcpu.h"
 #include "terminal.h"
-
-#include <vm/vm_fault.h>
-#include "vm/types.h"
 
 #include <dev/port/port_io.h>
 #include <dev/input/keyboard.h>
+
+#include <sys/pcpu.h>
+
+#include <vm/vm_fault.h>
+#include <vm/types.h>
 #include <vm/vm_map.h>
+
 #include <libkern/common.h>
+
+#include <machine/pmap.h>
 
 #include <string.h>
 #include <stdint.h>
@@ -27,13 +30,18 @@ void interrupt_register(uint8_t n, IsrFunction interrupt_handler) {
 // The default handler for unhanded interrupts
 void handle_isr(registers_t regs) {
     uint8_t int_no = regs.interruptNumber & 0xFF;
+    trapframe_t* old_tf = PCPU_GET(current_thread)->trapframe;
+    PCPU_GET(current_thread)->trapframe = (trapframe_t*)&regs; // Update current thread's trapframe pointer to the new regs for handlers to access
 
     if (g_interrupt_handlers[int_no] != 0) {
+        // printf("Handling interrupt: %d\n", int_no);
         IsrFunction handler = g_interrupt_handlers[int_no];
         handler(&regs);
     } else {
+        printf("Unhandled interrupt: %d\n", int_no);
         PANIC("Unhandled interrupt");
     }
+    PCPU_GET(current_thread)->trapframe = old_tf; // Restore original trapframe pointer after handling the interrupt
 }
 
 // The keyboard ISR handler (IRQ1 -> Interrupt vector 33)
@@ -56,15 +64,23 @@ void isr_page_fault_handler(registers_t *regs) {
     // printf("===== Page Fault =====\n");
     // printf("CPU ID: %d\n", get_current_cpu()->apic_id);
     // printf("Current process name: %s\n", get_current_cpu()->current_thread->proc->name);
-    // printf("CR3: %x\n", get_current_page_directory_phys());
     // printf("Return Address: %x\n", &regs->eip);
     // printf("Fault Address: %x\n", faulting_address);
     // printf("Error Code: %s %s %x\n", regs->errorCode & 0x1 ? "Present" : "Not Present", 
-    //        regs->errorCode & 0x2 ? "Write" : "Read", regs->errorCode);
+           // regs->errorCode & 0x2 ? "Write" : "Read", regs->errorCode);
+    // printf("Error Code (raw): %x\n", regs->errorCode);
+    // uint32_t cr3;
+    // asm volatile("mov %%cr3, %0" : "=r"(cr3));
+    // printf("CR3 = %x\n", cr3);
     // delay(600);
 
+    // printf("Faulting address: %x\n", faulting_address);
+    // printf("Return Address: %x\n", regs->eip);
+    // printf("Page fault at address: %x\n", faulting_address);
+    // delay(5000);
+
     // Map the page
-    vm_fault(get_current_process()->vmspace, faulting_address, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER);
+    vm_fault(PCPU_GET(current_thread)->proc->vmspace, faulting_address, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER);
 
     // Send an EOI to the LAPIC
     lapic_write(LAPIC_EOI, 0);
@@ -74,11 +90,6 @@ void isr_syscall(registers_t *regs) {
     if (regs->eax >= SYSCALL_COUNT) {
         printf("Invalid syscall number: %d\n", regs->eax);
         regs->eax = -1;
-        return;
-    }
-
-    if (regs->eax == SYSCALL_EXIT) {
-        syscall_exit(regs);
         return;
     }
 

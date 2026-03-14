@@ -1,10 +1,10 @@
 #include "vm_object.h"
 #include "vm_page.h"
-
 #include "kmalloc.h"
+
 #include <kern/errno.h>
 
-#include "list.h"
+#include <list.h>
 
 void vm_object_inc_ref(vm_object_t *obj) {
 	__sync_fetch_and_add(&obj->ref_count, 1);

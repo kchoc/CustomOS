@@ -1,7 +1,8 @@
 #include "madt.h"
 #include "rsd.h"
 
-#include <kern/pcpu.h>
+#include <sys/pcpu.h>
+
 #include <kern/terminal.h>
 
 void parse_madt(acpi_header_t *madt_header) {
@@ -21,6 +22,8 @@ void parse_madt(acpi_header_t *madt_header) {
                 printf("Warning: Maximum CPU count reached (%d)\n", MAX_CPUS);
             }
 
+        } else if (entry->type == 1) {
+            pcpu_t* pcpu = get_pcpu_by_apic_id(entry->apic_id);
         }
         entry = (lapic_entry_t*)((uint8_t*)entry + entry->length);
     }

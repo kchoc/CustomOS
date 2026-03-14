@@ -1,16 +1,17 @@
 #include "vm_space.h"
-#include "types.h"
+#include "machine/pmap.h"
 #include "vm_map.h"
-#include "vm_phys.h"
 #include "vm_region.h"
+#include "kmalloc.h"
+#include "types.h"
+
+#include <sys/pcpu.h>
 
 #include <kern/panic.h>
 #include <kern/terminal.h>
-
-#include "kmalloc.h"
-#include <kern/pcpu.h>
-#include "libkern/list.h"
 #include <kern/errno.h>
+
+#include <list.h>
 
 vm_space_t* kernel_vm_space = NULL;
 
@@ -31,7 +32,7 @@ int kvm_space_init() {
 
 	// Since this is the first kvm call, the start is at 0xC0000000, so we can allocate that
 	vaddr_t virt = KERNEL_BASE;
-    int ret = vm_map_anon(kernel_vm_space, &virt, 0x00400000, VM_PROT_READ | VM_PROT_WRITE, VM_REG_F_KERNEL);
+  int ret = vm_map_anon(kernel_vm_space, &virt, 0x00400000, VM_PROT_READ | VM_PROT_WRITE, VM_REG_F_KERNEL);
 	if (IS_ERR(ret)) return ret;
 
 	pmap_init();
@@ -93,3 +94,19 @@ void vm_space_activate(vm_space_t *space) {
 	if (!space) return;
 	pmap_activate(space->arch);
 }
+
+void vm_space_debug(vm_space_t *space) {
+  if (!space) return;  
+
+  printf("VM Space at %p\n", space);
+  printf("  Ref Count: %d\n", space->ref_count);
+  printf("  Regions:\n");
+  list_node_t* node;
+  list_for_each(node, &space->regions) {
+    vm_region_t* region = list_node_to_region(node);
+    printf("    Region at %p: base=0x%08x, end=0x%08x, prot=%d, flags=%d\n",
+           region, region->base, region->end, region->prot, region->flags);
+  }
+  // pmap_debug(space->arch);
+}
+

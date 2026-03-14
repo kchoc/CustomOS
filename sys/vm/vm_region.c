@@ -1,15 +1,14 @@
 #include "vm_region.h"
-#include "types.h"
 #include "vm_space.h"
 #include "vm_object.h"
 #include "layout.h"
+#include "kmalloc.h"
+#include "types.h"
 
 #include <machine/pmap.h>
-#include "kmalloc.h"
 
 #include <kern/terminal.h>
 #include <kern/errno.h>
-
 #include <kern/panic.h>
 
 void vm_region_inc_ref(vm_region_t *region) {
@@ -77,7 +76,7 @@ vm_region_t* vm_region_lookup_range(vm_space_t *space, uintptr_t addr, size_t si
 	return NULL;
 }
 
-vm_region_t* vm_create_region(vm_space_t *space, uintptr_t* addr, size_t size, vm_object_t* object, vm_ooffset_t offset, vm_prot_t prot, vm_region_flags_t flags) {
+vm_region_t* vm_region_create(vm_space_t *space, vaddr_t* addr, size_t size, vm_object_t* object, vm_ooffset_t offset, vm_prot_t prot, vm_region_flags_t flags) {
     vm_region_t *region = kmalloc(sizeof(vm_region_t));
     if (!region) return ERR_PTR(-ENOMEM);
 
@@ -91,7 +90,7 @@ vm_region_t* vm_create_region(vm_space_t *space, uintptr_t* addr, size_t size, v
 
     // TODO: Allow 0 to be mapped
     if (addr && *addr != VM_REGION_ALLOCATE_ADDR) {
-		region->base = *addr;
+		  region->base = *addr;
 		if (vm_region_lookup_range(space, region->base, size)) {
 			vm_region_dec_ref(region); // This will free the region since its ref count is 1 and also free the object
 			return ERR_PTR(-EEXIST); // Overlap detected
@@ -118,7 +117,7 @@ vm_region_t* vm_create_region(vm_space_t *space, uintptr_t* addr, size_t size, v
 		return new_region; // error code
 	}
 
-    return new_region;
+  return new_region;
 }
 
 vm_region_t *vm_region_fork(vm_region_t *parent) {

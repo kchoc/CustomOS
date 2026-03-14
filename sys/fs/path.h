@@ -1,5 +1,5 @@
-#ifndef PATH_H
-#define PATH_H
+#ifndef FS_PATH_H
+#define FS_PATH_H
 
 typedef struct dentry dentry_t;
 
@@ -9,4 +9,4 @@ typedef struct path {
 
 int format_filename_83(const char* name, char out[11]);
 
-#endif // PATH_H
+#endif // FS_PATH_H

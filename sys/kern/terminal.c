@@ -2,6 +2,7 @@
 #include "commands.h"
 
 #include <dev/port/port_io.h>
+
 #include <vm/layout.h>
 
 #include <string.h>

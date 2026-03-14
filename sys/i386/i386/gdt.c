@@ -1,5 +1,7 @@
 #include "gdt.h"
-#include "x86/include/segment.h"
+
+#include <machine/segment.h>
+#include <machine/tss.h>
 
 seg_desc_t gdt[NGDT] = {
 	// GNULL_SEL
@@ -105,5 +107,31 @@ seg_desc_t gdt[NGDT] = {
 		.sd_reserved = 0,
 		.sd_size = 1, // 32-bit segment
 		.sd_granularity = 1 // 4KB granularity
-	}
+	},
+  // GBIOSLOWMEM_SEL - NOT IMPLEMENTED
+  {
+    .sd_low_limit = 0xffff,
+    .sd_high_limit = 0xf,
+    .sd_low_base = 0,
+    .sd_high_base = 0,
+    .sd_type = SEL_MEM_RWA,
+    .sd_dpl = SEL_KPL,
+    .sd_present = 1,
+    .sd_reserved = 0,
+    .sd_size = 1, // 32-bit segment
+    .sd_granularity = 1 // 4KB granularity
+  },
+  // TSS0
+  {
+    .sd_low_limit = sizeof(tss_t) - 1,
+    .sd_high_limit = 0,
+    .sd_low_base = 0,
+    .sd_high_base = 0,
+    .sd_type = SEL_SYS_TSS32_AVAILABLE,
+    .sd_dpl = SEL_KPL,
+    .sd_present = 1,
+    .sd_reserved = 0,
+    .sd_size = 0, // Must be 0 for TSS
+    .sd_granularity = 0 // Must be byte granularity for TSS
+  }
 };

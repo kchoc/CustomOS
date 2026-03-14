@@ -1,5 +1,7 @@
 #include "keyboard.h"
+
 #include <dev/video/vga.h>
+
 #include <kern/terminal.h>
 #include <kern/panic.h>
 #include <kern/process.h>
