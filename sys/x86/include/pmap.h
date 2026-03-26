@@ -10,7 +10,7 @@
 
 #include <stddef.h>
 
-//TODO: Add compiler check for i386 or amd64 for PTLs
+// TODO: Add compiler check for i386 or amd64 for PTLs
 #define PAGE_TABLE_LEVELS 2
 #define KERNEL_PAGE_ENTRIES 256
 #define PAGE_ENTRIES_PER_TABLE 1024
@@ -25,19 +25,22 @@ void tlb_invlpg(void* addr);
 void tlb_flush();
 void switch_page_directory(page_table_t** pd_ptr);
 
-#define SWITCH_SPACE(pmap) \
-	page_table_t* old_pd __cleanup(switch_page_directory) = *current_pd_addr; \
-	if (pmap && old_pd != pmap->pd) switch_page_directory((void*)&pmap->pd); \
+#define SWITCH_SPACE(pmap)                                                                         \
+    page_table_t* old_pd __cleanup(switch_page_directory) = *current_pd_addr;                      \
+    if (pmap && old_pd != pmap->pd)                                                                \
+        switch_page_directory((void*)&pmap->pd);
 
-typedef struct pmap {
-	page_table_t* pd; // Page directory
+typedef struct pmap
+{
+    page_table_t* pd; // Page directory
 } pmap_t;
 
-typedef enum pmap_flags {
-	PMAP_FLAG_NONE = 0x0,
-	PMAP_FLAG_WIRED = 0x1, // Prevent the page from being swapped out
-	PMAP_FLAG_NOCACHE = 0x2, // Disable caching for this page
-	PMAP_FLAG_ZERO = 0x4, // Zero out the page after mapping
+typedef enum pmap_flags
+{
+    PMAP_FLAG_NONE = 0x0,
+    PMAP_FLAG_WIRED = 0x1,   // Prevent the page from being swapped out
+    PMAP_FLAG_NOCACHE = 0x2, // Disable caching for this page
+    PMAP_FLAG_ZERO = 0x4,    // Zero out the page after mapping
 } pmap_flags_t;
 
 int pmap_init();
@@ -46,7 +49,7 @@ void pmap_debug(pmap_t* pmap);
 void pmap_destroy(pmap_t* pmap);
 void pmap_activate(pmap_t* pmap);
 
-int  pmap_enter(pmap_t* pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, pmap_flags_t flags);
+int pmap_enter(pmap_t* pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, pmap_flags_t flags);
 void pmap_remove(pmap_t* pmap, vaddr_t sva, vaddr_t eva);
 void pmap_protect(pmap_t* pmap, vaddr_t sva, vaddr_t eva, vm_prot_t prot);
 paddr_t pmap_extract(pmap_t* pmap, vaddr_t virt);

@@ -1,8 +1,8 @@
 #ifndef STDIO_H
 #define STDIO_H
 
-#include <stddef.h>
 #include <stdarg.h>
+#include <stddef.h>
 
 #define EOF (-1)
 

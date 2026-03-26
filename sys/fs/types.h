@@ -16,7 +16,8 @@ typedef struct dentry_ops dentry_ops_t;
 typedef struct mount_ops mount_ops_t;
 
 typedef unsigned int loff_t;
-typedef unsigned int vmode_t; // Vnode type flags (e.g., VNODE_TYPE_REGULAR, VNODE_TYPE_DIRECTORY, VNODE_TYPE_BLOCK_DEVICE)
+typedef unsigned int vmode_t; // Vnode type flags (e.g., VNODE_TYPE_REGULAR, VNODE_TYPE_DIRECTORY,
+                              // VNODE_TYPE_BLOCK_DEVICE)
 typedef unsigned int umode_t; // File mode (permissions) flags (e.g., S_IRUSR, S_IWUSR, S_IXUSR)
 typedef unsigned int fmode_t; // File mode flags (e.g., O_RDONLY, O_WRONLY, O_RDWR)
 

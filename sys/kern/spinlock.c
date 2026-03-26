@@ -3,27 +3,28 @@
 /*
  * Acquire a spinlock
  */
-void spin_lock(spinlock_t *l) {
+void spin_lock(spinlock_t* l)
+{
     uint32_t expected;
 
-    for (;;) {
+    for (;;)
+    {
         expected = 0;
-        asm volatile (
-            "lock cmpxchg %1, %2"
-            : "=a"(expected)
-            : "r"(1U), "m"(*l), "a"(expected)
-            : "memory"
-        );
+        asm volatile("lock cmpxchg %1, %2"
+                     : "=a"(expected)
+                     : "r"(1U), "m"(*l), "a"(expected)
+                     : "memory");
         if (expected == 0)
-            return;     // acquired
-        asm volatile("pause");  // reduce contention
+            return;            // acquired
+        asm volatile("pause"); // reduce contention
     }
 }
 
 /*
  * Release a spinlock
  */
-void spin_unlock(spinlock_t *l) {
+void spin_unlock(spinlock_t* l)
+{
     asm volatile("" ::: "memory");
     *l = 0;
 }
@@ -32,19 +33,20 @@ void spin_unlock(spinlock_t *l) {
  * Try to acquire (non-blocking)
  * Returns 0 on success, non-zero if lock is already held
  */
-int spin_trylock(spinlock_t *l) {
+int spin_trylock(spinlock_t* l)
+{
     uint32_t expected = 0;
-    asm volatile (
-        "lock cmpxchg %1, %2"
-        : "=a"(expected)
-        : "r"(1U), "m"(*l), "a"(expected)
-        : "memory"
-    );
+    asm volatile("lock cmpxchg %1, %2"
+                 : "=a"(expected)
+                 : "r"(1U), "m"(*l), "a"(expected)
+                 : "memory");
     return expected; // 0 if acquired, non-zero if already held
 }
 
-inline void _spinlock_cleanup(spinlock_t **lock) {
-    if (lock && *lock) {
+inline void _spinlock_cleanup(spinlock_t** lock)
+{
+    if (lock && *lock)
+    {
         spin_unlock(*lock);
     }
 }

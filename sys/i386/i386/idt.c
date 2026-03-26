@@ -2,8 +2,8 @@
 
 #include <dev/port/port_io.h>
 
-#include <machine/segment_i386.h>
 #include <machine/segment.h>
+#include <machine/segment_i386.h>
 
 #include <kern/isr.h>
 
@@ -12,18 +12,21 @@ gate_desc_t idt[IDT_SIZE];
 region_desc_t ip;
 
 // Function to set an IDT entry
-static void set_idt_entry(int index, uint32_t base, uint16_t selector, uint8_t type_attr, uint8_t dpl) {
-  idt[index].gd_reserved1 = 0; // Ensure the reserved bit is cleared
-  idt[index].gd_reserved2 = 0; // Ensure the reserved bit is cleared
-  idt[index].gd_present = 1; // Clear the present bit until we set up the entry 
-  idt[index].gd_low_offset = base & 0xFFFF;
-  idt[index].gd_selector = selector;
-  idt[index].gd_type = type_attr & 0xF; // Ensure type is only 5 bits
-  idt[index].gd_dpl = dpl & 0x3; // Ensure DPL is only 2 bits
-  idt[index].gd_high_offset = (base >> 16) & 0xFFFF;
+static void set_idt_entry(int index, uint32_t base, uint16_t selector, uint8_t type_attr,
+                          uint8_t dpl)
+{
+    idt[index].gd_reserved1 = 0; // Ensure the reserved bit is cleared
+    idt[index].gd_reserved2 = 0; // Ensure the reserved bit is cleared
+    idt[index].gd_present = 1;   // Clear the present bit until we set up the entry
+    idt[index].gd_low_offset = base & 0xFFFF;
+    idt[index].gd_selector = selector;
+    idt[index].gd_type = type_attr & 0xF; // Ensure type is only 5 bits
+    idt[index].gd_dpl = dpl & 0x3;        // Ensure DPL is only 2 bits
+    idt[index].gd_high_offset = (base >> 16) & 0xFFFF;
 }
 
-static void remap_pic() {
+static void remap_pic()
+{
     outb(0x21, 0xFF); // Mask all interrupts on Master PIC
     outb(0xA1, 0xFF); // Mask all interrupts on Slave PIC
 
@@ -37,31 +40,35 @@ static void remap_pic() {
     outb(0xA1, 0x01); // 8086/88 (MCS-80/85) mode
 
     outb(0x21, 0xFC); // Unmask all interrupts on Master PIC except IRQ0 (timer) and IRQ1 (keyboard)
-    outb(0xA1, 0xFF); // Unmask all interrupts on Slave PIC (if needed, adjust this to unmask specific IRQs on the slave)
+    outb(0xA1, 0xFF); // Unmask all interrupts on Slave PIC (if needed, adjust this to unmask
+                      // specific IRQs on the slave)
 }
 
 // Load the IDT into the CPU using the LIDT instruction
-void load_idt() {
+void load_idt()
+{
     asm volatile("lidt (%0)" : : "r"(&ip));
 }
 
 // Initialize the IDT with the keyboard ISR and default handlers
-int idt_init() {
+int idt_init()
+{
     // Set up the default handler for all interrupts (for unused vectors)
-    for (int i = 0; i < IDT_SIZE; ++i) {
+    for (int i = 0; i < IDT_SIZE; ++i)
+    {
         idt[i].gd_present = 0; // Mark all entries as not present
     }
 
-    set_idt_entry( 0, (uint32_t)isr0 , 0x20, 0xE, 0); // Divide by zero exception
-    set_idt_entry( 1, (uint32_t)isr1 , 0x20, 0xE, 0); // Debug exception
-    set_idt_entry( 2, (uint32_t)isr2 , 0x20, 0xE, 0); // Non-maskable interrupt
-    set_idt_entry( 3, (uint32_t)isr3 , 0x20, 0xE, 0); // Breakpoint exception
-    set_idt_entry( 4, (uint32_t)isr4 , 0x20, 0xE, 0); // Overflow exception
-    set_idt_entry( 5, (uint32_t)isr5 , 0x20, 0xE, 0); // Bound range exceeded exception
-    set_idt_entry( 6, (uint32_t)isr6 , 0x20, 0xE, 0); // Invalid opcode exception
-    set_idt_entry( 7, (uint32_t)isr7 , 0x20, 0xE, 0); // Device not available exception
-    set_idt_entry( 8, (uint32_t)isr8 , 0x20, 0xE, 0); // Double fault exception
-    set_idt_entry( 9, (uint32_t)isr9 , 0x20, 0xE, 0); // Coprocessor segment overrun
+    set_idt_entry(0, (uint32_t)isr0, 0x20, 0xE, 0);   // Divide by zero exception
+    set_idt_entry(1, (uint32_t)isr1, 0x20, 0xE, 0);   // Debug exception
+    set_idt_entry(2, (uint32_t)isr2, 0x20, 0xE, 0);   // Non-maskable interrupt
+    set_idt_entry(3, (uint32_t)isr3, 0x20, 0xE, 0);   // Breakpoint exception
+    set_idt_entry(4, (uint32_t)isr4, 0x20, 0xE, 0);   // Overflow exception
+    set_idt_entry(5, (uint32_t)isr5, 0x20, 0xE, 0);   // Bound range exceeded exception
+    set_idt_entry(6, (uint32_t)isr6, 0x20, 0xE, 0);   // Invalid opcode exception
+    set_idt_entry(7, (uint32_t)isr7, 0x20, 0xE, 0);   // Device not available exception
+    set_idt_entry(8, (uint32_t)isr8, 0x20, 0xE, 0);   // Double fault exception
+    set_idt_entry(9, (uint32_t)isr9, 0x20, 0xE, 0);   // Coprocessor segment overrun
     set_idt_entry(10, (uint32_t)isr10, 0x20, 0xE, 0); // Invalid TSS exception
     set_idt_entry(11, (uint32_t)isr11, 0x20, 0xE, 0); // Segment not present exception
     set_idt_entry(12, (uint32_t)isr12, 0x20, 0xE, 0); // Stack segment fault
@@ -84,21 +91,22 @@ int idt_init() {
     set_idt_entry(29, (uint32_t)isr29, 0x20, 0xE, 0); // Reserved
     set_idt_entry(30, (uint32_t)isr30, 0x20, 0xE, 0); // Reserved
     set_idt_entry(31, (uint32_t)isr31, 0x20, 0xE, 0); // Reserved
-    set_idt_entry(32, (uint32_t)isr32, 0x20, 0xE, 0); // Reserved (IRQ0 - Programmable Interval Timer)
-    set_idt_entry(33, (uint32_t)isr33, 0x20, 0xE, 0); // Keyboard interrupt (IRQ1)
-    set_idt_entry(40, (uint32_t)isr40, 0x20, 0xE, 0); // IRQ8 (Real-time clock)
-    set_idt_entry(128,(uint32_t)isr128,0x20, 0xE, 3); // System call interrupt (INT 0x80)
+    set_idt_entry(32, (uint32_t)isr32, 0x20, 0xE,
+                  0); // Reserved (IRQ0 - Programmable Interval Timer)
+    set_idt_entry(33, (uint32_t)isr33, 0x20, 0xE, 0);   // Keyboard interrupt (IRQ1)
+    set_idt_entry(40, (uint32_t)isr40, 0x20, 0xE, 0);   // IRQ8 (Real-time clock)
+    set_idt_entry(128, (uint32_t)isr128, 0x20, 0xE, 3); // System call interrupt (INT 0x80)
 
-    interrupt_register( 0, isr_divide_by_zero);
-    interrupt_register( 1, isr_debug);
-    interrupt_register( 2, isr_non_maskable_interrupt);
-    interrupt_register( 3, isr_breakpoint);
-    interrupt_register( 4, isr_overflow);
-    interrupt_register( 5, isr_bound_range_exceeded);
-    interrupt_register( 6, isr_invalid_opcode);
-    interrupt_register( 7, isr_device_not_available);
-    interrupt_register( 8, isr_double_fault);
-    interrupt_register( 9, isr_coprocessor_segment_overrun);
+    interrupt_register(0, isr_divide_by_zero);
+    interrupt_register(1, isr_debug);
+    interrupt_register(2, isr_non_maskable_interrupt);
+    interrupt_register(3, isr_breakpoint);
+    interrupt_register(4, isr_overflow);
+    interrupt_register(5, isr_bound_range_exceeded);
+    interrupt_register(6, isr_invalid_opcode);
+    interrupt_register(7, isr_device_not_available);
+    interrupt_register(8, isr_double_fault);
+    interrupt_register(9, isr_coprocessor_segment_overrun);
     interrupt_register(10, isr_invalid_tss);
     interrupt_register(11, isr_segment_not_present);
     interrupt_register(12, isr_stack_segment_fault);
@@ -113,7 +121,7 @@ int idt_init() {
     interrupt_register(32, isr_timer_handler);
     interrupt_register(33, isr_keyboard_handler);
 
-    interrupt_register(128,isr_syscall);
+    interrupt_register(128, isr_syscall);
 
     ip.rd_limit = (sizeof(gate_desc_t) * IDT_SIZE) - 1;
     ip.rd_base = (uint32_t)&idt;

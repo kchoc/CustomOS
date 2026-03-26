@@ -8,26 +8,26 @@
 
 #define SYSCALL_COUNT 512
 
-#define SYSCALL_EXIT    1
-#define SYSCALL_FORK    2
-#define SYSCALL_READ    3
-#define SYSCALL_WRITE   4
-#define SYSCALL_OPEN    5
-#define SYSCALL_CLOSE   6
+#define SYSCALL_EXIT 1
+#define SYSCALL_FORK 2
+#define SYSCALL_READ 3
+#define SYSCALL_WRITE 4
+#define SYSCALL_OPEN 5
+#define SYSCALL_CLOSE 6
 
-#define SYSCALL_SOCKET  19
+#define SYSCALL_SOCKET 19
 #define SYSCALL_CONNECT 7
-#define SYSCALL_LISTEN  8
-#define SYSCALL_ACCEPT  9
-#define SYSCALL_SEND    10
-#define SYSCALL_RECV    11
-#define SYSCALL_UNLINK      12
-#define SYSCALL_MMAP        13
-#define SYSCALL_WIN_CREATE  14
+#define SYSCALL_LISTEN 8
+#define SYSCALL_ACCEPT 9
+#define SYSCALL_SEND 10
+#define SYSCALL_RECV 11
+#define SYSCALL_UNLINK 12
+#define SYSCALL_MMAP 13
+#define SYSCALL_WIN_CREATE 14
 #define SYSCALL_WIN_DESTROY 15
-#define SYSCALL_WIN_UPDATE  16
-#define SYSCALL_WIN_GETBUF  17
-#define SYSCALL_READ_STDIN  18
+#define SYSCALL_WIN_UPDATE 16
+#define SYSCALL_WIN_GETBUF 17
+#define SYSCALL_READ_STDIN 18
 
 #define SYSCALL_EXECVE 59
 
@@ -82,4 +82,4 @@ int syscall_read_stdin(char* buffer, int count, SYSCALL1);
 /* Exec syscall */
 int syscall_execve(const char* path, char* const argv[], char* const envp[], SYSCALL2);
 
-#endif //SYSCALLS_H
+#endif // SYSCALLS_H

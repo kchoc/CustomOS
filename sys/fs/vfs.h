@@ -15,11 +15,11 @@
 /* ===========
    DIR CONTEXT
    =========== */
-typedef struct dir_context {
+typedef struct dir_context
+{
     unsigned int pos;
-    bool (*actor)(dir_context_t *ctx,
-        const char *name, int namelen,
-        uint32_t ino, uint32_t file_size, unsigned int type);
+    bool (*actor)(dir_context_t* ctx, const char* name, int namelen, uint32_t ino,
+                  uint32_t file_size, unsigned int type);
 } dir_context_t;
 
 /* ==========
@@ -42,61 +42,61 @@ typedef struct dir_context {
 /* File modes */
 
 /* File is open for reading */
-#define FMODE_READ      0x1
+#define FMODE_READ 0x1
 /* File is open for writing */
-#define FMODE_WRITE     0x2
+#define FMODE_WRITE 0x2
 /* File supports seeking */
-#define FMODE_LSEEK     0x4
+#define FMODE_LSEEK 0x4
 /* File is opened for reading using pread */
-#define FMODE_PREAD     0x8
+#define FMODE_PREAD 0x8
 /* File is opened for writing using pwrite */
-#define FMODE_PWRITE    0x10
+#define FMODE_PWRITE 0x10
 /* File is opened for execution */
-#define FMODE_EXEC      0x20
+#define FMODE_EXEC 0x20
 
 /* Vnode modes (file types) */
 
 /* File type mask */
-#define UMODE_IFMT   0xF000
+#define UMODE_IFMT 0xF000
 /* Regular file */
-#define UMODE_IFREG  0x8000
+#define UMODE_IFREG 0x8000
 /* Directory */
-#define UMODE_IFDIR  0x4000
+#define UMODE_IFDIR 0x4000
 /* Character device */
-#define UMODE_IFCHR  0x2000
+#define UMODE_IFCHR 0x2000
 /* Block device */
-#define UMODE_IFBLK  0x6000
+#define UMODE_IFBLK 0x6000
 /* FIFO */
-#define UMODE_IFIFO  0x1000
+#define UMODE_IFIFO 0x1000
 /* Symbolic link */
-#define UMODE_IFLNK  0xA000
+#define UMODE_IFLNK 0xA000
 /* Socket */
 #define UMODE_IFSOCK 0xC000
 
 extern vnode_t* root_vnode;
 
 /* Block Device Register */
-int       vfs_register_device(device_t* bdev);
+int vfs_register_device(device_t* bdev);
 device_t* vfs_get_device(const char* device_name);
-void      vfs_list_devices(void);
+void vfs_list_devices(void);
 
-int     vfs_init(void);
-int     vfs_mount_root(const char* device_name);
+int vfs_init(void);
+int vfs_mount_root(const char* device_name);
 
 /* File operations */
-file_t* vfs_open(   const char* path, int flags, umode_t mode);
-void    vfs_close(  file_t* file);
-ssize_t vfs_read(   file_t* file,       void* __user buf, size_t count, size_t offset);
-ssize_t vfs_write(  file_t* file, const void* __user buf, size_t count, size_t offset);
-int     vfs_llseek( file_t* file, loff_t offset, int whence);
+file_t* vfs_open(const char* path, int flags, umode_t mode);
+void vfs_close(file_t* file);
+ssize_t vfs_read(file_t* file, void* __user buf, size_t count, size_t offset);
+ssize_t vfs_write(file_t* file, const void* __user buf, size_t count, size_t offset);
+int vfs_llseek(file_t* file, loff_t offset, int whence);
 
 /* Socket operations */
-int     vfs_socket_create(const char* path, sock_type_t type, umode_t mode);
+int vfs_socket_create(const char* path, sock_type_t type, umode_t mode);
 file_t* vfs_socket_connect(const char* path, int flags);
 file_t* vfs_socket_accept(file_t* socket_file, int flags);
 ssize_t vfs_socket_send(file_t* file, const void* __user buf, size_t len, int flags);
-ssize_t vfs_socket_recv(file_t* file,       void* __user buf, size_t len, int flags);
-int     vfs_socket_unlink(const char* path);
+ssize_t vfs_socket_recv(file_t* file, void* __user buf, size_t len, int flags);
+int vfs_socket_unlink(const char* path);
 
 void vfs_print_mounts(void);
 void vfs_ls(const char* path);

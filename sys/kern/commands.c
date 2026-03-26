@@ -164,8 +164,8 @@
 //         }
 //         const char *filename = args[1];
 //         const char *content = args[2];
-//         file_t *file = vfs_open(filename, 0x1 | 0x2 | 0x200, 0x8000); // Read-write, create if not exist
-//         if (!file) {
+//         file_t *file = vfs_open(filename, 0x1 | 0x2 | 0x200, 0x8000); // Read-write, create if
+//         not exist if (!file) {
 //             printf("Failed to open file: %s\n", filename);
 //             return;
 //         }

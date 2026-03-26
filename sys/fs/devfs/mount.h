@@ -10,4 +10,3 @@ int devfs_unmount(mount_t* mnt);
 int devfs_get_root(mount_t* mnt, vnode_t** vnode);
 
 #endif // DEVFS_MOUNT_H
-

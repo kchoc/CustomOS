@@ -1,51 +1,60 @@
 #include "isr.h"
-#include "panic.h"
-#include "syscalls.h"
-#include "process.h"
 #include "lapic.h"
+#include "panic.h"
+#include "process.h"
+#include "syscalls.h"
 #include "terminal.h"
 
-#include <dev/port/port_io.h>
 #include <dev/input/keyboard.h>
+#include <dev/port/port_io.h>
 
 #include <sys/pcpu.h>
 
-#include <vm/vm_fault.h>
 #include <vm/types.h>
+#include <vm/vm_fault.h>
 #include <vm/vm_map.h>
 
 #include <libkern/common.h>
 
 #include <machine/pmap.h>
 
-#include <string.h>
 #include <stdint.h>
+#include <string.h>
 
 IsrFunction g_interrupt_handlers[256];
 
-void interrupt_register(uint8_t n, IsrFunction interrupt_handler) {
+void interrupt_register(uint8_t n, IsrFunction interrupt_handler)
+{
     g_interrupt_handlers[n] = interrupt_handler;
 }
 
 // The default handler for unhanded interrupts
-void handle_isr(registers_t regs) {
+void handle_isr(registers_t regs)
+{
     uint8_t int_no = regs.interruptNumber & 0xFF;
     trapframe_t* old_tf = PCPU_GET(current_thread)->trapframe;
-    PCPU_GET(current_thread)->trapframe = (trapframe_t*)&regs; // Update current thread's trapframe pointer to the new regs for handlers to access
+    PCPU_GET(current_thread)->trapframe =
+        (trapframe_t*)&regs; // Update current thread's trapframe pointer to the new regs for
+                             // handlers to access
 
-    if (g_interrupt_handlers[int_no] != 0) {
+    if (g_interrupt_handlers[int_no] != 0)
+    {
         // printf("Handling interrupt: %d\n", int_no);
         IsrFunction handler = g_interrupt_handlers[int_no];
         handler(&regs);
-    } else {
+    }
+    else
+    {
         printf("Unhandled interrupt: %d\n", int_no);
         PANIC("Unhandled interrupt");
     }
-    PCPU_GET(current_thread)->trapframe = old_tf; // Restore original trapframe pointer after handling the interrupt
+    PCPU_GET(current_thread)->trapframe =
+        old_tf; // Restore original trapframe pointer after handling the interrupt
 }
 
 // The keyboard ISR handler (IRQ1 -> Interrupt vector 33)
-void isr_keyboard_handler(registers_t *regs) {    
+void isr_keyboard_handler(registers_t* regs)
+{
     // Read the scan code from the keyboard
     uint8_t scan_code = inb(0x60);
 
@@ -57,17 +66,18 @@ void isr_keyboard_handler(registers_t *regs) {
 }
 
 // The page fault ISR handler
-void isr_page_fault_handler(registers_t *regs) {
+void isr_page_fault_handler(registers_t* regs)
+{
     paddr_t faulting_address;
-    asm volatile("movl %%cr2, %0" : "=r" (faulting_address));
+    asm volatile("movl %%cr2, %0" : "=r"(faulting_address));
 
     // printf("===== Page Fault =====\n");
     // printf("CPU ID: %d\n", get_current_cpu()->apic_id);
     // printf("Current process name: %s\n", get_current_cpu()->current_thread->proc->name);
     // printf("Return Address: %x\n", &regs->eip);
     // printf("Fault Address: %x\n", faulting_address);
-    // printf("Error Code: %s %s %x\n", regs->errorCode & 0x1 ? "Present" : "Not Present", 
-           // regs->errorCode & 0x2 ? "Write" : "Read", regs->errorCode);
+    // printf("Error Code: %s %s %x\n", regs->errorCode & 0x1 ? "Present" : "Not Present",
+    // regs->errorCode & 0x2 ? "Write" : "Read", regs->errorCode);
     // printf("Error Code (raw): %x\n", regs->errorCode);
     // uint32_t cr3;
     // asm volatile("mov %%cr3, %0" : "=r"(cr3));
@@ -80,22 +90,26 @@ void isr_page_fault_handler(registers_t *regs) {
     // delay(5000);
 
     // Map the page
-    vm_fault(PCPU_GET(current_thread)->proc->vmspace, faulting_address, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER);
+    vm_fault(PCPU_GET(current_thread)->proc->vmspace, faulting_address,
+             VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER);
 
     // Send an EOI to the LAPIC
     lapic_write(LAPIC_EOI, 0);
 }
 
-void isr_syscall(registers_t *regs) {
-    if (regs->eax >= SYSCALL_COUNT) {
+void isr_syscall(registers_t* regs)
+{
+    if (regs->eax >= SYSCALL_COUNT)
+    {
         printf("Invalid syscall number: %d\n", regs->eax);
         regs->eax = -1;
         return;
     }
 
-    void *syscall = g_syscalls[regs->eax];
+    void* syscall = g_syscalls[regs->eax];
 
-    if (syscall == NULL) {
+    if (syscall == NULL)
+    {
         printf("Unimplemented syscall number: %d\n", regs->eax);
         regs->eax = -1;
         return;
@@ -108,102 +122,120 @@ void isr_syscall(registers_t *regs) {
 }
 
 // Exception handlers
-void isr_divide_by_zero(registers_t *regs) {
+void isr_divide_by_zero(registers_t* regs)
+{
     printf("Divide by zero\n");
     asm volatile("hlt");
 }
 
-void isr_debug(registers_t *regs) {
+void isr_debug(registers_t* regs)
+{
     printf("Debug\n");
     asm volatile("hlt");
 }
 
-void isr_non_maskable_interrupt(registers_t *regs) {
+void isr_non_maskable_interrupt(registers_t* regs)
+{
     printf("Non-maskable interrupt\n");
     asm volatile("hlt");
 }
 
-void isr_breakpoint(registers_t *regs) {
+void isr_breakpoint(registers_t* regs)
+{
     printf("Breakpoint\n");
     asm volatile("hlt");
 }
 
-void isr_overflow(registers_t *regs) {
+void isr_overflow(registers_t* regs)
+{
     printf("Overflow\n");
     asm volatile("hlt");
 }
 
-void isr_bound_range_exceeded(registers_t *regs) {
+void isr_bound_range_exceeded(registers_t* regs)
+{
     printf("Bound range exceeded\n");
     asm volatile("hlt");
 }
 
-void isr_invalid_opcode(registers_t *regs) {
+void isr_invalid_opcode(registers_t* regs)
+{
     printf("Invalid opcode\n");
     PANIC_DUMP_REGISTERS(regs);
 }
 
-void isr_device_not_available(registers_t *regs) {
+void isr_device_not_available(registers_t* regs)
+{
     printf("Device not available\n");
     asm volatile("hlt");
 }
 
-void isr_double_fault(registers_t *regs) {
+void isr_double_fault(registers_t* regs)
+{
     printf("Double fault\n");
     asm volatile("hlt");
 }
 
-void isr_coprocessor_segment_overrun(registers_t *regs) {
+void isr_coprocessor_segment_overrun(registers_t* regs)
+{
     printf("Coprocessor Segment Overrun\n");
     asm volatile("hlt");
 }
 
-void isr_invalid_tss(registers_t *regs) {
+void isr_invalid_tss(registers_t* regs)
+{
     printf("Invalid TSS\n");
     asm volatile("hlt");
 }
 
-void isr_segment_not_present(registers_t *regs) {
+void isr_segment_not_present(registers_t* regs)
+{
     printf("Segment not present\n");
     asm volatile("hlt");
 }
 
-void isr_stack_segment_fault(registers_t *regs) {
+void isr_stack_segment_fault(registers_t* regs)
+{
     printf("Stack segment fault\n");
     asm volatile("hlt");
 }
 
-void isr_general_protection_fault(registers_t *regs) {
+void isr_general_protection_fault(registers_t* regs)
+{
     printf("General protection fault\n");
     printf("Error Code: %x\n", regs->errorCode);
     PANIC_DUMP_REGISTERS(regs);
 }
 
-void isr_fpu_error(registers_t *regs) {
+void isr_fpu_error(registers_t* regs)
+{
     printf("FPU error\n");
     asm volatile("hlt");
 }
 
-void isr_alignment_check(registers_t *regs) {
+void isr_alignment_check(registers_t* regs)
+{
     printf("Alignment check\n");
     asm volatile("hlt");
 }
 
-void isr_machine_check(registers_t *regs) {
+void isr_machine_check(registers_t* regs)
+{
     printf("Machine check\n");
     asm volatile("hlt");
 }
 
-void isr_simd_floating_point(registers_t *regs) {
+void isr_simd_floating_point(registers_t* regs)
+{
     printf("SIMD floating point\n");
     asm volatile("hlt");
 }
 
-void isr_timer_handler(registers_t *regs) {
+void isr_timer_handler(registers_t* regs)
+{
     // Send an EOI to the PIC
     outb(0x20, 0x20); // Send EOI to PIC1
     outb(0xA0, 0x20); // Send EOI to PIC2
-
 
     // Schedule next task
     schedule_from_irq(regs);

@@ -19,12 +19,11 @@
 //     thread_t* idle = create_kernel_thread(idle_task, idle_process, 0, cpu);
 //     cpu->current_thread = idle;
 
-
 //     load_idt();
 
 //     apic_cpu_init();
 //     vm_space_activate(idle_process->vmspace);
-    
+
 //     gdt_init_percpu(cpu_idx, (uint32_t)(idle->kstack + idle->kstack_size));
 
 //     asm volatile("sti"); // enable interrupts
@@ -36,8 +35,9 @@
 
 // /* Copy the ap_entry address for the trampoline to a known location */
 // void deploy_trampoline(void) {
-//     vm_map(NULL, 0x7000, TRAMPOLINE_PHYS, PAGE_SIZE, VM_PROT_READ | VM_PROT_WRITE, VM_MAP_PHYS | VM_MAP_FORCE);
-    
+//     vm_map(NULL, 0x7000, TRAMPOLINE_PHYS, PAGE_SIZE, VM_PROT_READ | VM_PROT_WRITE, VM_MAP_PHYS |
+//     VM_MAP_FORCE);
+
 //     // shared location in low memory (must be identity-mapped)
 //     uint32_t *ap_entry_ptr = (uint32_t*)0x7000;
 
@@ -110,7 +110,6 @@
 //         else
 //             printf("FAILED\n");
 //     }
-    
+
 //     apic_timer_init(10000000);
 // }
-

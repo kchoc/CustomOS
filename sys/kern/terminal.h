@@ -19,17 +19,17 @@ void terminal_test(void);
 void set_cursor_position(size_t row, size_t column);
 
 // Print a formatted string to the terminal
-void printf(const char *s, ...);
+void printf(const char* s, ...);
 
 // Print a formatted string to a buffer
-int sprintf(char *buffer, const char *fmt, ...);
-int snprintf(char *buffer, size_t size, const char *fmt, ...);
+int sprintf(char* buffer, const char* fmt, ...);
+int snprintf(char* buffer, size_t size, const char* fmt, ...);
 
 // Input handler for the terminal
 void terminal_input(uint8_t scancode, char c);
 
 // Put a string on the terminal
-void terminal_print(const char *str);
+void terminal_print(const char* str);
 
 // Clear the terminal screen
 void terminal_clear(void);

@@ -3,8 +3,9 @@
 
 typedef struct dentry dentry_t;
 
-typedef struct path {
-	dentry_t *dentry;
+typedef struct path
+{
+    dentry_t* dentry;
 } path_t;
 
 int format_filename_83(const char* name, char out[11]);

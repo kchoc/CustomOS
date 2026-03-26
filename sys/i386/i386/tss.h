@@ -6,10 +6,11 @@
 
 typedef struct gdt gdt_t;
 
-typedef struct tss {
+typedef struct tss
+{
     uint32_t prev_tss;
-    uint32_t esp0;       // Kernel stack pointer
-    uint32_t ss0;        // Kernel stack segment
+    uint32_t esp0; // Kernel stack pointer
+    uint32_t ss0;  // Kernel stack segment
     uint32_t esp1;
     uint32_t ss1;
     uint32_t esp2;
@@ -36,7 +37,7 @@ typedef struct tss {
     uint16_t iomap_base;
 } __attribute__((packed)) tss_t;
 
-void write_tss(tss_t *tss, uint32_t ss0, uint32_t esp0);
+void write_tss(tss_t* tss, uint32_t ss0, uint32_t esp0);
 
 extern void load_tss(uint16_t tss_selector);
 

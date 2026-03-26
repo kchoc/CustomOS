@@ -8,9 +8,9 @@
 static uint8_t hasPanicOccurred;
 
 // Panic function to handle critical errors
-void panic(const char *message, const char *file, int line);
-void panic_res(const char *message, int res, const char *file, int line);
-void panic_assert(const char *expression, const char *file, int line);
+void panic(const char* message, const char* file, int line);
+void panic_res(const char* message, int res, const char* file, int line);
+void panic_assert(const char* expression, const char* file, int line);
 void panic_dump_registers(registers_t* regs);
 
 #define PANIC(msg) panic(msg, __FILE__, __LINE__)

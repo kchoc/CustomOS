@@ -5,4 +5,3 @@ extern void load_init();
 void system_init();
 
 #endif
-

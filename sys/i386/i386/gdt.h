@@ -1,8 +1,8 @@
 #ifndef I386_GDT_H
 #define I386_GDT_H
 
-#include <machine/segment_i386.h>
 #include <machine/segment.h>
+#include <machine/segment_i386.h>
 
 #include <inttypes.h>
 

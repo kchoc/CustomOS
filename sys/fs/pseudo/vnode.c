@@ -6,8 +6,9 @@
 //
 // #include <string.h>
 //
-// #define NODE_TO_LIST_ENTRY(n) ((pseudo_vnode_list_entry_t*)(n - offsetof(pseudo_vnode_list_entry_t, node)))
-// #define NODE_TO_PSEUDO(n) (NODE_TO_LIST_ENTRY(n)->vnode)
+// #define NODE_TO_LIST_ENTRY(n) ((pseudo_vnode_list_entry_t*)(n -
+// offsetof(pseudo_vnode_list_entry_t, node))) #define NODE_TO_PSEUDO(n)
+// (NODE_TO_LIST_ENTRY(n)->vnode)
 //
 // pseudo_vnode_data_t* pseudo_vnode_data_create() {
 //     pseudo_vnode_data_t* data = kmalloc(sizeof(pseudo_vnode_data_t));
@@ -71,8 +72,8 @@
 //         vnode_t* child_vnode = NODE_TO_PSEUDO(node_iter);
 //         vnode_dec_ref(child_vnode); // Release the vnode reference
 //         pseudo_vnode_list_entry_destroy(NODE_TO_LIST_ENTRY(node_iter)); // Free the list entry
-//     } 
-//     return pseudo_vnode_data_destroy(data);    
+//     }
+//     return pseudo_vnode_data_destroy(data);
 // }
 //
 // int pseudo_vnode_read(vnode_t* node, void* buf, size_t size, size_t offset) {
@@ -151,7 +152,8 @@
 //     return -EACCES; // Can't set attributes
 // }
 //
-// int pseudo_vnode_rename(vnode_t* old_dir, const char* old_name, vnode_t* new_dir, const char* new_name) {
+// int pseudo_vnode_rename(vnode_t* old_dir, const char* old_name, vnode_t* new_dir, const char*
+// new_name) {
 //     if (!old_dir || !old_name || !new_dir || !new_name) return -1;
 //
 //     list_node_t* node_iter;
@@ -206,4 +208,3 @@
 //     .readlink = pseudo_vnode_readlink,
 //     .access = pseudo_vnode_access
 // };
-

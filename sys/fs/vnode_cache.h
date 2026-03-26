@@ -9,9 +9,10 @@
 
 #define MAX_VNODE_CACHE_SIZE 1024
 
-typedef struct vnode_cache_bucket {
-  vnode_t* head; // Head of the linked list for this bucket
-  spinlock_t lock; // Lock to protect this bucket
+typedef struct vnode_cache_bucket
+{
+    vnode_t* head;   // Head of the linked list for this bucket
+    spinlock_t lock; // Lock to protect this bucket
 } vnode_cache_bucket_t;
 
 int vnode_cache_init(void);

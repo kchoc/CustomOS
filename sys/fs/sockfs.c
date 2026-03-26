@@ -34,9 +34,9 @@
 // static int sockfs_socket_listen(dentry_t* socket_node, int backlog);
 // static file_t* sockfs_socket_accept(dentry_t* socket_node, int flags);
 // static int sockfs_socket_connect(dentry_t* socket_node, file_t* file, int flags);
-// static ssize_t sockfs_socket_sendmsg(file_t* file, const void* __user buf, size_t len, int flags);
-// static ssize_t sockfs_socket_recvmsg(file_t* file, void* __user buf, size_t len, int flags);
-// static int sockfs_socket_release(dentry_t* socket_node, file_t* file);
+// static ssize_t sockfs_socket_sendmsg(file_t* file, const void* __user buf, size_t len, int
+// flags); static ssize_t sockfs_socket_recvmsg(file_t* file, void* __user buf, size_t len, int
+// flags); static int sockfs_socket_release(dentry_t* socket_node, file_t* file);
 //
 // /* File operations for socket files */
 // static const file_ops_t sockfs_file_ops = {
@@ -309,7 +309,8 @@
 //     return -1;
 // }
 //
-// static ssize_t sockfs_socket_sendmsg(file_t* file, const void* __user buf, size_t len, int flags) {
+// static ssize_t sockfs_socket_sendmsg(file_t* file, const void* __user buf, size_t len, int flags)
+// {
 //     if (!file || !file->f_inode || !file->f_inode->private || !buf) return -1;
 //
 //     socket_t* sock = (socket_t*)file->f_inode->private;
@@ -322,8 +323,8 @@
 //     // Find peer socket from peer_queue
 //     socket_t* peer_sock = NULL;
 //     if (sock->peer_queue.head) {
-//         sock_msg_t* peer_link = (sock_msg_t*)((uint8_t*)sock->peer_queue.head - offsetof(sock_msg_t, node));
-//         peer_sock = (socket_t*)peer_link->data;
+//         sock_msg_t* peer_link = (sock_msg_t*)((uint8_t*)sock->peer_queue.head -
+//         offsetof(sock_msg_t, node)); peer_sock = (socket_t*)peer_link->data;
 //     }
 //
 //     if (!peer_sock) {
@@ -607,9 +608,9 @@
 //                 case SOCK_STATE_CONNECTED:  state_str = "CONNECTED "; break;
 //             }
 //
-//             printf("%-16s  %-8s  %s\n", 
+//             printf("%-16s  %-8s  %s\n",
 //                    child->d_name ? child->d_name : "(null)",
-//                    type_str, 
+//                    type_str,
 //                    state_str);
 //         }
 //         node = node->next;

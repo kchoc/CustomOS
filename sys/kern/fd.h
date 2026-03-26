@@ -9,21 +9,23 @@ typedef struct process proc_t;
 #define MAX_FDS 256
 
 /* Standard file descriptors */
-#define STDIN_FILENO  0
+#define STDIN_FILENO 0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 
 /* File descriptor entry */
-typedef struct fd_entry {
-    file_t* file;       // Pointer to the open file
-    int flags;          // Flags (close-on-exec, etc.)
-    int ref_count;      // Reference count for dup()
+typedef struct fd_entry
+{
+    file_t* file;  // Pointer to the open file
+    int flags;     // Flags (close-on-exec, etc.)
+    int ref_count; // Reference count for dup()
 } fd_entry_t;
 
 /* File descriptor table */
-typedef struct fd_table {
-    fd_entry_t* fds[MAX_FDS];  // Array of file descriptor entries
-    int next_fd;                // Next available fd (optimization)
+typedef struct fd_table
+{
+    fd_entry_t* fds[MAX_FDS]; // Array of file descriptor entries
+    int next_fd;              // Next available fd (optimization)
 } fd_table_t;
 
 /* File descriptor table management */

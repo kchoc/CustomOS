@@ -7,25 +7,26 @@
 #define MAX_WINDOWS 32
 #define WINDOW_TITLE_MAX 64
 
-typedef struct window {
-    list_node_t node;           // For linking in window list
-    
-    uint32_t wid;               // Window ID
-    uint32_t pid;               // Owner process ID
-    
+typedef struct window
+{
+    list_node_t node; // For linking in window list
+
+    uint32_t wid; // Window ID
+    uint32_t pid; // Owner process ID
+
     char title[WINDOW_TITLE_MAX];
-    
-    int x, y;                   // Position on screen
-    int width, height;          // Window dimensions
-    
-    uint32_t* backbuffer;       // Kernel virtual address of backbuffer (32-bit RGBA)
+
+    int x, y;          // Position on screen
+    int width, height; // Window dimensions
+
+    uint32_t* backbuffer; // Kernel virtual address of backbuffer (32-bit RGBA)
     size_t buffer_size;
-    
-    uint8_t visible;            // Is window visible?
-    uint8_t focused;            // Is window focused?
-    uint8_t dirty;              // Needs redraw?
-    
-    uint32_t z_order;           // Stacking order (higher = on top)
+
+    uint8_t visible; // Is window visible?
+    uint8_t focused; // Is window focused?
+    uint8_t dirty;   // Needs redraw?
+
+    uint32_t z_order; // Stacking order (higher = on top)
 } window_t;
 
 /* Window Manager Functions */
@@ -43,7 +44,7 @@ void wm_focus_window(uint32_t wid);
 void wm_mark_dirty(uint32_t wid);
 
 /* Compositor */
-void wm_composite(void);        // Composite all windows to framebuffer
+void wm_composite(void);                                    // Composite all windows to framebuffer
 void wm_update_region(int x, int y, int width, int height); // Update specific region
 
 /* Window buffer access */
