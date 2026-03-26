@@ -17,6 +17,12 @@ void panic(const char *message, const char *file, int line) {
     halt_system();
 }
 
+void panic_res(const char *message, int res, const char *file, int line) {
+    printf("KERNEL PANIC: %s (Error code: %d)\n", message, res);
+    printf("File: %s, Line: %d\n", file, line);
+    halt_system();
+}
+
 void panic_assert(const char *expression, const char *file, int line) {
     printf("ASSERTION FAILED: %s\n", expression);
     printf("File: %s, Line: %d\n", file, line);

@@ -11,12 +11,12 @@
 
 #include <stdint.h>
 
-block_ops_t mbr_block_ops = {
+device_ops_t mbr_device_ops = {
 	.read = partition_read,
 	.write = partition_write
 };
 
-int mbr_parse(block_device_t* bdev) {
+int mbr_parse(device_t* bdev) {
 	if (!bdev || !bdev->ops) return -1;
 
 	uint8_t sector[512];
@@ -31,7 +31,7 @@ int mbr_parse(block_device_t* bdev) {
 
 		if (entry->partition_type == 0) continue; // Unused entry
 
-		block_device_t* part_bdev = kmalloc(sizeof(block_device_t));
+		device_t* part_bdev = kmalloc(sizeof(device_t));
 		if (!part_bdev) return -ENOMEM;
 
 		partition_t* part = kmalloc(sizeof(partition_t));
@@ -44,29 +44,28 @@ int mbr_parse(block_device_t* bdev) {
 		part->sector_count = entry->sector_count;
 
 		snprintf(part_bdev->name, sizeof(part_bdev->name), "%sp%d", bdev->name, i + 1);
-		part_bdev->dev = bdev->dev;
-		part_bdev->sector_size = bdev->sector_size;
-		part_bdev->sector_count = entry->sector_count;
-		part_bdev->ops = &mbr_block_ops;
-		part_bdev->private = part;
 		part_bdev->parent = bdev;
+		part_bdev->type = DEV_TYPE_BLOCK;
+		part_bdev->ops = &mbr_device_ops;
+		part_bdev->bus_type = bdev->bus_type;
+		part_bdev->ops_data = part;
 
 		// Register the partition block device with the VFS
-		vfs_register_block_device(part_bdev);
+		vfs_register_device(part_bdev);
 	}
 
 	return 0;
 }
 
-int partition_read(block_device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer) {
-	partition_t* part = (partition_t*)bdev->private;
+int partition_read(device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer) {
+	partition_t* part = (partition_t*)bdev->ops_data;
 	if (!part) return -1;
 
 	return bdev->parent->ops->read(bdev->parent, part->start_lba + lba, count, buffer);
 }
 
-int partition_write(block_device_t* bdev, uint64_t lba, uint32_t count, const uint8_t* data) {
-	partition_t* part = (partition_t*)bdev->private;
+int partition_write(device_t* bdev, uint64_t lba, uint32_t count, const uint8_t* data) {
+	partition_t* part = (partition_t*)bdev->ops_data;
 	if (!part) return -1;
 
 	return bdev->parent->ops->write(bdev->parent, part->start_lba + lba, count, data);

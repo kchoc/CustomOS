@@ -15,6 +15,8 @@ int strcmp(const char *str1, const char *str2);
 int strncmp(const char *a, const char *b, unsigned n);
 // Get the length of a string
 unsigned strlen(const char *s);
+// Get the length of a string up to a maximum
+unsigned strnlen(const char *s, unsigned maxlen);
 // Concatenate a string and a character
 char *strcat(const char *s, char c);
 // Convert an unsigned integer to a string

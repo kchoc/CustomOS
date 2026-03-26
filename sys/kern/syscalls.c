@@ -143,134 +143,141 @@ int syscall_write(int fd, const void* buf, size_t count, SYSCALL2) {
    ================ */
 
 int syscall_socket(int type, SYSCALL1) {
-    proc_t* proc = PCPU_GET(current_thread)->proc;
-    if (!proc || !proc->fd_table) return -1;
-    
-    // Generate a unique socket name for this process
-    static uint32_t socket_counter = 0;
-    char sock_name[32];
-    snprintf(sock_name, sizeof(sock_name), "sock_%u_%u", proc->pid, socket_counter++);
-    
-    // Create socket in sockfs
-    dentry_t* sock_dentry = sockfs_create_socket(sock_name, type);
-    if (!sock_dentry) return -1;
-    
-    // Open as a file
-    file_t* file = alloc_file(sock_dentry, FMODE_READ | FMODE_WRITE);
-    if (!file) return -1;
-    
-    // Open the socket
-    if (file->f_ops && file->f_ops->open) {
-        if (file->f_ops->open(file->f_inode, file)) {
-            kfree(file);
-            return -1;
-        }
-    }
-    
-    // Allocate a file descriptor
-    int fd = fd_alloc(proc, file, 0);
-    if (fd < 0) {
-        kfree(file);
-        return -1;
-    }
-    
-    return fd;
+    // proc_t* proc = PCPU_GET(current_thread)->proc;
+    // if (!proc || !proc->fd_table) return -1;
+    //
+    // // Generate a unique socket name for this process
+    // static uint32_t socket_counter = 0;
+    // char sock_name[32];
+    // snprintf(sock_name, sizeof(sock_name), "sock_%u_%u", proc->pid, socket_counter++);
+    //
+    // // Create socket in sockfs
+    // dentry_t* sock_dentry = sockfs_create_socket(sock_name, type);
+    // if (!sock_dentry) return -1;
+    //
+    // // Open as a file
+    // file_t* file = alloc_file(sock_dentry, FMODE_READ | FMODE_WRITE);
+    // if (!file) return -1;
+    //
+    // // Open the socket
+    // if (file->f_ops && file->f_ops->open) {
+    //     if (file->f_ops->open(file->f_inode, file)) {
+    //         kfree(file);
+    //         return -1;
+    //     }
+    // }
+    //
+    // // Allocate a file descriptor
+    // int fd = fd_alloc(proc, file, 0);
+    // if (fd < 0) {
+    //     kfree(file);
+    //     return -1;
+    // }
+    //
+    // return fd;
+    return 0;
 }
 
 int syscall_connect(int sockfd, const char* path, SYSCALL2) {
-    if (!path) return -1;
-    
-    proc_t* proc = PCPU_GET(current_thread)->proc;
-    if (!proc) return -1;
-    
-    // Get the socket file from fd
-    file_t* sock_file = fd_get_file(proc, sockfd);
-    if (!sock_file) return -1;
-    
-    // Lookup the target socket
-    dentry_t* target_dentry = sockfs_lookup_socket(path);
-    if (!target_dentry) return -1;
-    
-    // Connect
-    const socket_ops_t* sock_ops = sockfs_get_socket_ops();
-    if (!sock_ops || !sock_ops->connect) return -1;
-    
-    return sock_ops->connect(target_dentry, sock_file, 0);
+    // if (!path) return -1;
+    //
+    // proc_t* proc = PCPU_GET(current_thread)->proc;
+    // if (!proc) return -1;
+    //
+    // // Get the socket file from fd
+    // file_t* sock_file = fd_get_file(proc, sockfd);
+    // if (!sock_file) return -1;
+    //
+    // // Lookup the target socket
+    // dentry_t* target_dentry = sockfs_lookup_socket(path);
+    // if (!target_dentry) return -1;
+    //
+    // // Connect
+    // const socket_ops_t* sock_ops = sockfs_get_socket_ops();
+    // if (!sock_ops || !sock_ops->connect) return -1;
+    //
+    // return sock_ops->connect(target_dentry, sock_file, 0);
+    return 0;
 }
 
 int syscall_listen(int sockfd, int backlog, SYSCALL2) {
-    proc_t* proc = PCPU_GET(current_thread)->proc;
-    if (!proc) return -1;
-    
-    // Get the socket file from fd
-    file_t* sock_file = fd_get_file(proc, sockfd);
-    if (!sock_file) return -1;
-    
-    // Listen
-    const socket_ops_t* sock_ops = sockfs_get_socket_ops();
-    if (!sock_ops || !sock_ops->listen) return -1;
-    
-    return sock_ops->listen(sock_file->f_dentry, backlog);
+    // proc_t* proc = PCPU_GET(current_thread)->proc;
+    // if (!proc) return -1;
+    //
+    // // Get the socket file from fd
+    // file_t* sock_file = fd_get_file(proc, sockfd);
+    // if (!sock_file) return -1;
+    //
+    // // Listen
+    // const socket_ops_t* sock_ops = sockfs_get_socket_ops();
+    // if (!sock_ops || !sock_ops->listen) return -1;
+    //
+    // return sock_ops->listen(sock_file->f_dentry, backlog);
+    return 0;
 }
 
 int syscall_accept(int sockfd, SYSCALL1) {
-    proc_t* proc = PCPU_GET(current_thread)->proc;
-    if (!proc) return -1;
-    
-    // Get the socket file from fd
-    file_t* listen_file = fd_get_file(proc, sockfd);
-    if (!listen_file) return -1;
-    
-    // Accept connection
-    const socket_ops_t* sock_ops = sockfs_get_socket_ops();
-    if (!sock_ops || !sock_ops->accept) return -1;
-    
-    file_t* client_file = sock_ops->accept(listen_file->f_dentry, 0);
-    if (!client_file) return -1;
-    
-    // Allocate fd for the accepted connection
-    int client_fd = fd_alloc(proc, client_file, 0);
-    if (client_fd < 0) {
-        vfs_close(client_file);
-        return -1;
-    }
-    
-    return client_fd;
+    // proc_t* proc = PCPU_GET(current_thread)->proc;
+    // if (!proc) return -1;
+    //
+    // // Get the socket file from fd
+    // file_t* listen_file = fd_get_file(proc, sockfd);
+    // if (!listen_file) return -1;
+    //
+    // // Accept connection
+    // const socket_ops_t* sock_ops = sockfs_get_socket_ops();
+    // if (!sock_ops || !sock_ops->accept) return -1;
+    //
+    // file_t* client_file = sock_ops->accept(listen_file->f_dentry, 0);
+    // if (!client_file) return -1;
+    //
+    // // Allocate fd for the accepted connection
+    // int client_fd = fd_alloc(proc, client_file, 0);
+    // if (client_fd < 0) {
+    //     vfs_close(client_file);
+    //     return -1;
+    // }
+    //
+    // return client_fd;
+    return 0;
 }
 
 int syscall_send(int sockfd, const void* buf, size_t len, int flags, SYSCALL1) {
-    if (!buf) return -1;
-    
-    proc_t* proc = PCPU_GET(current_thread)->proc;
-    if (!proc) return -1;
-    
-    // Get the socket file from fd
-    file_t* sock_file = fd_get_file(proc, sockfd);
-    if (!sock_file) return -1;
-    
-    // Send via socket ops
-    return vfs_socket_send(sock_file, buf, len, flags);
+    // if (!buf) return -1;
+    //
+    // proc_t* proc = PCPU_GET(current_thread)->proc;
+    // if (!proc) return -1;
+    //
+    // // Get the socket file from fd
+    // file_t* sock_file = fd_get_file(proc, sockfd);
+    // if (!sock_file) return -1;
+    //
+    // // Send via socket ops
+    // return vfs_socket_send(sock_file, buf, len, flags);
+    return 0;
 }
 
 int syscall_recv(int sockfd, void* buf, size_t len, int flags, SYSCALL1) {
-    if (!buf) return -1;
-    
-    proc_t* proc = PCPU_GET(current_thread)->proc;
-    if (!proc) return -1;
-    
-    // Get the socket file from fd
-    file_t* sock_file = fd_get_file(proc, sockfd);
-    if (!sock_file) return -1;
-    
-    // Receive via socket ops
-    return vfs_socket_recv(sock_file, buf, len, flags);
+    // if (!buf) return -1;
+    //
+    // proc_t* proc = PCPU_GET(current_thread)->proc;
+    // if (!proc) return -1;
+    //
+    // // Get the socket file from fd
+    // file_t* sock_file = fd_get_file(proc, sockfd);
+    // if (!sock_file) return -1;
+    //
+    // // Receive via socket ops
+    // return vfs_socket_recv(sock_file, buf, len, flags);
+    return 0;
 }
 
 int syscall_unlink(const char* path, SYSCALL1) {
-    if (!path) return -1;
-    
-    // Unlink socket
-    return vfs_socket_unlink(path);
+    // if (!path) return -1;
+    //
+    // // Unlink socket
+    // return vfs_socket_unlink(path);
+    return 0;
 }
 
 /* ================

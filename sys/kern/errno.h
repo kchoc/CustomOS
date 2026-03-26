@@ -49,6 +49,9 @@
 #define ECHRNG         44   // Channel number out of range
 #define EL2NSYNC       45   // Level 2 not synchronized
 
+
+#define ENOTSUP        95   // Operation not supported
+
 #define MAX_ERRNO       4095
 #define ERR_PTR(err) ((void*)(intptr_t)(err))
 #define IS_ERR(ptr) ((uintptr_t)(ptr) > (uintptr_t)-MAX_ERRNO)

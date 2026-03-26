@@ -43,8 +43,8 @@ int ata_pci_probe_controller(device_t* dev);
 int ata_detect_drive(ata_controller_t* dev, uint8_t slave);
 
 int ata_identify(ata_drive_t* dev);
-int ata_read(block_device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer);
-int ata_write(block_device_t* bdev, uint64_t lba, uint32_t count, const uint8_t* data);
+int ata_read(device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer);
+int ata_write(device_t* bdev, uint64_t lba, uint32_t count, const uint8_t* data);
 
 int ata_software_reset(ata_drive_t* dev);
 

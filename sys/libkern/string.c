@@ -27,19 +27,27 @@ int strcmp(const char *str1, const char *str2) {
 }
 
 int strncmp(const char *a, const char *b, unsigned n) {
-    while (n) {
+    while (*a && *b && n--) {
         if (*a != *b)
             return *a - *b;
         a++;
         b++;
-        n--;
     }
-    return 0;
+    if (n == 0) return 0; // If we compared n characters and they were all equal, return 0
+    return *a - *b;
 }
 
 unsigned strlen(const char *s) {
     unsigned len = 0;
     while (*s++) {
+        len++;
+    }
+    return len;
+}
+
+unsigned strnlen(const char *s, unsigned maxlen) {
+    unsigned len = 0;
+    while (*s++ && len < maxlen) {
         len++;
     }
     return len;

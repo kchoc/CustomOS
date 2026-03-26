@@ -1,5 +1,4 @@
 #include "terminal.h"
-#include "commands.h"
 
 #include <dev/port/port_io.h>
 
@@ -382,7 +381,6 @@ void terminal_input(uint8_t scancode, char c) {
         }
         command_mode = 0;
         terminal_clear();
-        process_command(command_buffer);
     }
     else {
         terminal_putchar(c);

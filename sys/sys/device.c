@@ -35,6 +35,6 @@ int device_register(device_t* dev) {
 	return -1; // No matching driver found
 }
 
-int register_block_device(block_device_t* bdev) {
+int register_block_device(device_t* bdev) {
 	return mbr_parse(bdev);
 }

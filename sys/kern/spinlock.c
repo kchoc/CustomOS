@@ -42,3 +42,9 @@ int spin_trylock(spinlock_t *l) {
     );
     return expected; // 0 if acquired, non-zero if already held
 }
+
+inline void _spinlock_cleanup(spinlock_t **lock) {
+    if (lock && *lock) {
+        spin_unlock(*lock);
+    }
+}

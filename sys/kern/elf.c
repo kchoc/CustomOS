@@ -17,7 +17,7 @@ int load_elf(const char *filepath, thread_t* thread) {
     if (!file) return -1;
 
     Elf32_Ehdr eh;
-    vfs_read(file, (uint8_t *)&eh, sizeof(Elf32_Ehdr), NULL);
+    vfs_read(file, (uint8_t *)&eh, sizeof(Elf32_Ehdr), 0);
 
     /* Basic ELF validation */
     if (eh.e_ident[0] != 0x7F || eh.e_ident[1] != 'E' || eh.e_ident[2] != 'L'  || eh.e_ident[3] != 'F') goto fail;
@@ -29,7 +29,7 @@ int load_elf(const char *filepath, thread_t* thread) {
     if (!ph) goto fail;
 
     vfs_llseek(file, eh.e_phoff, 0);
-    vfs_read(file, (uint8_t *)ph, eh.e_phnum * sizeof(Elf32_Phdr), NULL);
+    vfs_read(file, (uint8_t *)ph, eh.e_phnum * sizeof(Elf32_Phdr), 0);
 
     vm_space_t* old = PCPU_GET(current_thread)->proc->vmspace;
     vm_space_activate(thread->proc->vmspace);
@@ -42,7 +42,7 @@ int load_elf(const char *filepath, thread_t* thread) {
 
         // Load file data into the mapped memory
         vfs_llseek(file, ph[i].p_offset, 0);
-        vfs_read(file, (uint8_t *)ph[i].p_vaddr, ph[i].p_filesz, NULL);
+        vfs_read(file, (uint8_t *)ph[i].p_vaddr, ph[i].p_filesz, 0);
     }
     vm_space_activate(old);
 

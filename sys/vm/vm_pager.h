@@ -19,4 +19,7 @@ typedef struct vm_pager {
 	void* data; // Pager-specific data (e.g. file handle for vnode pager)
 } vm_pager_t;
 
+vm_pager_t* vm_pager_create(vm_pager_ops_t* ops, void* data);
+void vm_pager_destroy(vm_pager_t* pager);
+
 #endif // VM_PAGER_H

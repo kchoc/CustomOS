@@ -22,7 +22,14 @@ void pmap_destroy(pmap_t* pmap) {
 	for (int i = 0; i < KERNEL_PAGE_ENTRY_START; i++) {
 		if (current_pd->entries[i] & 0x1) {
 			page_table_t *table = (page_table_t*)(current_pd->entries[i] & ~PAGE_MASK);
-			memset(&current_pts[i], 0, PAGE_SIZE);
+      for (int j = 0; j < PAGE_ENTRIES_PER_TABLE; j++) {
+        if (current_pts[i].entries[j] & 0x1) {
+          // If the page is present, free the physical page it maps to
+          paddr_t phys = current_pts[i].entries[j] & ~PAGE_MASK;
+          vm_phys_free_page(phys);
+        }
+      }
+      memset(&current_pts[i], 0, PAGE_SIZE);
 			vm_phys_free_page((paddr_t)table);
 		}
 	}

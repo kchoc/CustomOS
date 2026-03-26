@@ -27,9 +27,9 @@ typedef struct mbr {
 } __attribute__((packed)) mbr_t;
 
 // Parses the MBR and validates the signature. Adds partition entries to the system's vfs partition table.
-int mbr_parse(block_device_t* bdev);
+int mbr_parse(device_t* bdev);
 
-int partition_read(block_device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer);
-int partition_write(block_device_t* bdev, uint64_t lba, uint32_t count, const uint8_t* data);
+int partition_read(device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer);
+int partition_write(device_t* bdev, uint64_t lba, uint32_t count, const uint8_t* data);
 
 #endif // DISK_MBR_H

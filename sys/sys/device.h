@@ -6,10 +6,11 @@
 #include <inttypes.h>
 #include <stddef.h>
 
+#define MAX_DEVICE_NAME_LEN 32
+
 struct device;
 struct driver;
 struct block_ops;
-struct block_device;
 struct partition;
 
 typedef enum {
@@ -27,6 +28,9 @@ typedef struct device {
     bus_t* bus;
     void* bus_data; // Data specific to the bus (e.g., PCI device info)
 
+    struct device_ops* ops;
+    void* ops_data; // Data specific to the device operations (e.g., partition info for block devices)
+
     struct driver* driver;
     void* driver_data; // Data specific to the driver
 
@@ -41,30 +45,18 @@ typedef struct driver {
     int (*probe)(device_t* dev);
 } driver_t;
 
-typedef struct block_ops {
-    int (*read)(struct block_device* bdev, uint64_t lba, uint32_t count, uint8_t* buffer);
-    int (*write)(struct block_device* bdev, uint64_t lba, uint32_t count, const uint8_t* data);
-} block_ops_t;
-
-typedef struct block_device {
-    char name[32];
-	device_t* dev;
-
-	uint64_t sector_count;
-	uint32_t sector_size;
-
-    const block_ops_t* ops;
-
-    void* private; // partition-specific data
-    struct block_device* parent; // For partitions, points to the parent block device
-} block_device_t;
+typedef struct device_ops {
+    int (*read)(device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer);
+    int (*write)(device_t* bdev, uint64_t lba, uint32_t count, const uint8_t* data);
+} device_ops_t;
 
 typedef struct partition {
     uint64_t start_lba;
     uint64_t sector_count;
+    uint32_t block_size;
 } partition_t;
 
 int device_register(device_t* dev);
-int register_block_device(block_device_t* bdev);
+int register_block_device(device_t* bdev);
 
 #endif // SYS_DEVICE_H

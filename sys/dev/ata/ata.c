@@ -38,7 +38,7 @@
 #define ATA_SR_DRDY             0x40 // Drive ready
 #define ATA_SR_BSY              0x80 // Busy
 
-block_ops_t ata_block_ops = {
+device_ops_t ata_block_ops = {
 	.read = ata_read,
 	.write = ata_write
 };
@@ -91,16 +91,24 @@ int ata_pci_probe_controller(device_t *dev) {
 
 	// Detect drives on this controller
 	for (int i = 0; i < 2; ++i) {
-		if (!ata_detect_drive(controller, i)) continue;
+		if (ata_detect_drive(controller, i)) continue;
 
-		block_device_t* bdev = kmalloc(sizeof(block_device_t));
+	  device_t* bdev = kmalloc(sizeof(device_t));
 		snprintf(bdev->name, sizeof(bdev->name), "hd%c", 'a' + i);
-		bdev->dev = dev;
-		bdev->sector_size = 512;
-		bdev->sector_count = controller->devices[i].identify_data.total_sectors;
+		bdev->parent = dev;
+		bdev->type = DEV_TYPE_BLOCK;
+    bdev->bus_type = BUS_TYPE_NONE;
+    bdev->bus = NULL;
+    bdev->bus_data = NULL;
 		bdev->ops = &ata_block_ops;
-		bdev->private = &controller->devices[i];
 		bdev->parent = NULL;
+    bdev->driver_data = &controller->devices[i];
+
+    partition_t* part_info = kmalloc(sizeof(partition_t));
+    part_info->start_lba = 0;
+    part_info->sector_count = controller->devices[i].identify_data.total_sectors;
+    part_info->block_size = 512;
+    bdev->ops_data = part_info; // Store partition info in ops_data for potential use by partitioning code
 
 		// Register the block device with the VFS
 		register_block_device(bdev);		
@@ -121,29 +129,29 @@ int ata_detect_drive(ata_controller_t *dev, uint8_t slave) {
 	ata_wait(dev->control_base);
 
 	uint8_t status = inb(dev->io_base + ATA_REG_STATUS);
-    if (status == 0) return 0;
+    if (status == 0) return -EIO;
 
 	// Wait for the drive to respond
 	while (status & ATA_SR_BSY)
 		status = inb(dev->io_base + ATA_REG_STATUS);
 
 	// Check if it's an ATA or ATAPI drive
-	if (status & ATA_SR_ERR) return 0; // Not an ATA drive
+	if (status & ATA_SR_ERR) return -EIO;
 
 	uint8_t lba_mid = inb(dev->io_base + ATA_REG_LBA_MID);
 	uint8_t lba_high = inb(dev->io_base + ATA_REG_LBA_HIGH);
 
 	// If both LBA_MID and LBA_HIGH are zero, it's likely an ATA drive
-	if (lba_mid || lba_high) return 0; // Not an ATA drive
+	if (lba_mid || lba_high) return -ENODEV;
 
 	ata_drive_t* drive = &dev->devices[slave];
 	drive->io_base = dev->io_base;
 	drive->control_base = dev->control_base;
 	drive->slave = slave;
 
-	if (ata_identify(drive)) return 0; // Failed to identify drive
+	if (ata_identify(drive)) return -EIO;
 
-	return 1;
+	return 0;
 }
 
 int ata_identify(ata_drive_t *dev) {
@@ -170,8 +178,8 @@ int ata_identify(ata_drive_t *dev) {
 	return 0;
 }
 
-int ata_read(block_device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer) {
-	ata_drive_t* drive = (ata_drive_t*)bdev->private;
+int ata_read(device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer) {
+	ata_drive_t* drive = (ata_drive_t*)bdev->driver_data;
 	ata_wait_not_busy(drive);
 	outb(drive->io_base + ATA_REG_DEVICE, 0xE0 | (drive->slave << 4) | ((lba >> 24) & 0x0F));
 	ata_wait(drive->control_base);
@@ -196,8 +204,8 @@ int ata_read(block_device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer
 	return 0;
 }
 
-int ata_write(block_device_t* bdev, uint64_t lba, uint32_t count, const uint8_t* data) {
-	ata_drive_t* drive = (ata_drive_t*)bdev->private;
+int ata_write(device_t* bdev, uint64_t lba, uint32_t count, const uint8_t* data) {
+	ata_drive_t* drive = (ata_drive_t*)bdev->driver_data;
 	outb(drive->io_base + ATA_REG_DEVICE, 0xE0 | (drive->slave << 4) | ((lba >> 24) & 0x0F));
 	ata_wait(drive->control_base);
 

@@ -1,442 +1,131 @@
 #include "vfs.h"
-#include "fat16.h"
+
+#include "vnode_cache.h"
 #include "file.h"
+#include "mount.h"
+#include "iname.h"
+#include "filesystem.h"
+
 #include "sockfs.h"
+#include "devfs/vnode.h"
+#include "pseudo/vnode.h"
+#include "vfat/filesystem.h"
 
 #include <vm/kmalloc.h>
 
 #include <kern/terminal.h>
 #include <kern/panic.h>
 #include <kern/pit.h>
+#include <kern/errno.h>
+#include <kern/panic.h>
 
 #include <string.h>
 #include <inttypes.h>
 #include <list.h>
 
+vnode_t* root_vnode = NULL;
+
 /*  =================
     VFS BLOCK DEVICES
     ================= */
 
-#define MAX_BLOCK_DEVICES 8
-static block_device_t* g_block_devices[MAX_BLOCK_DEVICES];
-static int g_block_device_count = 0;
 
-int vfs_register_block_device(block_device_t* bdev) {
-    if (g_block_device_count >= MAX_BLOCK_DEVICES) return -1; // No space
-
-    g_block_devices[g_block_device_count++] = bdev;
-    return 0;
-}
-
-block_device_t* vfs_get_block_device(const char* name) {
-    for (int i = 0; i < g_block_device_count; i++) {
-        if (strcmp(g_block_devices[i]->name, name) == 0)
-            return g_block_devices[i];
-    }
-    return NULL;
-}
-
-void vfs_list_block_devices(void) {
-    printf("Registered Block Devices:\n");
-    for (int i = 0; i < g_block_device_count; i++) {
-        block_device_t* bdev = g_block_devices[i];
-        printf(" - %s: %lu sectors of %u bytes\n",
-            bdev->name, bdev->sector_count, bdev->sector_size);
-    }
-}
-
-/*  ========================
-    VFS STRUCTURE ALLOCATORS
-    ======================== */
-
-/**
- * Allocates and initializes a superblock structure.
- * @param fs_type Pointer to the filesystem type (can be NULL).
- * @param s_ops Pointer to the superblock operations (can be NULL).
- * @return Pointer to the allocated superblock, or NULL on failure.
- */
-super_block_t* alloc_superblock(file_system_type_t* fs_type, const sb_ops_t* s_ops) {
-    super_block_t* sb = kmalloc(sizeof(super_block_t));
-    if (!sb) return NULL;
-
-    sb->block_size = 4096; // Default block size
-    sb->s_magic = 0; // To be set by filesystem
-    sb->s_root = NULL; // To be set during mount
-    sb->fs_type = fs_type;
-    sb->s_op = s_ops;
-    sb->private = NULL;
-
-    return sb;
-}
-
-/** Allocates and initializes a dentry structure.
- * @param name Name of the directory entry (can be NULL).
- * @param inode Pointer to the associated inode (can be NULL).
- * @param parent Pointer to the parent dentry (can be NULL).
- * @return Pointer to the allocated dentry, or NULL on failure.
- */
-dentry_t* alloc_dentry(const char* name, inode_t* inode, dentry_t* parent) {
-    dentry_t* dentry = kmalloc(sizeof(dentry_t));
-    if (!dentry) return NULL;
-
-    dentry->d_parent =  parent;
-    dentry->d_inode =   inode;
-    dentry->d_name =   name ? strdup(name) : NULL;
-    list_init(&dentry->children, false);
-    dentry->node.prev = dentry->node.next = NULL;
-    dentry->ref_count = 1;
-    dentry->is_mountpoint = false;
-    dentry->mnt_sb = NULL;
-    dentry->d_sb = inode->i_sb;
-
-    return dentry;
-}
-
-/** Allocates and initializes an inode structure.
- * @param ino Inode number.
- * @param mode File mode (permissions and type).
- * @param size Size of the file in bytes.
- * @param i_ops Pointer to the inode operations (can be NULL).
- * @param f_ops Pointer to the file operations (can be NULL).
- * @return Pointer to the allocated inode, or NULL on failure.
- */
-inode_t* alloc_inode(unsigned long ino, umode_t mode, loff_t size,
-                        const inode_ops_t* i_ops, const file_ops_t* f_ops) {
-    inode_t* inode = kmalloc(sizeof(inode_t));
-    if (!inode) return NULL;
-
-    inode->i_ino = ino;
-    inode->i_mode = mode;
-    inode->i_size = size;
-    inode->i_ops = i_ops;
-    inode->f_ops = f_ops;
-    inode->ref_count = 1;
-    inode->private = NULL;
-    inode->i_sb = NULL;
-
-    return inode;
-}
-
-/** Allocates and initializes a file structure.
- * @param dentry Pointer to the associated dentry (must not be NULL).
- * @param mode File mode (e.g., read, write).
- * @return Pointer to the allocated file, or NULL on failure.
- */
-file_t* alloc_file(dentry_t* dentry, fmode_t mode) {
-    file_t* file = kmalloc(sizeof(file_t));
-    if (!file) return NULL;
-
-    dentry->d_inode->ref_count++;
-    dentry->ref_count++;
-
-    file->f_dentry = dentry;
-    file->f_inode = dentry->d_inode;
-    file->f_ops = dentry->d_inode->f_ops;
-    file->f_pos = 0;
-    file->f_mode = mode;
-    file->ref_count = 1;
-    file->private = NULL;
+int vfs_register_device(device_t* dev) {
+    int res;
+    vnode_t* dev_vnode;
     
-    return file;
-}
+    res = dev_mount->mnt_point->v_ops->create(dev_mount->mnt_point, dev->name, VNODE_TYPE_BLOCK_DEVICE, &dev_vnode);
+    if (res) return res;
 
-/*  ====================
-    VFS MOUNT MANAGEMENT
-    ==================== */
+    devfs_device_t* devfs_data = (devfs_device_t*)dev_vnode->v_data;
+    devfs_data->device = dev; // Link the block device to the devfs vnode data
+    dev_vnode->v_data = dev;
 
-#define MAX_MOUNTS 128
-
-static vfsmount_t *mount_table[MAX_MOUNTS];
-static int mount_count = 0;
-
-vfsmount_t *root_mnt = NULL;
-
-/* -- Mount Table Management -- */
-
-vfsmount_t* alloc_vfsmount(void) {
-    if (mount_count >= MAX_MOUNTS) return NULL;
-    vfsmount_t *mnt = kmalloc(sizeof(vfsmount_t));
-    if (!mnt) return NULL;
-    memset(mnt, 0, sizeof(vfsmount_t));
-    mount_table[mount_count++] = mnt;
-    return mnt;
-}
-
-int free_vfsmount(vfsmount_t *mnt) {
-    if (!mnt) return -1;
-
-    int idx = -1;
-    for (int i = 0; i < mount_count; i++)
-        if (mount_table[i] == mnt) { idx = i; break; }
-
-    if (idx == -1) return -1; // Not found
-
-    /* call put_super if provided */
-    if (mnt->sb && mnt->sb->s_op && mnt->sb->s_op->put_super)
-        mnt->sb->s_op->put_super(mnt->sb);
-
-    kfree(mnt);
-    mount_table[idx] = mount_table[--mount_count]; // Replace with last
-    mount_table[mount_count] = NULL; // Not necessary but safer
-    return 0;
-}
-
-vfsmount_t *lookup_mnt_for_dentry(dentry_t *dentry) {
-    if (!dentry) return NULL;
-    for (int i = 0; i < mount_count; i++) {
-        if (mount_table[i] && mount_table[i]->mountpoint == dentry)
-            return mount_table[i];
-    }
-    return NULL;
-}
-
-/** Mounts a filesystem at the specified mountpoint.
- * @param sb Pointer to the superblock of the filesystem to mount.
- * @param mountpoint Pointer to the dentry where the filesystem will be mounted (can be NULL for root).
- * @param mnt_root Pointer to the root dentry of the filesystem being mounted.
- * @return 0 on success, -1 on failure.
- */
-int mount_fs(super_block_t* sb, dentry_t* mountpoint, dentry_t* mnt_root) {
-    if (!sb || !mnt_root) return -1;
-
-    vfsmount_t *mnt = alloc_vfsmount();
-    if (!mnt) return -1;
-
-    mnt->sb = sb;
-    mnt->root = mnt_root;
-    mnt->mountpoint = mountpoint;
-
-    if (mountpoint) {
-        mountpoint->is_mountpoint = true;
-        mountpoint->mnt_sb = sb;
-    }
+    if (!root_vnode) vfs_mount_root(dev->name);
 
     return 0;
 }
 
-/** Unmounts the filesystem mounted at the specified mountpoint.
- * @param mountpoint Pointer to the dentry where the filesystem is mounted.
- * @return 0 on success, -1 on failure.
- */
-int unmount_fs(dentry_t* mountpoint) {
-    if (!mountpoint || !mountpoint->is_mountpoint) return -1;
+device_t* vfs_get_device(const char* name) {
+    vnode_t* dev_vnode;
+    int res = dev_mount->mnt_point->v_ops->lookup(dev_mount->mnt_point, name, &dev_vnode);
+    if (res) return NULL;
 
-    vfsmount_t *mnt = lookup_mnt_for_dentry(mountpoint);
-    if (!mnt) return -1;
+    device_t* bdev = (device_t*)dev_vnode->v_data;
+    if (!bdev) return NULL;
 
-    mountpoint->is_mountpoint = false;
-    mountpoint->mnt_sb = NULL;
-    return free_vfsmount(mnt);
+    return bdev;
+}
+
+void vfs_list_devices(void) {
+    char buf[256]; 
+
+    printf("Block devices in /dev:\n");
+
+    int bytes = dev_mount->mnt_point->v_ops->readdir(dev_mount->mnt_point, buf, sizeof(buf), 0);
+    if (is_errno(bytes)) PANIC("Failed to read /dev directory for block devices\n");
+
+    size_t offset = 0;
+    while (offset < (size_t)bytes) {
+        char* name = buf + offset;
+        size_t name_len = strlen(name);
+        if (name_len == 0) break; // End of entries
+        device_t* dev = vfs_get_device(name);
+        if (dev) {
+            printf(" - %s\n", dev->name);
+        }
+
+        offset += name_len + 1; // Move to the next entry
+    }
 }
 
 /* --Drive Mount Management -- */
 
-int vfs_mount_root(block_device_t* device) {
-    if (root_mnt) return -1; // Already initialized
+int vfs_init(void) {
+  int res;
+  vnode_cache_init();
 
-    file_system_type_t *fs_type = &fat16_fs_type;
-    if (!fs_type) return -1;
+  register_filesystem(&vfat_fs_type);
 
-    if (!fs_type->mount) return -1;
+  res = devfs_init();
+  if (res) PANIC_RES("Failed to initialize devfs", res);
 
-    dentry_t *root_dentry = fs_type->mount(fs_type, 0, device, NULL);
-    if (!root_dentry) return -1;
+  res = mount_create(NULL, NULL, MOUNT_NONE, &root_mnt);
+  if (res) PANIC_RES("Failed to create root mount", res);
 
-    root_mnt = alloc_vfsmount();
-    if (!root_mnt) {
-        dentry_cache_release(root_dentry);
-        return -1;
-    }
-
-    root_mnt->sb = root_dentry->d_sb;
-    root_mnt->root = root_dentry;
-    root_mnt->mountpoint = NULL;
-
-    return 0;
+  return 0; // Success
 }
 
-int vfs_mount_drive(const char *device_name, const char *mount_path, file_system_type_t *fs_type) {
-    if (!fs_type || !fs_type->mount) return -1;
+int vfs_mount_root(const char* device_name) {
+  if (!device_name) return -EINVAL;
 
-    block_device_t *device = vfs_get_block_device(device_name);
-    if (!device) return -1;
+  int res = dev_mount->mnt_point->v_ops->lookup(dev_mount->mnt_point, device_name, &root_mnt->mnt_dev_vnode);
+  if (res) return res;
 
-    if (mount_path == NULL || mount_path[0] == '\0' || strcmp(mount_path, "/") == 0) {
-        // Mounting root
-        if (root_mnt) return -1; // Root already mounted
-        return vfs_mount_root(device);
-    }
+  if (root_mnt->mnt_dev_vnode->v_type != VNODE_TYPE_BLOCK_DEVICE) {
+    vnode_dec_ref(root_mnt->mnt_dev_vnode); // Decrement ref count since we won't use it
+    root_mnt->mnt_dev_vnode = NULL; // Clear the reference on failure
+    return -ENOTBLK;
+  }
 
-    dentry_t *mnt_point = vfs_lookup(NULL, mount_path);
-    if (!mnt_point) return -1;
+  file_system_type_t* fs_type;
+  res = get_filesystem_type("vfat", &fs_type);
+  if (res) PANIC("Failed to find VFAT filesystem type\n");
 
-    dentry_t *mnt_root = fs_type->mount(fs_type, 0, device, NULL);
-    if (!mnt_root || !mnt_root->d_inode) return -1;
+  root_mnt->mnt_ops = fs_type->fs_ops;
 
-    if (mount_fs(mnt_root->d_sb, mnt_point, mnt_root)) {
-        dentry_cache_release(mnt_root);
-        return -1;
-    }
+  if (root_mnt->mnt_ops->mount(root_mnt, NULL)) PANIC("Failed to mount root filesystem\n");
 
-    return 0;
-}
+  res = root_mnt->mnt_ops->get_root(root_mnt, &root_vnode);
+  if (res) PANIC("Failed to get root vnode from root mount\n");
 
-/*  --------------------
-    DENTRY CACHE
-    -------------------- */
+  vnode_t* dev_root_vnode;
+  res = root_vnode->v_ops->lookup(root_vnode, "dev", &dev_root_vnode);
+  if (res) PANIC("Failed to lookup /dev in root filesystem\n");
 
-#define DCACHE_LOOKUP(dentry, parent, name) \
-    dentry_t* dentry __cleanup(pdentry_cache_release) = dentry_cache_lookup(parent, name);
-
-
-/** Looks up a dentry in the cache under the specified parent by name.
- * @param parent Pointer to the parent dentry.
- * @param name Name of the dentry to look up.
- * @return Pointer to the found dentry with incremented ref_count, or NULL if not found.
- */
-dentry_t *dentry_cache_lookup(dentry_t *parent, const char *name) {
-    if (!parent || !name) return NULL;
-
-    list_node_t *node;
-    list_for_each(node, &parent->children) {
-        dentry_t *child = (dentry_t *)(node - offsetof(dentry_t, node));
-        if (child && child->d_name && strcmp(child->d_name, name) == 0) {
-            child->ref_count++;
-            return child;
-        }
-    }
-    return NULL;
-}
-
-/** Releases a dentry from the cache, decrementing its reference count and freeing it if no longer used.
- * @param dentry Pointer to the dentry to release.
- */
-void dentry_cache_release(dentry_t *dentry) {
-    if (!dentry) return;
-
-    dentry->ref_count--;
-    if (dentry->ref_count > 0) return;
-
-    // Remove from parent's children list
-    if (dentry->d_parent) list_remove(&dentry->node);
-
-    // Free associated inode
-    list_node_t *node;
-    list_for_each(node, &dentry->children) {
-        dentry_t *child = (dentry_t *)(node - offsetof(dentry_t, node));
-        dentry_cache_release(child);
-    }
-
-    if (dentry->d_inode) {
-        dentry->d_inode->ref_count--;
-        if (dentry->d_inode->ref_count <= 0)
-            kfree(dentry->d_inode);
-    }
-
-
-    if (dentry->d_name) kfree(dentry->d_name);
-    kfree(dentry);
-}
-
-void pdentry_cache_release(dentry_t **dentry) {
-    if (dentry && *dentry) {
-        dentry_cache_release(*dentry);
-        *dentry = NULL;
-    }
-}
-
-/* --------------------
-    VFS PATH RESOLUTION
-    -------------------- */
-
-dentry_t *vfs_lookup(dentry_t *start, const char *path) {
-    if (!path || path[0] == '\0') return NULL;
-
-    // Make a modifiable copy of path and free it automatically on going out of scope
-    char* path_copy __cleanup(kfreep) = strdup(path);
-    if (!path_copy) return NULL;
-
-    dentry_t *current = start ? start : root_mnt->root;
-    dentry_t *next = NULL;
-    char *dir = strtok((char *)path_copy, "/");
-
-    if (!dir) return current; // Path is "/"
-
-    do {
-        if (strcmp(dir, ".") == 0)
-            continue;
-
-        if (strcmp(dir, "..") == 0) {
-            if (current->d_parent) current = current->d_parent;
-            continue;
-        }
-
-        // Check cache first
-        next = dentry_cache_lookup(current, dir);
-
-        // If not in cache, use lookup operation
-        if (!next) {
-            next = current->d_inode->i_ops->lookup(current->d_inode, dir, 0);
-            if (next) {
-                next->d_parent = current;
-                list_push_head(&current->children, &next->node);
-            }
-        }
-
-        if (!next) return NULL; // Not found
-
-        if (next->is_mountpoint && next->mnt_sb) {
-            vfsmount_t *mnt = lookup_mnt_for_dentry(next);
-            if (mnt && mnt->root)
-                current = mnt->root;
-            continue;
-        }
-
-        current = next;
-
-    } while ((dir = strtok(NULL, "/")));
-
-    return current;
-}
-
-/*  ====================
-    VFS ENTRY OPERATIONS
-    ==================== */
-
-int vfs_mkdir(inode_t *dir, dentry_t *dentry, umode_t mode) {
-    if (!dir || !dentry || !dentry->d_name || dentry->d_name[0] == '\0') return -1;
-    if (!dir->i_ops || !dir->i_ops->mkdir) return -1;
-
-    return dir->i_ops->mkdir(dir, dentry, mode); 
-}
-
-int vfs_rmdir(inode_t *dir, dentry_t *dentry) {
-    if (!dir || !dentry || !dentry->d_name || dentry->d_name[0] == '\0') return -1;
-    if (!dir->i_ops || !dir->i_ops->rmdir) return -1;
-
-    return dir->i_ops->rmdir(dir, dentry);
-}
-
-int vfs_create(inode_t *dir, dentry_t* dentry, umode_t mode, bool excl) {
-    if (!dir || !dentry || !dentry->d_name || dentry->d_name[0] == '\0') return -1;
-    if (!dir->i_ops || !dir->i_ops->create) return -1;
-
-    return dir->i_ops->create(dir, dentry, mode, excl);
-}
-
-int vfs_unlink(inode_t *dir, dentry_t *dentry) {
-    if (!dir || !dentry || !dentry->d_name || dentry->d_name[0] == '\0') return -1;
-    if (!dir->i_ops || !dir->i_ops->unlink) return -1;
-
-    return dir->i_ops->unlink(dir, dentry);
-}
-
-int vfs_rename(inode_t *old_dir, dentry_t *old_dentry, inode_t *new_dir, dentry_t *new_dentry, unsigned int flags) {
-    if (!old_dir || !old_dentry || !old_dentry->d_name || old_dentry->d_name[0] == '\0') return -1;
-    if (!new_dir || !new_dentry || !new_dentry->d_name || new_dentry->d_name[0] == '\0') return -1;
-    if (!old_dir->i_ops || !old_dir->i_ops->rename) return -1;
-
-    return old_dir->i_ops->rename(old_dir, old_dentry, new_dir, new_dentry, flags);
+  dev_root_vnode->v_mounthere = dev_mount; // Link the /dev vnode to the devfs mount so that we can switch to it when traversing into /dev
+  
+  return 0; // Success
 }
 
 /*  ===================
@@ -446,16 +135,20 @@ int vfs_rename(inode_t *old_dir, dentry_t *old_dentry, inode_t *new_dir, dentry_
 file_t *vfs_open(const char *path, int flags, umode_t mode) {
     if (!path || path[0] == '\0') return NULL;
 
-    dentry_t *dentry = vfs_lookup(NULL, path);
-    if (!dentry) return NULL;
-    if (!dentry->d_inode) return NULL;
+    vnode_t *vnode;
+    int res = iname_lookup(path, NULL, &vnode);
+    if (res) return NULL;
 
-    file_t *file = alloc_file(dentry, flags);
-    if (!file) return NULL;
+    file_t *file = file_create(vnode, mode, &regular_file_ops);
+    if (!file) {
+        vnode_dec_ref(vnode); // Decrement ref count since we won't use it
+        return NULL;
+    }
 
     if (file->f_ops && file->f_ops->open) {
-        if (file->f_ops->open(file->f_inode, file)) {
+        if (file->f_ops->open(file) != 0) {
             kfree(file);
+            vnode_dec_ref(vnode); // Decrement ref count since we won't use it
             return NULL;
         }
     }
@@ -466,24 +159,25 @@ file_t *vfs_open(const char *path, int flags, umode_t mode) {
 void vfs_close(file_t *file) {
     if (!file) return;
 
-    if (file->f_ops && file->f_ops->release)
-        file->f_ops->release(file->f_inode, file);
+    if (file->f_ops && file->f_ops->close)
+        file->f_ops->close(file);
 
-    file->ref_count--;
-    if (file->ref_count <= 0) {
-        dentry_cache_release(file->f_dentry);
-        kfree(file);
-    }
+    vnode_dec_ref(file->f_vnode);
+    kfree(file);
 }
 
-ssize_t vfs_read(file_t *file, void __user *buf, size_t count, loff_t *offset) {
+ssize_t vfs_read(file_t *file, void __user *buf, size_t count, size_t offset) {
     if (!file) return -1;
     if (!file->f_ops || !file->f_ops->read) return -1;
 
-    return file->f_ops->read(file, buf, count, offset);
+    int bytes = file->f_ops->read(file, buf, count, offset ? offset : file->f_pos);
+    if (is_errno(bytes)) return bytes;
+    if (offset == 0) file->f_pos += bytes;
+
+    return bytes;
 }
 
-ssize_t vfs_write(file_t *file, const void __user *buf, size_t count, loff_t *offset) {
+ssize_t vfs_write(file_t *file, const void __user *buf, size_t count, size_t offset) {
     if (!file || !buf) return -1;
     if (!file->f_ops || !file->f_ops->write) return -1;
 
@@ -501,147 +195,3 @@ int vfs_llseek(file_t *file, loff_t offset, int whence) {
     return res;
 }
 
-/*  =====================
-    VFS SOCKET OPERATIONS
-    ===================== */
-
-int vfs_socket_create(const char *path, sock_type_t type, umode_t mode) {
-    if (!path || path[0] == '\0') return -1;
-    
-    // Extract the socket name from the path (last component)
-    const char *name = strrchr(path, '/');
-    name = name ? name + 1 : path;
-    
-    // Create socket in sockfs
-    dentry_t *sock_dentry = sockfs_create_socket(name, type);
-    if (!sock_dentry) return -1;
-    
-    return 0;
-}
-
-file_t *vfs_socket_connect(const char *path, int flags) {
-    if (!path || path[0] == '\0') return NULL;
-    
-    // Extract socket name
-    const char *name = strrchr(path, '/');
-    name = name ? name + 1 : path;
-    
-    // Lookup socket in sockfs
-    dentry_t *sock_dentry = sockfs_lookup_socket(name);
-    if (!sock_dentry) return NULL;
-    
-    // Get socket operations
-    const socket_ops_t *sock_ops = sockfs_get_socket_ops();
-    if (!sock_ops || !sock_ops->connect) return NULL;
-    
-    // Open the socket file
-    file_t *file = alloc_file(sock_dentry, FMODE_READ | FMODE_WRITE);
-    if (!file) return NULL;
-    
-    // Call connect operation
-    if (sock_ops->connect(sock_dentry, file, flags)) {
-        kfree(file);
-        return NULL;
-    }
-    
-    return file;
-}
-
-file_t *vfs_socket_accept(file_t *socket_file, int flags) {
-    if (!socket_file || !socket_file->f_dentry) return NULL;
-    
-    const socket_ops_t *sock_ops = sockfs_get_socket_ops();
-    if (!sock_ops || !sock_ops->accept) return NULL;
-    
-    return sock_ops->accept(socket_file->f_dentry, flags);
-}
-
-ssize_t vfs_socket_send(file_t *file, const void __user *buf, size_t len, int flags) {
-    if (!file) return -1;
-    
-    const socket_ops_t *sock_ops = sockfs_get_socket_ops();
-    if (!sock_ops || !sock_ops->sendmsg) return -1;
-    
-    return sock_ops->sendmsg(file, buf, len, flags);
-}
-
-ssize_t vfs_socket_recv(file_t *file, void __user *buf, size_t len, int flags) {
-    if (!file) return -1;
-    
-    const socket_ops_t *sock_ops = sockfs_get_socket_ops();
-    if (!sock_ops || !sock_ops->recvmsg) return -1;
-    
-    return sock_ops->recvmsg(file, buf, len, flags);
-}
-
-int vfs_socket_unlink(const char *path) {
-    if (!path || path[0] == '\0') return -1;
-    
-    // Extract socket name
-    const char *name = strrchr(path, '/');
-    name = name ? name + 1 : path;
-    
-    return sockfs_unlink_socket(name);
-}
-
-/*  ========
-    VFS MISC
-    ======== */
-
-void vfs_print_mounts(void) {
-    printf("Mounted filesystems:\n");
-    for (int i = 0; i < mount_count; i++) {
-        vfsmount_t *mnt = mount_table[i];
-        if (!mnt) continue;
-        if (mnt->mountpoint && mnt->mountpoint->d_name)
-            printf(" %d: on %s (fs type: %s)\n", i, mnt->mountpoint->d_name, mnt->sb->fs_type->name);
-        else
-            printf(" %d: root (fs type: %s)\n", i, mnt->sb->fs_type->name);
-    }
-}
-
-void vfs_print_tree(dentry_t *dir, int depth) {
-    if (!dir) return;
-
-    for (int i = 0; i < depth; i++) printf("  ");
-    printf("|- %s\n", dir->d_name ? dir->d_name : "(null)");
-
-    list_node_t *node;
-    list_for_each(node, &dir->children) {
-        dentry_t *child = (dentry_t *)node;
-        vfs_print_tree(child, depth + 1);
-    }
-}
-
-bool vfs_print_directory_entry(dir_context_t *ctx, const char *name, int namelen, uint32_t ino, uint32_t file_size, unsigned type) {
-    // Print the name
-    printf(" %s (size: %uB, inode: %u, type: %s)\n", name, file_size, ino,
-             (type == 1) ? "DIR" : (type == 2) ? "SYMLINK" : "FILE");
-    ctx->pos++;
-    return true;
-}
-
-void vfs_ls(const char *path) {
-    if (!path || path[0] == '\0') path = "/";
-
-    file_t *file = vfs_open(path, 0, FMODE_READ | UMODE_IFDIR);
-    // Read-only, directory
-    if (!file) {
-        printf("vfs_ls: Failed to open path: %s\n", path);
-        return;
-    }
-
-    if ((file->f_inode->i_mode & UMODE_IFDIR) == 0) { // Not a directory
-        printf("vfs_ls: Not a directory: %s\n", path);
-        vfs_close(file);
-        return;
-    }
-
-    dir_context_t ctx = { .pos = 0, .actor = vfs_print_directory_entry };
-    if (file->f_ops && file->f_ops->iterate_shared) {
-        file->f_ops->iterate_shared(file, &ctx);
-    } else {
-        printf("vfs_ls: No readdir operation for this filesystem\n");
-    }
-    vfs_close(file);
-}

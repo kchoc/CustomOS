@@ -15,26 +15,5 @@ void context_init(thread_t* thread, void (*entry)(void), uint32_t* stack_top, ui
     *(--stack_top) = 0; // EDI
     thread->context = (context_t*)stack_top; // Context will be loaded from here during context switch
     return;
-    thread->trapframe->eip = (uint32_t)entry;
-    thread->trapframe->esp_dummy = (uint32_t)stack_top; // This will be loaded into ESP during context switch
-    if (1) {
-        thread->trapframe->user_esp = 0; // Not used for kernel threads
-        thread->trapframe->ss = GSEL(GDATA_SEL, SEL_KPL); // Kernel data segment
-        thread->trapframe->cs = GSEL(GCODE_SEL, SEL_KPL); // Kernel code segment
-        thread->trapframe->ds = GSEL(GDATA_SEL, SEL_KPL); // Kernel data segment
-        thread->trapframe->es = GSEL(GDATA_SEL, SEL_KPL); // Kernel data segment
-        thread->trapframe->fs = 0x0;
-        thread->trapframe->gs = 0x0;
-        thread->trapframe->eflags = PSL_KERNEL; // Kernel mode flags (interrupts disabled)
-    } else {
-        thread->trapframe->user_esp = (uint32_t)stack_top; // Initial user stack pointer
-        thread->trapframe->ss = GSEL(GUDATA_SEL, SEL_UPL);
-        thread->trapframe->cs = GSEL(GUCODE_SEL, SEL_UPL);
-        thread->trapframe->ds = GSEL(GUDATA_SEL, SEL_UPL);
-        thread->trapframe->es = GSEL(GUDATA_SEL, SEL_UPL);
-        thread->trapframe->fs = GSEL(GUDATA_SEL, SEL_UPL);
-        thread->trapframe->gs = GSEL(GUDATA_SEL, SEL_UPL);
-        thread->trapframe->eflags = PSL_USER; // User mode flags (interrupts enabled)
-    }
 }
 

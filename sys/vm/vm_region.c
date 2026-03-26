@@ -81,7 +81,7 @@ vm_region_t* vm_region_create(vm_space_t *space, vaddr_t* addr, size_t size, vm_
     if (!region) return ERR_PTR(-ENOMEM);
 
     if (object == NULL) {
-    	object = vm_object_create(NULL);
+    	object = vm_object_create_anon();
     } else {
     	object->ref_count++;
     }

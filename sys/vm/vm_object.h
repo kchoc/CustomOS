@@ -39,7 +39,7 @@ inline bool vm_object_supports_cow(vm_object_type_t type) {
 void vm_object_inc_ref(vm_object_t *obj);
 void vm_object_dec_ref(vm_object_t *obj);
 
-vm_object_t* vm_object_create(vm_object_t* obj);
+vm_object_t* vm_object_create_anon();
 vm_object_t* vm_object_create_shadow(vm_object_t* parent, vm_ooffset_t offset);
 void vm_object_add_page(vm_object_t* obj, size_t offset, vm_prot_t prot);
 void vm_object_remove_page(vm_object_t* obj, size_t offset);

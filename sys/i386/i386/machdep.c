@@ -9,7 +9,6 @@
 
 #include <fs/vfs.h>
 #include <fs/sockfs.h>
-#include <fs/fat16.h>
 
 #include <vm/kmalloc.h>
 #include <vm/vm_phys.h>
@@ -86,16 +85,14 @@ void init386(void) {
   asm volatile("sti"); // Enable interrupts
   printf("Interrupts enabled.\n");
 
+  vfs_init();
+
 	printf("PCI Enumeration:\n");
 	pci_bus.enumerate(&pci_bus);
 
-	vfs_list_block_devices();
+	vfs_list_devices();
 
-  // Initialize and mount root filesystem
-  printf("VFS: %s\n", vfs_mount_drive("hdap1", "/", &fat16_fs_type) == 0 ? "OK" : "FAILED");
-
-  // Initialize sockfs
-  printf("Sockfs: %s\n", sockfs_init() == 0 ? "OK" : "FAILED");
+  printf("i386 architecture initialization complete.\n");
 
   system_init();
 
