@@ -5,12 +5,11 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-typedef struct vfat_node_data
-{
+typedef struct vfat_node_data {
     uint32_t start_cluster;
     uint32_t file_size;
-    uint8_t attributes;
-    bool is_root;
+    uint8_t  attributes;
+    bool     is_root;
     uint32_t cached_cluster;
     uint32_t cached_index;
 } vfat_node_data_t;

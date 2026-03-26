@@ -55,7 +55,7 @@ void init386(void)
     SET_SEGMENT_BASE(gdt[GPROC0_SEL], (uintptr_t)&pc->tss);
 
     r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
-    r_gdt.rd_base = (uintptr_t)&gdt;
+    r_gdt.rd_base  = (uintptr_t)&gdt;
     lgdt(&r_gdt);
     load_tss(GPROC0_SEL << 3);
 

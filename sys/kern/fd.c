@@ -36,18 +36,14 @@ void fd_table_destroy(fd_table_t* table)
         return;
 
     // Close all open file descriptors
-    for (int i = 0; i < MAX_FDS; i++)
-    {
-        if (table->fds[i])
-        {
+    for (int i = 0; i < MAX_FDS; i++) {
+        if (table->fds[i]) {
             fd_entry_t* entry = table->fds[i];
 
             entry->ref_count--;
-            if (entry->ref_count <= 0)
-            {
+            if (entry->ref_count <= 0) {
                 // No more references, close the file
-                if (entry->file)
-                {
+                if (entry->file) {
                     // Note: vfs_close should be called, but we need to avoid circular dependency
                     // For now, just decrement ref count
                     entry->file->ref_count--;
@@ -74,15 +70,12 @@ fd_table_t* fd_table_fork(fd_table_t* src)
         return NULL;
 
     // Copy all file descriptors
-    for (int i = 0; i < MAX_FDS; i++)
-    {
-        if (src->fds[i])
-        {
+    for (int i = 0; i < MAX_FDS; i++) {
+        if (src->fds[i]) {
             table->fds[i] = src->fds[i];
             table->fds[i]->ref_count++; // Increment reference count
 
-            if (table->fds[i]->file)
-            {
+            if (table->fds[i]->file) {
                 table->fds[i]->file->ref_count++; // Increment file reference
             }
         }
@@ -109,22 +102,17 @@ int fd_alloc(proc_t* proc, file_t* file, int flags)
 
     // Find the lowest available file descriptor
     int fd = -1;
-    for (int i = table->next_fd; i < MAX_FDS; i++)
-    {
-        if (!table->fds[i])
-        {
+    for (int i = table->next_fd; i < MAX_FDS; i++) {
+        if (!table->fds[i]) {
             fd = i;
             break;
         }
     }
 
     // If not found after next_fd, search from beginning
-    if (fd == -1)
-    {
-        for (int i = 0; i < table->next_fd && i < MAX_FDS; i++)
-        {
-            if (!table->fds[i])
-            {
+    if (fd == -1) {
+        for (int i = 0; i < table->next_fd && i < MAX_FDS; i++) {
+            if (!table->fds[i]) {
                 fd = i;
                 break;
             }
@@ -139,8 +127,8 @@ int fd_alloc(proc_t* proc, file_t* file, int flags)
     if (!entry)
         return -1;
 
-    entry->file = file;
-    entry->flags = flags;
+    entry->file      = file;
+    entry->flags     = flags;
     entry->ref_count = 1;
 
     table->fds[fd] = entry;
@@ -185,17 +173,14 @@ int fd_close(proc_t* proc, int fd)
 
     entry->ref_count--;
 
-    if (entry->ref_count <= 0)
-    {
+    if (entry->ref_count <= 0) {
         // No more references to this fd entry
-        if (entry->file)
-        {
+        if (entry->file) {
             entry->file->ref_count--;
 
             // If file has no more references, close it
             // Note: Should call vfs_close here, but avoiding circular dependency
-            if (entry->file->ref_count <= 0)
-            {
+            if (entry->file->ref_count <= 0) {
                 // File operations release should be called
                 // This will be handled by vfs_close in syscalls
             }
@@ -207,8 +192,7 @@ int fd_close(proc_t* proc, int fd)
     proc->fd_table->fds[fd] = NULL;
 
     // Update next_fd hint
-    if (fd < proc->fd_table->next_fd)
-    {
+    if (fd < proc->fd_table->next_fd) {
         proc->fd_table->next_fd = fd;
     }
 
@@ -259,8 +243,7 @@ int fd_dup2(proc_t* proc, int oldfd, int newfd)
         return -1; // Invalid source fd
 
     // Close newfd if it's already open
-    if (proc->fd_table->fds[newfd])
-    {
+    if (proc->fd_table->fds[newfd]) {
         fd_close(proc, newfd);
     }
 
@@ -269,8 +252,8 @@ int fd_dup2(proc_t* proc, int oldfd, int newfd)
     if (!entry)
         return -1;
 
-    entry->file = old_entry->file;
-    entry->flags = old_entry->flags;
+    entry->file      = old_entry->file;
+    entry->flags     = old_entry->flags;
     entry->ref_count = 1;
 
     proc->fd_table->fds[newfd] = entry;
@@ -293,14 +276,13 @@ int fd_init_stdio(proc_t* proc)
     // This should be set up to point to a terminal device or console
     // We'll just create placeholder entries
 
-    for (int i = 0; i < 3; i++)
-    {
+    for (int i = 0; i < 3; i++) {
         fd_entry_t* entry = kmalloc(sizeof(fd_entry_t));
         if (!entry)
             return -1;
 
-        entry->file = NULL; // TODO: Set to actual console/terminal device
-        entry->flags = 0;
+        entry->file      = NULL; // TODO: Set to actual console/terminal device
+        entry->flags     = 0;
         entry->ref_count = 1;
 
         proc->fd_table->fds[i] = entry;

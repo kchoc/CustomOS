@@ -14,10 +14,8 @@ void machdep_init_pcpu(pcpu_t* pcpu, MACHDEP_PARAMS)
 
 pcpu_t* get_pcpu_by_apic_id(uint32_t apic_id)
 {
-    for (uint32_t i = 0; i < cpu_count; i++)
-    {
-        if (pcpus[i].apic_id == apic_id)
-        {
+    for (uint32_t i = 0; i < cpu_count; i++) {
+        if (pcpus[i].apic_id == apic_id) {
             return &pcpus[i];
         }
     }

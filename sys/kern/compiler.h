@@ -5,7 +5,7 @@
 #define __kernel
 
 #define __cleanup(x) __attribute__((cleanup(x)))
-#define __packed __attribute__((packed))
+#define __packed     __attribute__((packed))
 
 #define __EXPORT_SYMBOL(sym, gpl) extern typeof(sym) sym;
 

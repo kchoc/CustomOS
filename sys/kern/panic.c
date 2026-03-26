@@ -51,8 +51,7 @@ void panic_dump_registers(registers_t* regs)
 void halt_system(void)
 {
     hasPanicOccurred = 1;
-    while (1)
-    {
+    while (1) {
         __asm__ __volatile__("hlt");
     }
 }
@@ -60,7 +59,6 @@ void halt_system(void)
 void reboot_system(void)
 {
     outb(0x64, 0xFE);
-    while (1)
-    {
+    while (1) {
     }
 }

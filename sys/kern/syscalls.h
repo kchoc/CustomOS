@@ -8,26 +8,26 @@
 
 #define SYSCALL_COUNT 512
 
-#define SYSCALL_EXIT 1
-#define SYSCALL_FORK 2
-#define SYSCALL_READ 3
+#define SYSCALL_EXIT  1
+#define SYSCALL_FORK  2
+#define SYSCALL_READ  3
 #define SYSCALL_WRITE 4
-#define SYSCALL_OPEN 5
+#define SYSCALL_OPEN  5
 #define SYSCALL_CLOSE 6
 
-#define SYSCALL_SOCKET 19
-#define SYSCALL_CONNECT 7
-#define SYSCALL_LISTEN 8
-#define SYSCALL_ACCEPT 9
-#define SYSCALL_SEND 10
-#define SYSCALL_RECV 11
-#define SYSCALL_UNLINK 12
-#define SYSCALL_MMAP 13
-#define SYSCALL_WIN_CREATE 14
+#define SYSCALL_SOCKET      19
+#define SYSCALL_CONNECT     7
+#define SYSCALL_LISTEN      8
+#define SYSCALL_ACCEPT      9
+#define SYSCALL_SEND        10
+#define SYSCALL_RECV        11
+#define SYSCALL_UNLINK      12
+#define SYSCALL_MMAP        13
+#define SYSCALL_WIN_CREATE  14
 #define SYSCALL_WIN_DESTROY 15
-#define SYSCALL_WIN_UPDATE 16
-#define SYSCALL_WIN_GETBUF 17
-#define SYSCALL_READ_STDIN 18
+#define SYSCALL_WIN_UPDATE  16
+#define SYSCALL_WIN_GETBUF  17
+#define SYSCALL_READ_STDIN  18
 
 #define SYSCALL_EXECVE 59
 
@@ -46,7 +46,7 @@ extern void* g_syscalls[];
 typedef int (*syscall_fn_t)(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t);
 
 void syscalls_init();
-int syscall(uint32_t syscall_id, int arg_count, ...);
+int  syscall(uint32_t syscall_id, int arg_count, ...);
 
 /* Process syscalls */
 int syscall_exit(registers_t* regs);
@@ -71,9 +71,9 @@ int syscall_unlink(const char* path, SYSCALL1);
 void* syscall_mmap(uintptr_t addr, size_t length, int prot, int flags, SYSCALL1);
 
 /* Window syscalls */
-int syscall_win_create(const char* title, int x, int y, int width, int height);
-int syscall_win_destroy(uint32_t wid, SYSCALL1);
-int syscall_win_update(uint32_t wid, SYSCALL1);
+int   syscall_win_create(const char* title, int x, int y, int width, int height);
+int   syscall_win_destroy(uint32_t wid, SYSCALL1);
+int   syscall_win_update(uint32_t wid, SYSCALL1);
 void* syscall_win_getbuf(uint32_t wid, SYSCALL1);
 
 /* Input syscalls */

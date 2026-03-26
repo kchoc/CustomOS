@@ -103,14 +103,14 @@ static const char keyboard_shift_map[128] = {
 
 // Key state bitmask
 static uint8_t shift = 0;
-static uint8_t ctrl = 0;
+static uint8_t ctrl  = 0;
 
 static uint64_t keys[2] = {0};
 
 // Keyboard input circular buffer
 #define KBD_BUFFER_SIZE 256
-static char kbd_buffer[KBD_BUFFER_SIZE];
-static volatile int kbd_read_pos = 0;
+static char         kbd_buffer[KBD_BUFFER_SIZE];
+static volatile int kbd_read_pos  = 0;
 static volatile int kbd_write_pos = 0;
 
 // Wait queue for processes blocked on stdin
@@ -135,13 +135,12 @@ char scancode_to_ascii(uint8_t scancode)
 void handle_keypress(uint8_t scancode)
 {
     uint8_t is_release = scancode & 0x80 ? 1 : 0;
-    uint8_t clean = scancode & 0x7F;
+    uint8_t clean      = scancode & 0x7F;
 
     keys[(scancode >> 6) & 0x01] ^= 1UL << (scancode & 0x3F);
 
     // Track modifier state
-    switch (clean)
-    {
+    switch (clean) {
     case 0x2A: // Left Shift
     case 0x36: // Right Shift
         shift = !is_release;
@@ -150,8 +149,7 @@ void handle_keypress(uint8_t scancode)
         ctrl = !is_release;
         return;
     case 0x01: // ESC key
-        if (!is_release)
-        {
+        if (!is_release) {
             vga_set_mode_text();
         }
         return;
@@ -165,13 +163,11 @@ void handle_keypress(uint8_t scancode)
     char c = scancode_to_ascii(scancode);
 
     // Add to keyboard buffer
-    if (c != 0)
-    {
+    if (c != 0) {
         int next_pos = (kbd_write_pos + 1) % KBD_BUFFER_SIZE;
-        if (next_pos != kbd_read_pos)
-        { // Don't overflow
+        if (next_pos != kbd_read_pos) { // Don't overflow
             kbd_buffer[kbd_write_pos] = c;
-            kbd_write_pos = next_pos;
+            kbd_write_pos             = next_pos;
 
             // Wake up any tasks blocked on stdin
             wake_up_queue(&stdin_wait_queue);
@@ -190,11 +186,10 @@ int keyboard_has_input(void)
 // Get a character from keyboard buffer (non-blocking, returns 0 if empty)
 char keyboard_getchar(void)
 {
-    if (kbd_read_pos == kbd_write_pos)
-    {
+    if (kbd_read_pos == kbd_write_pos) {
         return 0;
     }
-    char c = kbd_buffer[kbd_read_pos];
+    char c       = kbd_buffer[kbd_read_pos];
     kbd_read_pos = (kbd_read_pos + 1) % KBD_BUFFER_SIZE;
     return c;
 }

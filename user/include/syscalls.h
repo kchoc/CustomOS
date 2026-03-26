@@ -5,44 +5,44 @@
 #include <stdint.h>
 
 // Syscall numbers (must match kernel definitions)
-#define SYSCALL_EXIT 0
-#define SYSCALL_PRINT 1
-#define SYSCALL_OPEN 2
-#define SYSCALL_CLOSE 3
-#define SYSCALL_READ 4
-#define SYSCALL_WRITE 5
-#define SYSCALL_SOCKET 6
-#define SYSCALL_CONNECT 7
-#define SYSCALL_LISTEN 8
-#define SYSCALL_ACCEPT 9
-#define SYSCALL_SEND 10
-#define SYSCALL_RECV 11
-#define SYSCALL_UNLINK 12
-#define SYSCALL_MMAP 13
-#define SYSCALL_WIN_CREATE 14
+#define SYSCALL_EXIT        0
+#define SYSCALL_PRINT       1
+#define SYSCALL_OPEN        2
+#define SYSCALL_CLOSE       3
+#define SYSCALL_READ        4
+#define SYSCALL_WRITE       5
+#define SYSCALL_SOCKET      6
+#define SYSCALL_CONNECT     7
+#define SYSCALL_LISTEN      8
+#define SYSCALL_ACCEPT      9
+#define SYSCALL_SEND        10
+#define SYSCALL_RECV        11
+#define SYSCALL_UNLINK      12
+#define SYSCALL_MMAP        13
+#define SYSCALL_WIN_CREATE  14
 #define SYSCALL_WIN_DESTROY 15
-#define SYSCALL_WIN_UPDATE 16
-#define SYSCALL_WIN_GETBUF 17
-#define SYSCALL_READ_STDIN 18
+#define SYSCALL_WIN_UPDATE  16
+#define SYSCALL_WIN_GETBUF  17
+#define SYSCALL_READ_STDIN  18
 
 // Memory mapping flags
 #define MMAP_FRAMEBUFFER 0x1
 
 // Socket types
 #define SOCK_TYPE_STREAM 1
-#define SOCK_TYPE_DGRAM 2
-#define SOCK_TYPE_RAW 3
+#define SOCK_TYPE_DGRAM  2
+#define SOCK_TYPE_RAW    3
 
 // File flags
 #define O_RDONLY 0x0001
 #define O_WRONLY 0x0002
-#define O_RDWR 0x0003
-#define O_CREAT 0x0100
-#define O_TRUNC 0x0200
+#define O_RDWR   0x0003
+#define O_CREAT  0x0100
+#define O_TRUNC  0x0200
 #define O_APPEND 0x0400
 
 // Standard file descriptors
-#define STDIN_FILENO 0
+#define STDIN_FILENO  0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
 

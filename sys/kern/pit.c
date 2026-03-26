@@ -3,8 +3,8 @@
 #include <dev/port/port_io.h>
 
 #define PIT_FREQUENCY 1193182 // PIT input clock frequency
-#define PIT_PORT_CMD 0x43
-#define PIT_PORT_CH0 0x40
+#define PIT_PORT_CMD  0x43
+#define PIT_PORT_CH0  0x40
 #define PIT_MODE_ONESHOT                                                                           \
     0x30 // Channel 0, lobyte/hibyte, mode 0 (interrupt on terminal count), binary mode
 
@@ -26,8 +26,7 @@ void delay_us(int us)
     outb(PIT_PORT_CH0, (count >> 8) & 0xFF);
 
     // Wait until counter reaches zero
-    while (inb(PIT_PORT_CH0) != 0)
-    {
+    while (inb(PIT_PORT_CH0) != 0) {
         asm volatile("pause");
     }
 }

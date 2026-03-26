@@ -3,14 +3,12 @@
 
 #include <stdint.h>
 
-typedef struct lapic_register
-{
+typedef struct lapic_register {
     uint32_t value;
     uint32_t reserved[3];
 } lapic_register_t;
 
-typedef struct lapic
-{
+typedef struct lapic {
     lapic_register_t reserved0[2]; // 0x000 - 0x01F	reserved
     lapic_register_t id;           // 0x020			APIC ID (bits 31:24)
     lapic_register_t version;      // 0x030			APIC Version
@@ -48,8 +46,7 @@ typedef struct lapic
     lapic_register_t timer_divide;  // 0x3E0			Divide Configuration Register for Timer
 } lapic_t;
 
-typedef struct lapic_timer
-{
+typedef struct lapic_timer {
     uint32_t initial_count; // Initial count value for the timer
     uint32_t current_count; // Current count value (read-only)
     uint32_t divide_config; // Divide configuration for the timer

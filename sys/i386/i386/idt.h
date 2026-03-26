@@ -45,6 +45,6 @@ extern void isr40();
 extern void isr128();
 
 void load_idt();
-int idt_init(void);
+int  idt_init(void);
 
 #endif // I386_IDT_H

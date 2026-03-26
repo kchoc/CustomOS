@@ -30,35 +30,35 @@ void syscalls_init()
     g_syscalls[SYSCALL_PRINT] = syscall_print;
 
     // I/O syscalls
-    g_syscalls[SYSCALL_OPEN] = syscall_open;
+    g_syscalls[SYSCALL_OPEN]  = syscall_open;
     g_syscalls[SYSCALL_CLOSE] = syscall_close;
-    g_syscalls[SYSCALL_READ] = syscall_read;
+    g_syscalls[SYSCALL_READ]  = syscall_read;
     g_syscalls[SYSCALL_WRITE] = syscall_write;
 
     // Socket syscalls
-    g_syscalls[SYSCALL_SOCKET] = syscall_socket;
+    g_syscalls[SYSCALL_SOCKET]  = syscall_socket;
     g_syscalls[SYSCALL_CONNECT] = syscall_connect;
-    g_syscalls[SYSCALL_LISTEN] = syscall_listen;
-    g_syscalls[SYSCALL_ACCEPT] = syscall_accept;
-    g_syscalls[SYSCALL_SEND] = syscall_send;
-    g_syscalls[SYSCALL_RECV] = syscall_recv;
-    g_syscalls[SYSCALL_UNLINK] = syscall_unlink;
+    g_syscalls[SYSCALL_LISTEN]  = syscall_listen;
+    g_syscalls[SYSCALL_ACCEPT]  = syscall_accept;
+    g_syscalls[SYSCALL_SEND]    = syscall_send;
+    g_syscalls[SYSCALL_RECV]    = syscall_recv;
+    g_syscalls[SYSCALL_UNLINK]  = syscall_unlink;
 
     // Memory syscalls
     g_syscalls[SYSCALL_MMAP] = syscall_mmap;
 
     // Window syscalls
-    g_syscalls[SYSCALL_WIN_CREATE] = syscall_win_create;
+    g_syscalls[SYSCALL_WIN_CREATE]  = syscall_win_create;
     g_syscalls[SYSCALL_WIN_DESTROY] = syscall_win_destroy;
-    g_syscalls[SYSCALL_WIN_UPDATE] = syscall_win_update;
-    g_syscalls[SYSCALL_WIN_GETBUF] = syscall_win_getbuf;
+    g_syscalls[SYSCALL_WIN_UPDATE]  = syscall_win_update;
+    g_syscalls[SYSCALL_WIN_GETBUF]  = syscall_win_getbuf;
 
     // Input syscalls
     g_syscalls[SYSCALL_READ_STDIN] = syscall_read_stdin;
 
     // Process Syscalls
     g_syscalls[SYSCALL_EXECVE] = syscall_execve;
-    g_syscalls[SYSCALL_EXIT] = syscall_exit;
+    g_syscalls[SYSCALL_EXIT]   = syscall_exit;
 }
 
 int syscall_exit(registers_t* regs)
@@ -95,8 +95,7 @@ int syscall_open(const char* path, int flags, uint32_t mode, SYSCALL2)
 
     // Allocate a file descriptor
     int fd = fd_alloc(proc, file, 0);
-    if (fd < 0)
-    {
+    if (fd < 0) {
         vfs_close(file);
         return -1;
     }
@@ -317,8 +316,7 @@ int syscall(uint32_t syscall_id, int arg_count, ...)
 
     va_list ap;
     va_start(ap, arg_count);
-    for (int i = 0; i < arg_count && i < 5; ++i)
-    {
+    for (int i = 0; i < arg_count && i < 5; ++i) {
         args[i] = va_arg(ap, uint32_t);
     }
     va_end(ap);
@@ -346,8 +344,7 @@ void* syscall_mmap(uintptr_t addr, size_t length, int prot, int flags, SYSCALL1)
     printf("syscall_mmap: Mapping %u bytes at %p\n", length, addr);
 
     // Map memory in process's VM space
-    if (vm_map_anon(proc->vmspace, &addr, length, prot, flags) < 0)
-    {
+    if (vm_map_anon(proc->vmspace, &addr, length, prot, flags) < 0) {
         return NULL;
     }
 
@@ -432,8 +429,7 @@ int syscall_read_stdin(char* buffer, int count, SYSCALL1)
     int read_count = 0;
 
     // Read available characters up to count
-    while (read_count < count && keyboard_has_input())
-    {
+    while (read_count < count && keyboard_has_input()) {
         char c = keyboard_getchar();
         if (c == 0)
             break;
@@ -441,19 +437,16 @@ int syscall_read_stdin(char* buffer, int count, SYSCALL1)
     }
 
     // If nothing available, block properly (Linux-style wait queue)
-    if (read_count == 0)
-    {
+    if (read_count == 0) {
         // Block this thread on the stdin wait queue
         // The keyboard interrupt will wake us up when input arrives
         block_current_thread(get_stdin_wait_queue());
 
         // When we wake up, input should be available
-        if (keyboard_has_input())
-        {
+        if (keyboard_has_input()) {
             char c = keyboard_getchar();
-            if (c != 0)
-            {
-                buffer[0] = c;
+            if (c != 0) {
+                buffer[0]  = c;
                 read_count = 1;
             }
         }

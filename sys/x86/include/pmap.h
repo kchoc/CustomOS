@@ -11,15 +11,15 @@
 #include <stddef.h>
 
 // TODO: Add compiler check for i386 or amd64 for PTLs
-#define PAGE_TABLE_LEVELS 2
-#define KERNEL_PAGE_ENTRIES 256
-#define PAGE_ENTRIES_PER_TABLE 1024
+#define PAGE_TABLE_LEVELS       2
+#define KERNEL_PAGE_ENTRIES     256
+#define PAGE_ENTRIES_PER_TABLE  1024
 #define KERNEL_PAGE_ENTRY_START (PAGE_ENTRIES_PER_TABLE - KERNEL_PAGE_ENTRIES)
 
 extern page_table_t** current_pd_addr;
-extern page_table_t* current_pd;
-extern page_table_t* current_pts;
-extern page_table_t* edit_pd;
+extern page_table_t*  current_pd;
+extern page_table_t*  current_pts;
+extern page_table_t*  edit_pd;
 
 void tlb_invlpg(void* addr);
 void tlb_flush();
@@ -30,28 +30,26 @@ void switch_page_directory(page_table_t** pd_ptr);
     if (pmap && old_pd != pmap->pd)                                                                \
         switch_page_directory((void*)&pmap->pd);
 
-typedef struct pmap
-{
+typedef struct pmap {
     page_table_t* pd; // Page directory
 } pmap_t;
 
-typedef enum pmap_flags
-{
-    PMAP_FLAG_NONE = 0x0,
-    PMAP_FLAG_WIRED = 0x1,   // Prevent the page from being swapped out
+typedef enum pmap_flags {
+    PMAP_FLAG_NONE    = 0x0,
+    PMAP_FLAG_WIRED   = 0x1, // Prevent the page from being swapped out
     PMAP_FLAG_NOCACHE = 0x2, // Disable caching for this page
-    PMAP_FLAG_ZERO = 0x4,    // Zero out the page after mapping
+    PMAP_FLAG_ZERO    = 0x4, // Zero out the page after mapping
 } pmap_flags_t;
 
-int pmap_init();
+int     pmap_init();
 pmap_t* pmap_create();
-void pmap_debug(pmap_t* pmap);
-void pmap_destroy(pmap_t* pmap);
-void pmap_activate(pmap_t* pmap);
+void    pmap_debug(pmap_t* pmap);
+void    pmap_destroy(pmap_t* pmap);
+void    pmap_activate(pmap_t* pmap);
 
-int pmap_enter(pmap_t* pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, pmap_flags_t flags);
-void pmap_remove(pmap_t* pmap, vaddr_t sva, vaddr_t eva);
-void pmap_protect(pmap_t* pmap, vaddr_t sva, vaddr_t eva, vm_prot_t prot);
+int     pmap_enter(pmap_t* pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, pmap_flags_t flags);
+void    pmap_remove(pmap_t* pmap, vaddr_t sva, vaddr_t eva);
+void    pmap_protect(pmap_t* pmap, vaddr_t sva, vaddr_t eva, vm_prot_t prot);
 paddr_t pmap_extract(pmap_t* pmap, vaddr_t virt);
 
 #endif // X86_PMAP_H

@@ -37,8 +37,7 @@ static inline int sock_create_server(const char* path, int type, int backlog)
 {
     // Create socket
     int sockfd = socket(type);
-    if (sockfd < 0)
-    {
+    if (sockfd < 0) {
         return -1;
     }
 
@@ -46,8 +45,7 @@ static inline int sock_create_server(const char* path, int type, int backlog)
     // We don't need a separate bind() syscall
 
     // Start listening
-    if (listen(sockfd, backlog) < 0)
-    {
+    if (listen(sockfd, backlog) < 0) {
         close(sockfd);
         return -1;
     }
@@ -65,14 +63,12 @@ static inline int sock_connect_client(const char* path, int type)
 {
     // Create socket
     int sockfd = socket(type);
-    if (sockfd < 0)
-    {
+    if (sockfd < 0) {
         return -1;
     }
 
     // Connect to server
-    if (connect(sockfd, path) < 0)
-    {
+    if (connect(sockfd, path) < 0) {
         close(sockfd);
         return -1;
     }
@@ -89,14 +85,12 @@ static inline int sock_connect_client(const char* path, int type)
  */
 static inline int sock_send_all(int sockfd, const void* buf, size_t len)
 {
-    size_t total_sent = 0;
-    const char* ptr = (const char*)buf;
+    size_t      total_sent = 0;
+    const char* ptr        = (const char*)buf;
 
-    while (total_sent < len)
-    {
+    while (total_sent < len) {
         int sent = send(sockfd, ptr + total_sent, len - total_sent, 0);
-        if (sent < 0)
-        {
+        if (sent < 0) {
             return -1;
         }
         total_sent += sent;
@@ -115,17 +109,14 @@ static inline int sock_send_all(int sockfd, const void* buf, size_t len)
 static inline int sock_recv_all(int sockfd, void* buf, size_t len)
 {
     size_t total_received = 0;
-    char* ptr = (char*)buf;
+    char*  ptr            = (char*)buf;
 
-    while (total_received < len)
-    {
+    while (total_received < len) {
         int received = recv(sockfd, ptr + total_received, len - total_received, 0);
-        if (received < 0)
-        {
+        if (received < 0) {
             return -1;
         }
-        if (received == 0)
-        {
+        if (received == 0) {
             // Connection closed
             break;
         }
@@ -143,8 +134,7 @@ static inline int sock_recv_all(int sockfd, void* buf, size_t len)
 static inline void sock_destroy(int sockfd, const char* path)
 {
     close(sockfd);
-    if (path)
-    {
+    if (path) {
         unlink(path);
     }
 }

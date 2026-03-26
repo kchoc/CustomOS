@@ -5,16 +5,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct hashtable_entry
-{
-    uint64_t key;
+typedef struct hashtable_entry {
+    uint64_t    key;
     list_node_t node; // Node for chaining entries in the same bucket
 } hashtable_entry_t;
 
-typedef struct hashtable
-{
+typedef struct hashtable {
     list_t* buckets;
-    size_t bucket_count;
+    size_t  bucket_count;
 } hashtable_t;
 
 int hashtable_create(size_t bucket_count, hashtable_t** result);

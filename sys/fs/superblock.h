@@ -5,8 +5,7 @@
 
 #include <inttypes.h>
 
-typedef struct super_block
-{
+typedef struct super_block {
     // Identification
     uint32_t sb_magic;
     uint32_t sb_version;
@@ -20,8 +19,7 @@ typedef struct super_block
     void* fs_data;
 } super_block_t;
 
-typedef struct sb_ops
-{
+typedef struct sb_ops {
     int (*syncfs)(super_block_t* sb);
     int (*statfs)(super_block_t* sb, stat_t* st);
     int (*write_super)(super_block_t* sb);
@@ -30,6 +28,6 @@ typedef struct sb_ops
 } sb_ops_t;
 
 super_block_t* sb_create(file_system_type_t* fs_type, sb_ops_t* sb_ops);
-void sb_destroy(super_block_t* sb);
+void           sb_destroy(super_block_t* sb);
 
 #endif // VFS_SUPERBLOCK_H

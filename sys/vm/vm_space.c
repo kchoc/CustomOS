@@ -24,19 +24,18 @@ int kvm_space_init()
     kernel_vm_space->ref_count = 1;
     list_init(&kernel_vm_space->regions, 0);
     kernel_vm_space->arch = kmalloc(sizeof(pmap_t));
-    if (IS_ERR(kernel_vm_space->arch))
-    {
+    if (IS_ERR(kernel_vm_space->arch)) {
         kfree(kernel_vm_space);
         return (int)kernel_vm_space->arch;
     }
 
     kernel_vm_space->arch->pd = *current_pd_addr; // Use the page directory set up by the bootloader
-    pcpus[0].vmspace = kernel_vm_space;
+    pcpus[0].vmspace          = kernel_vm_space;
 
     // Since this is the first kvm call, the start is at 0xC0000000, so we can allocate that
     vaddr_t virt = KERNEL_BASE;
-    int ret = vm_map_anon(kernel_vm_space, &virt, 0x00400000, VM_PROT_READ | VM_PROT_WRITE,
-                          VM_REG_F_KERNEL);
+    int     ret  = vm_map_anon(kernel_vm_space, &virt, 0x00400000, VM_PROT_READ | VM_PROT_WRITE,
+                               VM_REG_F_KERNEL);
     if (IS_ERR(ret))
         return ret;
 
@@ -53,7 +52,7 @@ vm_space_t* vm_space_create()
         return ERR_PTR(-ENOMEM);
 
     list_init(&space->regions, 0);
-    space->arch = pmap_create();
+    space->arch      = pmap_create();
     space->ref_count = 1;
 
     return space;
@@ -69,12 +68,10 @@ vm_space_t* vm_space_fork(vm_space_t* parent)
         return ERR_PTR(-ENOMEM);
 
     // Copy the regions list (shallow copy)
-    for (list_node_t* node = parent->regions.head; node; node = node->next)
-    {
+    for (list_node_t* node = parent->regions.head; node; node = node->next) {
         vm_region_t* reference_region = list_node_to_region(node);
-        vm_region_t* child_region = vm_region_fork(reference_region);
-        if (IS_ERR(child_region))
-        {
+        vm_region_t* child_region     = vm_region_fork(reference_region);
+        if (IS_ERR(child_region)) {
             vm_space_destroy(child); // Clean up the child space and all regions created so far
             return ERR_PTR(child_region);
         }
@@ -92,8 +89,7 @@ void vm_space_destroy(vm_space_t* space)
 
     // Decrement reference counts for all regions and their objects (this will free them if this was
     // the last reference)
-    while (space->regions.head)
-    {
+    while (space->regions.head) {
         vm_region_t* region = list_node_to_region(space->regions.head);
         vm_region_dec_ref(region);
     }

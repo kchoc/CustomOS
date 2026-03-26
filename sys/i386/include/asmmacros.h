@@ -4,7 +4,7 @@
 // Macros to link C and assembly code
 #define ENTRY(name)                                                                                \
     .globl name;                                                                                   \
-    .type name, @function;                                                                         \
+    .type  name, @function;                                                                        \
     name:
 
 #define END(name) .size name, .- name

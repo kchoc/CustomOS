@@ -13,50 +13,40 @@ struct driver;
 struct block_ops;
 struct partition;
 
-typedef enum
-{
-    DEV_TYPE_GENERIC = 0,
-    DEV_TYPE_BLOCK,
-    DEV_TYPE_CHAR,
-    DEV_TYPE_NET
-} device_type_t;
+typedef enum { DEV_TYPE_GENERIC = 0, DEV_TYPE_BLOCK, DEV_TYPE_CHAR, DEV_TYPE_NET } device_type_t;
 
-typedef struct device
-{
-    char name[32];
+typedef struct device {
+    char          name[32];
     device_type_t type;
 
     bus_type_t bus_type;
-    bus_t* bus;
-    void* bus_data; // Data specific to the bus (e.g., PCI device info)
+    bus_t*     bus;
+    void*      bus_data; // Data specific to the bus (e.g., PCI device info)
 
     struct device_ops* ops;
     void*
         ops_data; // Data specific to the device operations (e.g., partition info for block devices)
 
     struct driver* driver;
-    void* driver_data; // Data specific to the driver
+    void*          driver_data; // Data specific to the driver
 
     struct device* parent;
 } device_t;
 
-typedef struct driver
-{
-    char name[32];
-    uint16_t vendor_id;
-    uint16_t device_id;
+typedef struct driver {
+    char          name[32];
+    uint16_t      vendor_id;
+    uint16_t      device_id;
     device_type_t device_type;
     int (*probe)(device_t* dev);
 } driver_t;
 
-typedef struct device_ops
-{
+typedef struct device_ops {
     int (*read)(device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer);
     int (*write)(device_t* bdev, uint64_t lba, uint32_t count, const uint8_t* data);
 } device_ops_t;
 
-typedef struct partition
-{
+typedef struct partition {
     uint64_t start_lba;
     uint64_t sector_count;
     uint32_t block_size;

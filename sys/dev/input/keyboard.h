@@ -9,7 +9,7 @@ void handle_keypress(uint8_t scancode);
 char scancode_to_ascii(uint8_t scancode);
 
 // Keyboard buffer access
-int keyboard_has_input(void);
+int  keyboard_has_input(void);
 char keyboard_getchar(void);
 
 // Wait queue for stdin blocking

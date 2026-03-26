@@ -31,20 +31,18 @@ void interrupt_register(uint8_t n, IsrFunction interrupt_handler)
 // The default handler for unhanded interrupts
 void handle_isr(registers_t regs)
 {
-    uint8_t int_no = regs.interruptNumber & 0xFF;
+    uint8_t      int_no = regs.interruptNumber & 0xFF;
     trapframe_t* old_tf = PCPU_GET(current_thread)->trapframe;
     PCPU_GET(current_thread)->trapframe =
         (trapframe_t*)&regs; // Update current thread's trapframe pointer to the new regs for
                              // handlers to access
 
-    if (g_interrupt_handlers[int_no] != 0)
-    {
+    if (g_interrupt_handlers[int_no] != 0) {
         // printf("Handling interrupt: %d\n", int_no);
         IsrFunction handler = g_interrupt_handlers[int_no];
         handler(&regs);
     }
-    else
-    {
+    else {
         printf("Unhandled interrupt: %d\n", int_no);
         PANIC("Unhandled interrupt");
     }
@@ -99,8 +97,7 @@ void isr_page_fault_handler(registers_t* regs)
 
 void isr_syscall(registers_t* regs)
 {
-    if (regs->eax >= SYSCALL_COUNT)
-    {
+    if (regs->eax >= SYSCALL_COUNT) {
         printf("Invalid syscall number: %d\n", regs->eax);
         regs->eax = -1;
         return;
@@ -108,8 +105,7 @@ void isr_syscall(registers_t* regs)
 
     void* syscall = g_syscalls[regs->eax];
 
-    if (syscall == NULL)
-    {
+    if (syscall == NULL) {
         printf("Unimplemented syscall number: %d\n", regs->eax);
         regs->eax = -1;
         return;
@@ -117,8 +113,8 @@ void isr_syscall(registers_t* regs)
 
     // Push the parameters onto the stack. to call c syscall function. then pop them off the stack.
     syscall_fn_t syscall_fn = (syscall_fn_t)syscall;
-    int ret = syscall_fn(regs->ebx, regs->ecx, regs->edx, regs->esi, regs->edi);
-    regs->eax = ret;
+    int          ret        = syscall_fn(regs->ebx, regs->ecx, regs->edx, regs->esi, regs->edi);
+    regs->eax               = ret;
 }
 
 // Exception handlers

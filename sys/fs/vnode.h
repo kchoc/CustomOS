@@ -6,8 +6,7 @@
 #include <inttypes.h>
 #include <stddef.h>
 
-typedef enum vnode_type
-{
+typedef enum vnode_type {
     VNODE_TYPE_FILE,
     VNODE_TYPE_DIRECTORY,
     VNODE_TYPE_SYMLINK,
@@ -17,16 +16,14 @@ typedef enum vnode_type
     VNODE_TYPE_FIFO,
 } vnode_type_t;
 
-typedef enum vnode_flags
-{
-    VNODE_FLAG_NONE = 0x0,
+typedef enum vnode_flags {
+    VNODE_FLAG_NONE        = 0x0,
     VNODE_FLAG_MOUNT_POINT = 0x1, // Indicates this vnode is a mount point
 } vnode_flags_t;
 
-typedef enum access_mode
-{
-    ACCESS_READ = 0x1,
-    ACCESS_WRITE = 0x2,
+typedef enum access_mode {
+    ACCESS_READ    = 0x1,
+    ACCESS_WRITE   = 0x2,
     ACCESS_EXECUTE = 0x4,
 } access_mode_t;
 
@@ -54,30 +51,29 @@ typedef int (*fsync_fn)(struct vnode* node);
 typedef int (*inactive_fn)(struct vnode* node);
 typedef int (*reclaim_fn)(struct vnode* node);
 
-typedef struct vnode_ops
-{
-    lookup_fn lookup;
-    create_fn create;
-    link_fn link;
-    unlink_fn unlink;
-    rename_fn rename;
-    mkdir_fn mkdir;
-    rmdir_fn rmdir;
-    readdir_fn readdir;
-    open_fn open;
-    close_fn close;
-    read_fn read;
-    write_fn write;
-    getattr_fn getattr;
-    setattr_fn setattr;
+typedef struct vnode_ops {
+    lookup_fn   lookup;
+    create_fn   create;
+    link_fn     link;
+    unlink_fn   unlink;
+    rename_fn   rename;
+    mkdir_fn    mkdir;
+    rmdir_fn    rmdir;
+    readdir_fn  readdir;
+    open_fn     open;
+    close_fn    close;
+    read_fn     read;
+    write_fn    write;
+    getattr_fn  getattr;
+    setattr_fn  setattr;
     truncate_fn truncate;
-    access_fn access;
-    symlink_fn symlink;
+    access_fn   access;
+    symlink_fn  symlink;
     readlink_fn readlink;
-    mknod_fn mknod;
-    fsync_fn fsync;       // Optional, can be NULL if not supported
+    mknod_fn    mknod;
+    fsync_fn    fsync;    // Optional, can be NULL if not supported
     inactive_fn inactive; // Called when vnode becomes inactive (ref count drops to zero)
-    reclaim_fn reclaim;   // Called to reclaim vnode resources before reuse or destruction
+    reclaim_fn  reclaim;  // Called to reclaim vnode resources before reuse or destruction
 } vnode_ops_t;
 
 #define CREATE_VNODE_OPS(fs_name)                                                                  \
@@ -107,11 +103,10 @@ typedef struct vnode_ops
     int fs_name##_vnode_reclaim(struct vnode* node);                                               \
     extern vnode_ops_t fs_name##_vnode_ops;
 
-typedef struct vnode
-{
-    vnode_type_t v_type;
-    int ref_count; // TODO: Active and cached reference counts?
-    vnode_ops_t* v_ops;
+typedef struct vnode {
+    vnode_type_t  v_type;
+    int           ref_count; // TODO: Active and cached reference counts?
+    vnode_ops_t*  v_ops;
     vnode_flags_t v_flags;
 
     mount_t* v_mount;     // The mount this vnode belongs to
@@ -119,7 +114,7 @@ typedef struct vnode
                           // mount struct
 
     uint64_t file_id; // Unique identifier for the file (e.g., inode number)
-    void* v_data;     // Filesystem-specific data (e.g., pointer to inode)
+    void*    v_data;  // Filesystem-specific data (e.g., pointer to inode)
 
     vnode_t* hash_next; // For hash table chaining in vnode cache
     vnode_t* mnt_next;  // For linked list of vnodes in a mount
@@ -128,7 +123,7 @@ typedef struct vnode
 void vnode_inc_ref(vnode_t* vnode);
 void vnode_dec_ref(vnode_t* vnode);
 
-int vnode_get(mount_t* mount, uint64_t file_id, vnode_t** result);
+int  vnode_get(mount_t* mount, uint64_t file_id, vnode_t** result);
 void vnode_inactive(vnode_t* vnode);
 void vnode_reclaim(vnode_t* vnode);
 

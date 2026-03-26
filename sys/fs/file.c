@@ -6,16 +6,16 @@
 #include <kern/errno.h>
 #include <kern/terminal.h>
 
-file_ops_t regular_file_ops = {.llseek = regular_file_llseek,
-                               .read = regular_file_read,
-                               .write = regular_file_write,
-                               .open = regular_file_open,
-                               .close = regular_file_close,
-                               .ioctl = DISALLOWED_OP,
-                               .mmap = DISALLOWED_OP,
-                               .fsync = DISALLOWED_OP,
-                               .getattr = DISALLOWED_OP,
-                               .setattr = DISALLOWED_OP,
+file_ops_t regular_file_ops = {.llseek         = regular_file_llseek,
+                               .read           = regular_file_read,
+                               .write          = regular_file_write,
+                               .open           = regular_file_open,
+                               .close          = regular_file_close,
+                               .ioctl          = DISALLOWED_OP,
+                               .mmap           = DISALLOWED_OP,
+                               .fsync          = DISALLOWED_OP,
+                               .getattr        = DISALLOWED_OP,
+                               .setattr        = DISALLOWED_OP,
                                .iterate_shared = DISALLOWED_OP};
 
 void file_inc_ref(file_t* file)
@@ -25,8 +25,7 @@ void file_inc_ref(file_t* file)
 
 void file_dec_ref(file_t* file)
 {
-    if (__sync_fetch_and_sub(&file->ref_count, 1) == 1)
-    {
+    if (__sync_fetch_and_sub(&file->ref_count, 1) == 1) {
         file_destroy(file);
     }
 }
@@ -40,10 +39,10 @@ file_t* file_create(vnode_t* vnode, fmode_t mode, file_ops_t* f_ops)
     if (!file)
         return NULL;
 
-    file->f_vnode = vnode;
-    file->f_mode = mode;
-    file->f_ops = f_ops;
-    file->f_pos = 0;
+    file->f_vnode   = vnode;
+    file->f_mode    = mode;
+    file->f_ops     = f_ops;
+    file->f_pos     = 0;
     file->ref_count = 1;
 
     return file;
@@ -73,8 +72,7 @@ int regular_file_close(file_t* file)
 
 int regular_file_llseek(file_t* file, loff_t offset, int whence)
 {
-    switch (whence)
-    {
+    switch (whence) {
     case SEEK_SET:
         file->f_pos = offset;
         break;

@@ -6,8 +6,7 @@
 
 typedef struct gdt gdt_t;
 
-typedef struct tss
-{
+typedef struct tss {
     uint32_t prev_tss;
     uint32_t esp0; // Kernel stack pointer
     uint32_t ss0;  // Kernel stack segment

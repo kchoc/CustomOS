@@ -7,8 +7,7 @@ void spin_lock(spinlock_t* l)
 {
     uint32_t expected;
 
-    for (;;)
-    {
+    for (;;) {
         expected = 0;
         asm volatile("lock cmpxchg %1, %2"
                      : "=a"(expected)
@@ -45,8 +44,7 @@ int spin_trylock(spinlock_t* l)
 
 inline void _spinlock_cleanup(spinlock_t** lock)
 {
-    if (lock && *lock)
-    {
+    if (lock && *lock) {
         spin_unlock(*lock);
     }
 }

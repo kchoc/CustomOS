@@ -9,7 +9,7 @@
 
 #include <string.h>
 
-bda_t* bda = NULL;
+bda_t*  bda  = NULL;
 ebda_t* ebda = NULL;
 
 int load_bda()

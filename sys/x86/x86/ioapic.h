@@ -4,15 +4,13 @@
 #include <inttypes.h>
 #include <stdint.h>
 
-typedef struct ioapic
-{
+typedef struct ioapic {
     uint32_t regsel; // 0x00
     uint32_t reserved[3];
     uint32_t data; // 0x10
 } ioapic_t;
 
-typedef struct ioapic_redir_entry
-{
+typedef struct ioapic_redir_entry {
     uint8_t vector : 8;          // Interrupt vector (bits 0-7)
     uint8_t delivery_mode : 3;   // Delivery mode (bits 8-10)
     uint8_t dest_mode : 1;       // Destination mode (bit 11)

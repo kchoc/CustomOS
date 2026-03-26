@@ -33,8 +33,8 @@ void ioapic_init()
 
 void ioapic_check()
 {
-    uint32_t id = (ioapic_read(0x00) >> 24) & 0x0F;
-    uint32_t version = ioapic_read(0x01) & 0xFF;
+    uint32_t id        = (ioapic_read(0x00) >> 24) & 0x0F;
+    uint32_t version   = ioapic_read(0x01) & 0xFF;
     uint32_t max_redir = ((ioapic_read(0x01) >> 16) & 0xFF) + 1;
 
     printf("IOAPIC ID: %u, Version: %u, Max Redirection Entries: %u\n", id, version, max_redir);

@@ -8,20 +8,20 @@
 #include <kern/isr.h>
 
 // The IDT and IDT pointer
-gate_desc_t idt[IDT_SIZE];
+gate_desc_t   idt[IDT_SIZE];
 region_desc_t ip;
 
 // Function to set an IDT entry
 static void set_idt_entry(int index, uint32_t base, uint16_t selector, uint8_t type_attr,
                           uint8_t dpl)
 {
-    idt[index].gd_reserved1 = 0; // Ensure the reserved bit is cleared
-    idt[index].gd_reserved2 = 0; // Ensure the reserved bit is cleared
-    idt[index].gd_present = 1;   // Clear the present bit until we set up the entry
-    idt[index].gd_low_offset = base & 0xFFFF;
-    idt[index].gd_selector = selector;
-    idt[index].gd_type = type_attr & 0xF; // Ensure type is only 5 bits
-    idt[index].gd_dpl = dpl & 0x3;        // Ensure DPL is only 2 bits
+    idt[index].gd_reserved1   = 0; // Ensure the reserved bit is cleared
+    idt[index].gd_reserved2   = 0; // Ensure the reserved bit is cleared
+    idt[index].gd_present     = 1; // Clear the present bit until we set up the entry
+    idt[index].gd_low_offset  = base & 0xFFFF;
+    idt[index].gd_selector    = selector;
+    idt[index].gd_type        = type_attr & 0xF; // Ensure type is only 5 bits
+    idt[index].gd_dpl         = dpl & 0x3;       // Ensure DPL is only 2 bits
     idt[index].gd_high_offset = (base >> 16) & 0xFFFF;
 }
 
@@ -54,8 +54,7 @@ void load_idt()
 int idt_init()
 {
     // Set up the default handler for all interrupts (for unused vectors)
-    for (int i = 0; i < IDT_SIZE; ++i)
-    {
+    for (int i = 0; i < IDT_SIZE; ++i) {
         idt[i].gd_present = 0; // Mark all entries as not present
     }
 
@@ -124,7 +123,7 @@ int idt_init()
     interrupt_register(128, isr_syscall);
 
     ip.rd_limit = (sizeof(gate_desc_t) * IDT_SIZE) - 1;
-    ip.rd_base = (uint32_t)&idt;
+    ip.rd_base  = (uint32_t)&idt;
 
     // Load the IDT into the CPU
     load_idt();

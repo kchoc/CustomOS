@@ -39,8 +39,7 @@ int load_elf(const char* filepath, thread_t* thread)
 
     vm_space_t* old = PCPU_GET(current_thread)->proc->vmspace;
     vm_space_activate(thread->proc->vmspace);
-    for (int i = 0; i < eh.e_phnum; i++)
-    {
+    for (int i = 0; i < eh.e_phnum; i++) {
         if (ph[i].p_type != 1 /* PT_LOAD */)
             continue;
 
@@ -54,7 +53,7 @@ int load_elf(const char* filepath, thread_t* thread)
     }
     vm_space_activate(old);
 
-    thread->trapframe->eip = eh.e_entry;      // Set entry point for the new executable
+    thread->trapframe->eip      = eh.e_entry; // Set entry point for the new executable
     thread->trapframe->user_esp = 0xC0000000; // Set user stack pointer (top of user space)
 
     kfree(ph);

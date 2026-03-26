@@ -3,12 +3,11 @@
 
 #include "types.h"
 
-#define MAX_FILESYSTEMS 16
+#define MAX_FILESYSTEMS         16
 #define MAX_FILESYSTEM_NAME_LEN 32
 
-typedef struct file_system_type
-{
-    char name[MAX_FILESYSTEM_NAME_LEN];
+typedef struct file_system_type {
+    char         name[MAX_FILESYSTEM_NAME_LEN];
     mount_ops_t* fs_ops;
 } file_system_type_t;
 

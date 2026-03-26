@@ -8,10 +8,10 @@
 #include <kern/terminal.h>
 
 mount_ops_t devfs_mount_ops = {
-    .mount = devfs_mount,
-    .unmount = devfs_unmount,
+    .mount    = devfs_mount,
+    .unmount  = devfs_unmount,
     .get_root = devfs_get_root,
-    .sync = DISALLOWED_OP,
+    .sync     = DISALLOWED_OP,
 };
 
 int devfs_mount(mount_t* mnt, const char* options)
@@ -25,13 +25,12 @@ int devfs_mount(mount_t* mnt, const char* options)
     list_init(&root_data->device_block, 0);
 
     int res = vnode_get(mnt, 0, &mnt->mnt_point);
-    if (res)
-    {
+    if (res) {
         kfree(root_data);
         return res;
     }
 
-    mnt->mnt_point->v_ops = &devfs_vnode_ops;
+    mnt->mnt_point->v_ops  = &devfs_vnode_ops;
     mnt->mnt_point->v_data = root_data;
     mnt->mnt_point->v_type = VNODE_TYPE_DIRECTORY; // The root of devfs is a directory
 
@@ -49,8 +48,7 @@ int devfs_get_root(mount_t* mnt, vnode_t** vnode)
     if (!mnt || !vnode)
         return -EINVAL;
 
-    if (mnt->mnt_point)
-    {
+    if (mnt->mnt_point) {
         *vnode = mnt->mnt_point;
         vnode_inc_ref(*vnode); // Increment ref count for the caller
         return 0;              // Success

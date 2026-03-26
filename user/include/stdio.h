@@ -7,11 +7,11 @@
 #define EOF (-1)
 
 /* Buffered I/O functions */
-int getchar(void);
-int putchar(int c);
-int puts(const char* s);
-int printf(const char* format, ...);
-int vprintf(const char* format, va_list args);
+int  getchar(void);
+int  putchar(int c);
+int  puts(const char* s);
+int  printf(const char* format, ...);
+int  vprintf(const char* format, va_list args);
 void flush_stdout(void);
 
 /* File descriptor I/O */

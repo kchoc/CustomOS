@@ -8,15 +8,13 @@
 
 #include <inttypes.h>
 
-typedef enum vfat_flags
-{
-    VFAT_FLAG_LFN_READ = 0x1,  // Indicates that long filename entries should be read and processed
+typedef enum vfat_flags {
+    VFAT_FLAG_LFN_READ  = 0x1, // Indicates that long filename entries should be read and processed
     VFAT_FLAG_LFN_WRITE = 0x2, // Indicates that long filename entries should be written when
                                // creating files/directories
 } vfat_flags_t;
 
-typedef enum fat_type
-{
+typedef enum fat_type {
     FAT_TYPE_12 = 0x2,
     FAT_TYPE_16 = 0x3,
     FAT_TYPE_12_16 =
@@ -24,13 +22,11 @@ typedef enum fat_type
     FAT_TYPE_32 = 0x4,
 } fat_type_t;
 
-typedef struct vfat_mount_data
-{
+typedef struct vfat_mount_data {
     bpb_t bpb; // The BIOS Parameter Block read from the disk during mount
-    union
-    {
+    union {
         bpb_extension_fat12_16_t fat12_16;
-        bpb_extension_fat32_t fat32;
+        bpb_extension_fat32_t    fat32;
     } bpb_ext;
     uint8_t fat_type; // 12, 16, or 32
 

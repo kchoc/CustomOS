@@ -15,28 +15,28 @@
 #include <stdint.h>
 #include <string.h>
 
-#define ATA_REG_DATA 0x00
-#define ATA_REG_ERROR 0x01
+#define ATA_REG_DATA         0x00
+#define ATA_REG_ERROR        0x01
 #define ATA_REG_SECTOR_COUNT 0x02
-#define ATA_REG_LBA_LOW 0x03
-#define ATA_REG_LBA_MID 0x04
-#define ATA_REG_LBA_HIGH 0x05
-#define ATA_REG_DEVICE 0x06
-#define ATA_REG_COMMAND 0x07
-#define ATA_REG_STATUS 0x07
+#define ATA_REG_LBA_LOW      0x03
+#define ATA_REG_LBA_MID      0x04
+#define ATA_REG_LBA_HIGH     0x05
+#define ATA_REG_DEVICE       0x06
+#define ATA_REG_COMMAND      0x07
+#define ATA_REG_STATUS       0x07
 
-#define ATA_CMD_READ_SECTORS 0x20
+#define ATA_CMD_READ_SECTORS  0x20
 #define ATA_CMD_WRITE_SECTORS 0x30
-#define ATA_CMD_IDENTIFY 0xEC
+#define ATA_CMD_IDENTIFY      0xEC
 
-#define ATA_SR_ERR 0x01  // Error
-#define ATA_SR_IDX 0x02  // Index (always 0)
+#define ATA_SR_ERR  0x01 // Error
+#define ATA_SR_IDX  0x02 // Index (always 0)
 #define ATA_SR_CORR 0x04 // Corrected data
-#define ATA_SR_DRQ 0x08  // Data request ready
-#define ATA_SR_DSC 0x10  // Drive seek complete
-#define ATA_SR_DF 0x20   // Drive write fault (not ready)
+#define ATA_SR_DRQ  0x08 // Data request ready
+#define ATA_SR_DSC  0x10 // Drive seek complete
+#define ATA_SR_DF   0x20 // Drive write fault (not ready)
 #define ATA_SR_DRDY 0x40 // Drive ready
-#define ATA_SR_BSY 0x80  // Busy
+#define ATA_SR_BSY  0x80 // Busy
 
 device_ops_t ata_block_ops = {.read = ata_read, .write = ata_write};
 
@@ -54,8 +54,7 @@ static int ata_wait_drq(ata_drive_t* drive)
 {
     uint8_t status;
 
-    while (1)
-    {
+    while (1) {
         status = inb(drive->io_base + ATA_REG_STATUS);
 
         if (status & ATA_SR_ERR)
@@ -84,42 +83,39 @@ int ata_pci_probe_controller(device_t* dev)
     ata_controller_t* controller = kmalloc(sizeof(ata_controller_t));
     if (!controller)
         return -ENOMEM;
-    if (!(pci_dev->prog_if & 0x01))
-    {
+    if (!(pci_dev->prog_if & 0x01)) {
         // Legacy IDE mode, only primary channel is used
-        controller->io_base = 0x1F0;
+        controller->io_base      = 0x1F0;
         controller->control_base = 0x3F6;
     }
-    else
-    {
+    else {
         // PCI native mode, read from BARs
-        controller->io_base = pci_read_bar(pci_dev, 0) & ~0x3;
+        controller->io_base      = pci_read_bar(pci_dev, 0) & ~0x3;
         controller->control_base = pci_read_bar(pci_dev, 1) & ~0x3;
     }
 
     dev->driver_data = controller;
 
     // Detect drives on this controller
-    for (int i = 0; i < 2; ++i)
-    {
+    for (int i = 0; i < 2; ++i) {
         if (ata_detect_drive(controller, i))
             continue;
 
         device_t* bdev = kmalloc(sizeof(device_t));
         snprintf(bdev->name, sizeof(bdev->name), "hd%c", 'a' + i);
-        bdev->parent = dev;
-        bdev->type = DEV_TYPE_BLOCK;
-        bdev->bus_type = BUS_TYPE_NONE;
-        bdev->bus = NULL;
-        bdev->bus_data = NULL;
-        bdev->ops = &ata_block_ops;
-        bdev->parent = NULL;
+        bdev->parent      = dev;
+        bdev->type        = DEV_TYPE_BLOCK;
+        bdev->bus_type    = BUS_TYPE_NONE;
+        bdev->bus         = NULL;
+        bdev->bus_data    = NULL;
+        bdev->ops         = &ata_block_ops;
+        bdev->parent      = NULL;
         bdev->driver_data = &controller->devices[i];
 
-        partition_t* part_info = kmalloc(sizeof(partition_t));
-        part_info->start_lba = 0;
+        partition_t* part_info  = kmalloc(sizeof(partition_t));
+        part_info->start_lba    = 0;
         part_info->sector_count = controller->devices[i].identify_data.total_sectors;
-        part_info->block_size = 512;
+        part_info->block_size   = 512;
         bdev->ops_data =
             part_info; // Store partition info in ops_data for potential use by partitioning code
 
@@ -154,17 +150,17 @@ int ata_detect_drive(ata_controller_t* dev, uint8_t slave)
     if (status & ATA_SR_ERR)
         return -EIO;
 
-    uint8_t lba_mid = inb(dev->io_base + ATA_REG_LBA_MID);
+    uint8_t lba_mid  = inb(dev->io_base + ATA_REG_LBA_MID);
     uint8_t lba_high = inb(dev->io_base + ATA_REG_LBA_HIGH);
 
     // If both LBA_MID and LBA_HIGH are zero, it's likely an ATA drive
     if (lba_mid || lba_high)
         return -ENODEV;
 
-    ata_drive_t* drive = &dev->devices[slave];
-    drive->io_base = dev->io_base;
+    ata_drive_t* drive  = &dev->devices[slave];
+    drive->io_base      = dev->io_base;
     drive->control_base = dev->control_base;
-    drive->slave = slave;
+    drive->slave        = slave;
 
     if (ata_identify(drive))
         return -EIO;
@@ -186,14 +182,12 @@ int ata_identify(ata_drive_t* dev)
     // Check if the drive is ATA or ATAPI based on the capabilities field
     uint16_t* total_sectors_addr =
         (uint16_t*)id_data + offsetof(ata_identify_data_t, total_sectors);
-    if (id_data->capabilities & 0x200)
-    {
+    if (id_data->capabilities & 0x200) {
         id_data->total_sectors = ((uint64_t)total_sectors_addr[3] << 48) |
                                  ((uint64_t)total_sectors_addr[2] << 32) |
                                  ((uint64_t)total_sectors_addr[1] << 16) | total_sectors_addr[0];
     }
-    else
-    {
+    else {
         id_data->total_sectors =
             ((uint64_t)id_data->cylinders * id_data->heads * id_data->sectors_per_track);
     }
@@ -217,8 +211,7 @@ int ata_read(device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer)
     ata_wait(drive->control_base);
 
     // Wait for the drive to be ready
-    for (uint32_t i = 0; i < count; i++)
-    {
+    for (uint32_t i = 0; i < count; i++) {
         if (ata_wait_drq(drive))
             return -EIO;
 

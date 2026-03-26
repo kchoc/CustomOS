@@ -5,8 +5,8 @@
 #include <vm/vm_map.h>
 
 static vbe_mode_info_t current_mode_info;
-static uint32_t* framebuffer_virtual = 0;
-static int vbe_initialized = 0;
+static uint32_t*       framebuffer_virtual = 0;
+static int             vbe_initialized     = 0;
 
 int vbe_init(void)
 {

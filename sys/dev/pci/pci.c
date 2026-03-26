@@ -6,11 +6,11 @@
 
 #include <kern/terminal.h>
 
-bus_t pci_bus = {.name = "PCI",
+bus_t pci_bus = {.name      = "PCI",
                  .enumerate = pci_enumerate,
-                 .match = pci_match,
-                 .probe = pci_probe,
-                 .remove = pci_remove};
+                 .match     = pci_match,
+                 .probe     = pci_probe,
+                 .remove    = pci_remove};
 
 static inline void pci_write_config_address(uint32_t address)
 {
@@ -87,29 +87,25 @@ uint32_t pci_read_bar(pci_device_t* dev, uint8_t bar_index)
 int pci_enumerate(struct bus* bus)
 {
     uint8_t bus_num = 0;
-    for (int i = 0; i < 256; ++i, ++bus_num)
-    {
-        for (uint8_t dev = 0; dev < 32; ++dev)
-        {
-            for (uint8_t func = 0; func < 8; ++func)
-            {
+    for (int i = 0; i < 256; ++i, ++bus_num) {
+        for (uint8_t dev = 0; dev < 32; ++dev) {
+            for (uint8_t func = 0; func < 8; ++func) {
                 uint16_t vendor = pci_read_vendor(bus_num, dev, func);
                 if (vendor == 0xFFFF)
                     continue;
 
                 pci_device_t* pdev = kmalloc(sizeof(pci_device_t));
-                pdev->bus = bus_num;
-                pdev->function = func;
-                pdev->vendor_id = vendor;
-                pdev->device_id = pci_read_device_id(bus_num, dev, func);
-                pdev->class_code = pci_read_class(bus_num, dev, func);
-                pdev->subclass = pci_read_subclass(bus_num, dev, func);
-                pdev->prog_if = pci_read_prog_if(bus_num, dev, func);
+                pdev->bus          = bus_num;
+                pdev->function     = func;
+                pdev->vendor_id    = vendor;
+                pdev->device_id    = pci_read_device_id(bus_num, dev, func);
+                pdev->class_code   = pci_read_class(bus_num, dev, func);
+                pdev->subclass     = pci_read_subclass(bus_num, dev, func);
+                pdev->prog_if      = pci_read_prog_if(bus_num, dev, func);
 
                 // Wrap in device_t
                 device_t* dev_obj = kmalloc(sizeof(device_t));
-                if (!dev_obj)
-                {
+                if (!dev_obj) {
                     // printf("Failed to allocate device object for PCI device %04X:%04X\n",
                     // pdev->vendor_id, pdev->device_id);
                     kfree(pdev);
@@ -118,9 +114,9 @@ int pci_enumerate(struct bus* bus)
                 snprintf(dev_obj->name, sizeof(dev_obj->name), "pci:%x:%x", pdev->vendor_id,
                          pdev->device_id);
                 dev_obj->bus_type = BUS_TYPE_PCI;
-                dev_obj->bus = bus;
+                dev_obj->bus      = bus;
                 dev_obj->bus_data = pdev;
-                dev_obj->type = DEV_TYPE_GENERIC;
+                dev_obj->type     = DEV_TYPE_GENERIC;
 
                 device_register(dev_obj);
             }
@@ -132,8 +128,7 @@ int pci_enumerate(struct bus* bus)
 int pci_match(device_t* dev, driver_t* drv)
 {
     pci_device_t* pci_dev = (pci_device_t*)dev->bus_data;
-    if (drv->vendor_id == pci_dev->vendor_id && drv->device_id == pci_dev->device_id)
-    {
+    if (drv->vendor_id == pci_dev->vendor_id && drv->device_id == pci_dev->device_id) {
         return 1;
     }
     return 0;

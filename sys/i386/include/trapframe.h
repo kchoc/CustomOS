@@ -3,8 +3,7 @@
 
 #include <inttypes.h>
 
-typedef struct trapframe
-{
+typedef struct trapframe {
     uint32_t gs, fs, es, ds;                               // Segment registers
     uint32_t edi, esi, ebp, esp_dummy, ebx, edx, ecx, eax; // Pushed by pusha
     uint32_t trap_num;                                     // Interrupt number

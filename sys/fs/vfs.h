@@ -15,8 +15,7 @@
 /* ===========
    DIR CONTEXT
    =========== */
-typedef struct dir_context
-{
+typedef struct dir_context {
     unsigned int pos;
     bool (*actor)(dir_context_t* ctx, const char* name, int namelen, uint32_t ino,
                   uint32_t file_size, unsigned int type);
@@ -76,27 +75,27 @@ typedef struct dir_context
 extern vnode_t* root_vnode;
 
 /* Block Device Register */
-int vfs_register_device(device_t* bdev);
+int       vfs_register_device(device_t* bdev);
 device_t* vfs_get_device(const char* device_name);
-void vfs_list_devices(void);
+void      vfs_list_devices(void);
 
 int vfs_init(void);
 int vfs_mount_root(const char* device_name);
 
 /* File operations */
 file_t* vfs_open(const char* path, int flags, umode_t mode);
-void vfs_close(file_t* file);
+void    vfs_close(file_t* file);
 ssize_t vfs_read(file_t* file, void* __user buf, size_t count, size_t offset);
 ssize_t vfs_write(file_t* file, const void* __user buf, size_t count, size_t offset);
-int vfs_llseek(file_t* file, loff_t offset, int whence);
+int     vfs_llseek(file_t* file, loff_t offset, int whence);
 
 /* Socket operations */
-int vfs_socket_create(const char* path, sock_type_t type, umode_t mode);
+int     vfs_socket_create(const char* path, sock_type_t type, umode_t mode);
 file_t* vfs_socket_connect(const char* path, int flags);
 file_t* vfs_socket_accept(file_t* socket_file, int flags);
 ssize_t vfs_socket_send(file_t* file, const void* __user buf, size_t len, int flags);
 ssize_t vfs_socket_recv(file_t* file, void* __user buf, size_t len, int flags);
-int vfs_socket_unlink(const char* path);
+int     vfs_socket_unlink(const char* path);
 
 void vfs_print_mounts(void);
 void vfs_ls(const char* path);

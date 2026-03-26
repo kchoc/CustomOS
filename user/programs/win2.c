@@ -7,8 +7,7 @@ void _start()
 
     // Create a window (200x150 at position 50,25)
     int wid = win_create("My Window", 50, 25, 200, 150);
-    if (wid < 0)
-    {
+    if (wid < 0) {
         print("Failed to create window\n");
         exit(1);
     }
@@ -21,8 +20,7 @@ void _start()
     print("Graphics initialized, starting animation...\n");
 
     // Animate the window with periodic updates
-    for (int frame = 0; frame < 100; frame++)
-    {
+    for (int frame = 0; frame < 100; frame++) {
         // Clear window to blue
         gfx_clear_screen(COLOR_BLUE);
 

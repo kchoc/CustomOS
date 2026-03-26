@@ -5,9 +5,13 @@ UseTab: Never
 
 ColumnLimit: 100
 
-BreakBeforeBraces: Allman
+BreakBeforeBraces: Stroustrup
 
 AllowShortIfStatementsOnASingleLine: false
 AllowShortFunctionsOnASingleLine: None
 
 PointerAlignment: Left
+AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: true
+AlignTrailingComments: true
+AlignConsecutiveMacros: true

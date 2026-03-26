@@ -13,9 +13,9 @@ void panic_res(const char* message, int res, const char* file, int line);
 void panic_assert(const char* expression, const char* file, int line);
 void panic_dump_registers(registers_t* regs);
 
-#define PANIC(msg) panic(msg, __FILE__, __LINE__)
-#define PANIC_RES(msg, res) panic_res(msg, res, __FILE__, __LINE__)
-#define PANIC_ASSERT(expr) ((expr) ? (void)0 : panic_assert(#expr, __FILE__, __LINE__))
+#define PANIC(msg)                 panic(msg, __FILE__, __LINE__)
+#define PANIC_RES(msg, res)        panic_res(msg, res, __FILE__, __LINE__)
+#define PANIC_ASSERT(expr)         ((expr) ? (void)0 : panic_assert(#expr, __FILE__, __LINE__))
 #define PANIC_DUMP_REGISTERS(regs) panic_dump_registers(regs)
 
 // Halt the system

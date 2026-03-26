@@ -5,10 +5,9 @@
 
 #include <inttypes.h>
 
-typedef struct bootinfo_t
-{
+typedef struct bootinfo_t {
     memory_map_entry_t* memory_map;
-    size_t memory_map_length;
+    size_t              memory_map_length;
 } bootinfo_t;
 
 extern bootinfo_t* bootinfo;

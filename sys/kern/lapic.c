@@ -23,14 +23,13 @@ static inline uint32_t lapic_read(uint32_t reg)
 inline void lapic_write(uint32_t reg, uint32_t value)
 {
     volatile uint32_t* addr = (volatile uint32_t*)(lapic_address + reg);
-    *addr = value;
+    *addr                   = value;
 }
 
 /* Wait until ICR send is accepted (bit 12 = delivery status) */
 static void lapic_wait_for_delivery(void)
 {
-    while (lapic_read(LAPIC_ICR_LOW) & (1 << 12))
-    {
+    while (lapic_read(LAPIC_ICR_LOW) & (1 << 12)) {
         asm volatile("pause");
     }
 }
@@ -108,7 +107,7 @@ void send_init_ipi(uint32_t apic_id)
 void send_startup_ipi(uint32_t apic_id, uint32_t trampoline_paddr)
 {
     uint32_t vector = (trampoline_paddr >> 12) & 0xFF;
-    uint32_t icr = ICR_DELIVERY_SIPI | (vector & 0xFF) | ICR_PHYSICAL;
+    uint32_t icr    = ICR_DELIVERY_SIPI | (vector & 0xFF) | ICR_PHYSICAL;
 
     // SIPI: vector in low 8 bits | SIPI delivery mode
     lapic_send_ipi(apic_id, icr);

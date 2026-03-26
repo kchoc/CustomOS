@@ -7,18 +7,17 @@
 #include <inttypes.h>
 
 #define PCI_CONFIG_ADDRESS 0xCF8
-#define PCI_CONFIG_DATA 0xCFC
+#define PCI_CONFIG_DATA    0xCFC
 
-typedef struct pci_device
-{
-    uint8_t bus;
-    uint8_t slot;
-    uint8_t function;
+typedef struct pci_device {
+    uint8_t  bus;
+    uint8_t  slot;
+    uint8_t  function;
     uint16_t vendor_id;
     uint16_t device_id;
-    uint8_t class_code;
-    uint8_t subclass;
-    uint8_t prog_if;
+    uint8_t  class_code;
+    uint8_t  subclass;
+    uint8_t  prog_if;
 } pci_device_t;
 
 // Functions to read/write PCI configuration space

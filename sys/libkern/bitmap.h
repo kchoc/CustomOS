@@ -3,11 +3,10 @@
 
 #include <inttypes.h>
 
-typedef struct bitmap
-{
+typedef struct bitmap {
     uint32_t* memory_map;
-    uint32_t total_blocks;
-    uint32_t free_blocks;
+    uint32_t  total_blocks;
+    uint32_t  free_blocks;
 } bitmap_t;
 
 bitmap_t* create_bitmap(uint32_t blocks);

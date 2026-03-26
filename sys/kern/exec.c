@@ -27,10 +27,8 @@ int execve(const char* path, char* const argv[], char* const envp[])
     if (!file)
         return -ENOENT;
 
-    if (strcmp(extension, ".elf") == 0)
-    {
-        if (load_elf(path, thread) != 0)
-        {
+    if (strcmp(extension, ".elf") == 0) {
+        if (load_elf(path, thread) != 0) {
             vfs_close(file);
             return -ENOEXEC;
         }

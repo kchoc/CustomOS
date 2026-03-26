@@ -6,8 +6,7 @@
 
 typedef struct thread thread_t;
 
-typedef struct context_t
-{
+typedef struct context_t {
     uint32_t edi;
     uint32_t esi;
     uint32_t ebx;

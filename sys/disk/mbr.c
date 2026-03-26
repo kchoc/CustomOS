@@ -26,8 +26,7 @@ int mbr_parse(device_t* bdev)
     if (mbr->signature != MBR_SIGNATURE)
         return -1; // Invalid MBR signature
 
-    for (int i = 0; i < 4; i++)
-    {
+    for (int i = 0; i < 4; i++) {
         mbr_partition_entry_t* entry = &mbr->partitions[i];
 
         if (entry->partition_type == 0)
@@ -38,19 +37,18 @@ int mbr_parse(device_t* bdev)
             return -ENOMEM;
 
         partition_t* part = kmalloc(sizeof(partition_t));
-        if (!part)
-        {
+        if (!part) {
             kfree(part_bdev);
             return -ENOMEM;
         }
 
-        part->start_lba = entry->starting_lba;
+        part->start_lba    = entry->starting_lba;
         part->sector_count = entry->sector_count;
 
         snprintf(part_bdev->name, sizeof(part_bdev->name), "%sp%d", bdev->name, i + 1);
-        part_bdev->parent = bdev;
-        part_bdev->type = DEV_TYPE_BLOCK;
-        part_bdev->ops = &mbr_device_ops;
+        part_bdev->parent   = bdev;
+        part_bdev->type     = DEV_TYPE_BLOCK;
+        part_bdev->ops      = &mbr_device_ops;
         part_bdev->bus_type = bdev->bus_type;
         part_bdev->ops_data = part;
 

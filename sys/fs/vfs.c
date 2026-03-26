@@ -30,7 +30,7 @@ vnode_t* root_vnode = NULL;
 
 int vfs_register_device(device_t* dev)
 {
-    int res;
+    int      res;
     vnode_t* dev_vnode;
 
     res = dev_mount->mnt_point->v_ops->create(dev_mount->mnt_point, dev->name,
@@ -39,8 +39,8 @@ int vfs_register_device(device_t* dev)
         return res;
 
     devfs_device_t* devfs_data = (devfs_device_t*)dev_vnode->v_data;
-    devfs_data->device = dev; // Link the block device to the devfs vnode data
-    dev_vnode->v_data = dev;
+    devfs_data->device         = dev; // Link the block device to the devfs vnode data
+    dev_vnode->v_data          = dev;
 
     if (!root_vnode)
         vfs_mount_root(dev->name);
@@ -51,7 +51,7 @@ int vfs_register_device(device_t* dev)
 device_t* vfs_get_device(const char* name)
 {
     vnode_t* dev_vnode;
-    int res = dev_mount->mnt_point->v_ops->lookup(dev_mount->mnt_point, name, &dev_vnode);
+    int      res = dev_mount->mnt_point->v_ops->lookup(dev_mount->mnt_point, name, &dev_vnode);
     if (res)
         return NULL;
 
@@ -73,15 +73,13 @@ void vfs_list_devices(void)
         PANIC("Failed to read /dev directory for block devices\n");
 
     size_t offset = 0;
-    while (offset < (size_t)bytes)
-    {
-        char* name = buf + offset;
+    while (offset < (size_t)bytes) {
+        char*  name     = buf + offset;
         size_t name_len = strlen(name);
         if (name_len == 0)
             break; // End of entries
         device_t* dev = vfs_get_device(name);
-        if (dev)
-        {
+        if (dev) {
             printf(" - %s\n", dev->name);
         }
 
@@ -119,8 +117,7 @@ int vfs_mount_root(const char* device_name)
     if (res)
         return res;
 
-    if (root_mnt->mnt_dev_vnode->v_type != VNODE_TYPE_BLOCK_DEVICE)
-    {
+    if (root_mnt->mnt_dev_vnode->v_type != VNODE_TYPE_BLOCK_DEVICE) {
         vnode_dec_ref(root_mnt->mnt_dev_vnode); // Decrement ref count since we won't use it
         root_mnt->mnt_dev_vnode = NULL;         // Clear the reference on failure
         return -ENOTBLK;
@@ -161,21 +158,18 @@ file_t* vfs_open(const char* path, int flags, umode_t mode)
         return NULL;
 
     vnode_t* vnode;
-    int res = iname_lookup(path, NULL, &vnode);
+    int      res = iname_lookup(path, NULL, &vnode);
     if (res)
         return NULL;
 
     file_t* file = file_create(vnode, mode, &regular_file_ops);
-    if (!file)
-    {
+    if (!file) {
         vnode_dec_ref(vnode); // Decrement ref count since we won't use it
         return NULL;
     }
 
-    if (file->f_ops && file->f_ops->open)
-    {
-        if (file->f_ops->open(file) != 0)
-        {
+    if (file->f_ops && file->f_ops->open) {
+        if (file->f_ops->open(file) != 0) {
             kfree(file);
             vnode_dec_ref(vnode); // Decrement ref count since we won't use it
             return NULL;
@@ -231,8 +225,7 @@ int vfs_llseek(file_t* file, loff_t offset, int whence)
         return -1;
 
     int res = file->f_ops->llseek(file, offset, whence);
-    if (res == 0)
-    {
+    if (res == 0) {
         file->f_pos = offset;
     }
     return res;

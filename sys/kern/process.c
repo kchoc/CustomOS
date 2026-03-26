@@ -14,22 +14,22 @@
 #include <list.h>
 #include <string.h>
 
-#define STACK_SIZE 4096
-#define USER_STACK_TOP 0xC0000000 // 3GB
+#define STACK_SIZE        4096
+#define USER_STACK_TOP    0xC0000000 // 3GB
 #define USER_STACK_BOTTOM (USER_STACK_TOP - STACK_SIZE)
 
 vaddr_t user_stack_bottom = USER_STACK_BOTTOM;
 
 static list_t all_processes = {0};
-proc_t* idle_process = NULL;
+proc_t*       idle_process  = NULL;
 
 static uint32_t next_pid = 1;
 static uint32_t next_tid = 1;
 
 // Helpers to convert between list nodes and thread/process structures
-#define PCPU_FROM_TASK(t) ((pcpu_t*)(t->node.list - offsetof(pcpu_t, runqueue)))
-#define GET_RUNQUEUE (list_t*)(&PCPU_GET(runqueue) - offsetof(pcpu_t, runqueue))
-#define PROC_FROM_NODE(n) ((n) ? (proc_t*)((uint8_t*)n - offsetof(proc_t, node)) : NULL)
+#define PCPU_FROM_TASK(t)   ((pcpu_t*)(t->node.list - offsetof(pcpu_t, runqueue)))
+#define GET_RUNQUEUE        (list_t*)(&PCPU_GET(runqueue) - offsetof(pcpu_t, runqueue))
+#define PROC_FROM_NODE(n)   ((n) ? (proc_t*)((uint8_t*)n - offsetof(proc_t, node)) : NULL)
 #define THREAD_FROM_NODE(n) ((n) ? (thread_t*)((uint8_t*)n - offsetof(thread_t, node)) : NULL)
 #define THREAD_FROM_PROC_NODE(n)                                                                   \
     ((n) ? (thread_t*)((uint8_t*)n - offsetof(thread_t, proc_node)) : NULL)
@@ -38,8 +38,7 @@ static uint32_t next_tid = 1;
 
 void idle_task()
 {
-    while (1)
-    {
+    while (1) {
         asm volatile("hlt");
     }
 }
@@ -60,12 +59,12 @@ void tasking_init(void)
         PANIC("Failed to create idle thread!");
     memset(t, 0, sizeof(*t));
 
-    t->tid = next_tid++;
-    t->state = TASK_RUNNING;
+    t->tid      = next_tid++;
+    t->state    = TASK_RUNNING;
     t->priority = 0;
-    t->proc = p;
+    t->proc     = p;
 
-    t->kstack = 0;      // Idle thread uses the existing kernel stack set up by the boot code
+    t->kstack      = 0; // Idle thread uses the existing kernel stack set up by the boot code
     t->kstack_size = 0; // No need to free this stack since it's statically allocated and shared
 
     list_push_tail(&p->threads, &t->proc_node);
@@ -83,14 +82,13 @@ thread_t* create_kernel_thread(void (*entry)(void), proc_t* p, uint32_t priority
         return NULL;
     memset(t, 0, sizeof(*t));
 
-    t->tid = next_tid++;
-    t->state = TASK_READY;
+    t->tid      = next_tid++;
+    t->state    = TASK_READY;
     t->priority = priority;
-    t->proc = p;
+    t->proc     = p;
 
     t->kstack = kmalloc(STACK_SIZE);
-    if (!t->kstack)
-    {
+    if (!t->kstack) {
         kfree(t);
         return NULL;
     }
@@ -121,14 +119,13 @@ thread_t* create_user_thread(void (*entry)(void), proc_t* p, uint32_t priority, 
         return NULL;
     memset(t, 0, sizeof(*t));
 
-    t->tid = next_tid++;
-    t->state = TASK_READY;
+    t->tid      = next_tid++;
+    t->state    = TASK_READY;
     t->priority = priority;
-    t->proc = p;
+    t->proc     = p;
 
     t->kstack = kmalloc(STACK_SIZE);
-    if (!t->kstack)
-    {
+    if (!t->kstack) {
         kfree(t);
         return NULL;
     }
@@ -153,10 +150,9 @@ proc_t* create_process(const char* name)
     if (!p)
         return NULL;
     memset(p, 0, sizeof(*p));
-    p->pid = next_pid++;
+    p->pid  = next_pid++;
     p->ppid = 0; // For now, no parent-child relationships
-    if (name)
-    {
+    if (name) {
         // Copy name with safety
         strncpy(p->name, name, sizeof(p->name) - 1);
         p->name[sizeof(p->name) - 1] = '\0';
@@ -167,8 +163,7 @@ proc_t* create_process(const char* name)
 
     // Create file descriptor table
     p->fd_table = fd_table_create();
-    if (!p->fd_table)
-    {
+    if (!p->fd_table) {
         vm_space_destroy(p->vmspace);
         kfree(p);
         return NULL;
@@ -187,17 +182,17 @@ proc_t* fork_process(thread_t* t, int flags, proc_t** child_out)
         return NULL;
 
     proc_t* parent = t->proc;
-    proc_t* child = kmalloc(sizeof(proc_t));
+    proc_t* child  = kmalloc(sizeof(proc_t));
     if (!child)
         return NULL;
     memset(child, 0, sizeof(*child));
 
-    child->pid = next_pid++;
+    child->pid  = next_pid++;
     child->ppid = parent->pid;
     strncpy(child->name, parent->name, sizeof(child->name) - 1);
     child->name[sizeof(child->name) - 1] = '\0';
 
-    child->vmspace = vm_space_fork(parent->vmspace);
+    child->vmspace  = vm_space_fork(parent->vmspace);
     child->fd_table = fd_table_fork(parent->fd_table);
 
     list_init(&child->threads, 0);
@@ -205,8 +200,7 @@ proc_t* fork_process(thread_t* t, int flags, proc_t** child_out)
 
     // Create a new thread for the child process that starts at the same entry point as the parent
     thread_t* child_thread = create_user_thread((void*)t->context->eip, child, t->priority, NULL);
-    if (!child_thread)
-    {
+    if (!child_thread) {
         list_remove(&child->node);
         kfree(child);
         return NULL;
@@ -220,8 +214,7 @@ proc_t* fork_process(thread_t* t, int flags, proc_t** child_out)
 pcpu_t* select_pcpu()
 {
     pcpu_t* lowest = &pcpus[0];
-    for (uint32_t i = 1; i < cpu_count; i++)
-    {
+    for (uint32_t i = 1; i < cpu_count; i++) {
         if (pcpus[i].total_priority < lowest->total_priority)
             lowest = &pcpus[i];
     }
@@ -243,8 +236,7 @@ void free_thread(thread_t* t)
     list_remove(&t->node);      // Remove from runqueue if still present
     pcpu->total_priority -= t->priority;
 
-    if (t->proc && t->proc->threads.size == 0)
-    {
+    if (t->proc && t->proc->threads.size == 0) {
         free_process(t->proc);
     }
 
@@ -279,11 +271,9 @@ static void reap_zombies(pcpu_t* pcpu)
 
     thread_t* t = (thread_t*)pcpu->runqueue.head;
 
-    do
-    {
+    do {
         thread_t* next = (thread_t*)t->node.next;
-        if (t != pcpu->current_thread && t->state == TASK_ZOMBIE)
-        {
+        if (t != pcpu->current_thread && t->state == TASK_ZOMBIE) {
             free_thread(t);
         }
         t = next;
@@ -299,8 +289,7 @@ thread_t* get_next_ready_thread(thread_t* prev)
         PANIC("get_next_ready_thread: Current thread not in runqueue or runqueue is empty");
 
     thread_t* start = next;
-    while (next->state != TASK_READY)
-    {
+    while (next->state != TASK_READY) {
         next = (thread_t*)next->node.next;
         if (!next || next == start)
             return NULL;
@@ -310,7 +299,7 @@ thread_t* get_next_ready_thread(thread_t* prev)
 
 void thread_exit(registers_t* regs)
 {
-    pcpu_t* pcpu = get_pcpu();
+    pcpu_t* pcpu                = get_pcpu();
     pcpu->current_thread->state = TASK_ZOMBIE;
     schedule_from_irq(regs);
     PANIC("thread_exit: Returned from scheduler after marking thread as zombie, this should never "
@@ -366,8 +355,7 @@ void block_current_thread(list_t* wait_queue)
     current->state = TASK_BLOCKED;
 
     // Add to wait queue if provided
-    if (wait_queue)
-    {
+    if (wait_queue) {
         wait_node_t* wait_node = kmalloc(sizeof(wait_node_t));
         if (!wait_node)
             PANIC("block_current_thread: Out of memory");
@@ -388,17 +376,15 @@ void wake_up_queue(list_t* wait_queue)
         return;
 
     list_node_t* node = wait_queue->head;
-    while (node)
-    {
+    while (node) {
         wait_node_t* wait_node = WAIT_NODE_FROM_NODE(node);
-        thread_t* t = wait_node->thread;
-        if (t && t->state == TASK_BLOCKED)
-        {
+        thread_t*    t         = wait_node->thread;
+        if (t && t->state == TASK_BLOCKED) {
             t->state = TASK_READY;
         }
 
         list_node_t* to_free = node;
-        node = node->next;
+        node                 = node->next;
         list_remove(to_free);
         kfree(wait_node);
     }
@@ -413,16 +399,13 @@ void list_tasks()
     printf("==========================================\n");
 
     list_node_t* node = all_processes.head;
-    while (node)
-    {
+    while (node) {
         proc_t* p = PROC_FROM_NODE(node);
         printf("      %5u\n", p->pid);
         thread_t* t = THREAD_FROM_PROC_NODE(p->threads.head);
-        while (t)
-        {
+        while (t) {
             const char* state_str = "UNKNOWN";
-            switch (t->state)
-            {
+            switch (t->state) {
             case TASK_RUNNING:
                 state_str = "RUNNING ";
                 break;
@@ -455,19 +438,16 @@ void list_pcpu_threads(pcpu_t* pcpu)
     printf("====================================\n");
 
     list_node_t* node = pcpu->runqueue.head;
-    if (!node)
-    {
+    if (!node) {
         printf("<empty>\n");
         return;
     }
 
-    do
-    {
-        thread_t* t = (thread_t*)node;
-        proc_t* p = t->proc;
+    do {
+        thread_t*   t         = (thread_t*)node;
+        proc_t*     p         = t->proc;
         const char* state_str = "UNKNOWN";
-        switch (t->state)
-        {
+        switch (t->state) {
         case TASK_RUNNING:
             state_str = " RUNNING";
             break;

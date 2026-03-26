@@ -5,8 +5,7 @@ void _start()
 {
     // Create first window
     int win1 = win_create("Red Window", 20, 20, 150, 100);
-    if (win1 < 0)
-    {
+    if (win1 < 0) {
         print("Failed to create window 1\n");
         exit(1);
     }
@@ -19,8 +18,7 @@ void _start()
 
     // Create second window (overlapping)
     int win2 = win_create("Blue Window", 80, 60, 150, 100);
-    if (win2 < 0)
-    {
+    if (win2 < 0) {
         print("Failed to create window 2\n");
         win_destroy(win1);
         exit(1);
@@ -40,16 +38,13 @@ void _start()
 
     // Create third window
     int win3 = win_create("Pattern", 140, 100, 160, 90);
-    if (win3 >= 0)
-    {
+    if (win3 >= 0) {
         gfx_init_window(win3, 160, 90);
         gfx_clear_screen(COLOR_BLACK);
 
         // Draw a checkerboard pattern
-        for (int y = 0; y < 90; y += 10)
-        {
-            for (int x = 0; x < 160; x += 10)
-            {
+        for (int y = 0; y < 90; y += 10) {
+            for (int x = 0; x < 160; x += 10) {
                 uint8_t color = ((x / 10 + y / 10) % 2) ? COLOR_WHITE : COLOR_DARK_GREY;
                 gfx_fill_rect(x, y, 10, 10, color);
             }

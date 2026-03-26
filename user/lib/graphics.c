@@ -110,14 +110,13 @@ static const uint8_t font_8x8[96][8] = {
 gfx_context_t* gfx_create_context(int wid, int width, int height)
 {
     gfx_context_t* ctx = (gfx_context_t*)mmap(NULL, sizeof(gfx_context_t), 0, 0);
-    if (!ctx || (uintptr_t)ctx == (uintptr_t)-1)
-    {
+    if (!ctx || (uintptr_t)ctx == (uintptr_t)-1) {
         return NULL;
     }
 
-    ctx->window_id = wid;
-    ctx->width = width;
-    ctx->height = height;
+    ctx->window_id   = wid;
+    ctx->width       = width;
+    ctx->height      = height;
     ctx->is_windowed = 1;
     ctx->framebuffer = (volatile uint32_t*)win_getbuf(wid);
 
@@ -128,8 +127,7 @@ void gfx_destroy_context(gfx_context_t* ctx)
 {
     // In a real implementation, would unmap ctx
     // For now, just null it
-    if (ctx == &g_legacy_ctx)
-    {
+    if (ctx == &g_legacy_ctx) {
         ctx->framebuffer = NULL;
     }
 }
@@ -146,31 +144,29 @@ gfx_context_t* gfx_get_context(void)
 
 void gfx_init(void)
 {
-    if (!g_legacy_ctx.framebuffer)
-    {
+    if (!g_legacy_ctx.framebuffer) {
         // Map the VGA framebuffer into our address space
         g_legacy_ctx.framebuffer =
             (volatile uint32_t*)mmap((void*)0xA0000, 64000, 0, MMAP_FRAMEBUFFER);
-        if ((uintptr_t)g_legacy_ctx.framebuffer == (uintptr_t)-1)
-        {
+        if ((uintptr_t)g_legacy_ctx.framebuffer == (uintptr_t)-1) {
             g_legacy_ctx.framebuffer = NULL;
         }
-        g_legacy_ctx.width = 320;
-        g_legacy_ctx.height = 200;
+        g_legacy_ctx.width       = 320;
+        g_legacy_ctx.height      = 200;
         g_legacy_ctx.is_windowed = 0;
-        g_legacy_ctx.window_id = -1;
-        g_ctx = &g_legacy_ctx;
+        g_legacy_ctx.window_id   = -1;
+        g_ctx                    = &g_legacy_ctx;
     }
 }
 
 void gfx_init_window(int wid, int width, int height)
 {
-    g_legacy_ctx.window_id = wid;
+    g_legacy_ctx.window_id   = wid;
     g_legacy_ctx.framebuffer = (volatile uint32_t*)win_getbuf(wid); // 32-bit framebuffer
     g_legacy_ctx.is_windowed = 1;
-    g_legacy_ctx.width = width;
-    g_legacy_ctx.height = height;
-    g_ctx = &g_legacy_ctx;
+    g_legacy_ctx.width       = width;
+    g_legacy_ctx.height      = height;
+    g_ctx                    = &g_legacy_ctx;
 }
 
 /* Context-explicit functions */
@@ -178,8 +174,7 @@ void gfx_flush_ctx(gfx_context_t* ctx)
 {
     if (!ctx)
         return;
-    if (ctx->is_windowed && ctx->window_id >= 0)
-    {
+    if (ctx->is_windowed && ctx->window_id >= 0) {
         win_update(ctx->window_id);
     }
 }
@@ -188,8 +183,7 @@ void gfx_put_pixel_ctx(gfx_context_t* ctx, int x, int y, uint32_t color)
 {
     if (!ctx || !ctx->framebuffer)
         return;
-    if (x >= 0 && x < ctx->width && y >= 0 && y < ctx->height)
-    {
+    if (x >= 0 && x < ctx->width && y >= 0 && y < ctx->height) {
         ctx->framebuffer[y * ctx->width + x] = color;
     }
 }
@@ -198,8 +192,7 @@ uint32_t gfx_get_pixel_ctx(gfx_context_t* ctx, int x, int y)
 {
     if (!ctx || !ctx->framebuffer)
         return 0;
-    if (x >= 0 && x < ctx->width && y >= 0 && y < ctx->height)
-    {
+    if (x >= 0 && x < ctx->width && y >= 0 && y < ctx->height) {
         return ctx->framebuffer[y * ctx->width + x];
     }
     return 0;
@@ -209,8 +202,7 @@ void gfx_clear_screen_ctx(gfx_context_t* ctx, uint32_t color)
 {
     if (!ctx || !ctx->framebuffer)
         return;
-    for (int i = 0; i < ctx->width * ctx->height; i++)
-    {
+    for (int i = 0; i < ctx->width * ctx->height; i++) {
         ctx->framebuffer[i] = color;
     }
 }
@@ -239,10 +231,8 @@ void gfx_fill_rect_ctx(gfx_context_t* ctx, int x, int y, int width, int height, 
 {
     if (!ctx)
         return;
-    for (int dy = 0; dy < height; dy++)
-    {
-        for (int dx = 0; dx < width; dx++)
-        {
+    for (int dy = 0; dy < height; dy++) {
+        for (int dx = 0; dx < width; dx++) {
             gfx_put_pixel_ctx(ctx, x + dx, y + dy, color);
         }
     }
@@ -258,14 +248,12 @@ void gfx_draw_rect_ctx(gfx_context_t* ctx, int x, int y, int width, int height, 
     if (!ctx)
         return;
     // Top and bottom
-    for (int i = 0; i < width; i++)
-    {
+    for (int i = 0; i < width; i++) {
         gfx_put_pixel_ctx(ctx, x + i, y, color);
         gfx_put_pixel_ctx(ctx, x + i, y + height - 1, color);
     }
     // Left and right
-    for (int i = 0; i < height; i++)
-    {
+    for (int i = 0; i < height; i++) {
         gfx_put_pixel_ctx(ctx, x, y + i, color);
         gfx_put_pixel_ctx(ctx, x + width - 1, y + i, color);
     }
@@ -280,8 +268,7 @@ void gfx_draw_hline_ctx(gfx_context_t* ctx, int x, int y, int width, uint32_t co
 {
     if (!ctx)
         return;
-    for (int i = 0; i < width; i++)
-    {
+    for (int i = 0; i < width; i++) {
         gfx_put_pixel_ctx(ctx, x + i, y, color);
     }
 }
@@ -295,8 +282,7 @@ void gfx_draw_vline_ctx(gfx_context_t* ctx, int x, int y, int height, uint32_t c
 {
     if (!ctx)
         return;
-    for (int i = 0; i < height; i++)
-    {
+    for (int i = 0; i < height; i++) {
         gfx_put_pixel_ctx(ctx, x, y + i, color);
     }
 }
@@ -319,8 +305,7 @@ void gfx_draw_line_ctx(gfx_context_t* ctx, int x0, int y0, int x1, int y1, uint3
         dy = -dy;
 
     int steps = (dx > dy) ? dx : dy;
-    if (steps == 0)
-    {
+    if (steps == 0) {
         gfx_put_pixel_ctx(ctx, x0, y0, color);
         return;
     }
@@ -331,8 +316,7 @@ void gfx_draw_line_ctx(gfx_context_t* ctx, int x0, int y0, int x1, int y1, uint3
     float x = x0;
     float y = y0;
 
-    for (int i = 0; i <= steps; i++)
-    {
+    for (int i = 0; i <= steps; i++) {
         gfx_put_pixel_ctx(ctx, (int)x, (int)y, color);
         x += xinc;
         y += yinc;
@@ -353,17 +337,13 @@ void gfx_draw_char_ctx(gfx_context_t* ctx, int x, int y, char c, uint32_t fg, ui
 
     const uint8_t* glyph = font_8x8[c - 32];
 
-    for (int row = 0; row < 8; row++)
-    {
+    for (int row = 0; row < 8; row++) {
         uint8_t line = glyph[row];
-        for (int col = 0; col < 8; col++)
-        {
-            if (line & (0x01 << col))
-            {
+        for (int col = 0; col < 8; col++) {
+            if (line & (0x01 << col)) {
                 gfx_put_pixel_ctx(ctx, x + col, y + row, fg);
             }
-            else if (bg != 255)
-            { // 255 = transparent background
+            else if (bg != 255) { // 255 = transparent background
                 gfx_put_pixel_ctx(ctx, x + col, y + row, bg);
             }
         }
@@ -381,15 +361,12 @@ void gfx_draw_string_ctx(gfx_context_t* ctx, int x, int y, const char* str, uint
     if (!ctx)
         return;
     int cx = x;
-    while (*str)
-    {
-        if (*str == '\n')
-        {
+    while (*str) {
+        if (*str == '\n') {
             y += 8;
             cx = x;
         }
-        else
-        {
+        else {
             gfx_draw_char_ctx(ctx, cx, y, *str, fg, bg);
             cx += 8;
         }

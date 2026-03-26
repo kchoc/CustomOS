@@ -26,10 +26,8 @@ int iname_lookup(const char* name, vnode_t* dir, vnode_t** result)
     vnode_inc_ref(current);                    // Increment ref count for the starting vnode
 
     vnode_t* next;
-    while (token)
-    {
-        if (current->v_mounthere)
-        {
+    while (token) {
+        if (current->v_mounthere) {
             // TODO: I need to handle getting the v_mount properly here as there is an unlikely case
             // that the mount could be unmounted while we are traversing it, but I will handle that
             // later
@@ -39,8 +37,7 @@ int iname_lookup(const char* name, vnode_t* dir, vnode_t** result)
             current = next;                         // Move to the mounted filesystem's root vnode
         }
         int res = current->v_ops->lookup(current, token, &next);
-        if (res)
-        {
+        if (res) {
             printf("iname_lookup: Failed to lookup '%s' in vnode with type %d, error %d\n", token,
                    current->v_type, res);
             kfree(name_copy);
@@ -48,7 +45,7 @@ int iname_lookup(const char* name, vnode_t* dir, vnode_t** result)
         }
         vnode_dec_ref(current); // Decrement ref count for the current vnode
         current = next;         // Move to the next vnode
-        token = strtok(NULL, "/");
+        token   = strtok(NULL, "/");
     }
 
     *result = current; // Set the result to the final vnode found

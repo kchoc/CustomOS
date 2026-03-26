@@ -3,8 +3,7 @@
 
 typedef struct dentry dentry_t;
 
-typedef struct path
-{
+typedef struct path {
     dentry_t* dentry;
 } path_t;
 

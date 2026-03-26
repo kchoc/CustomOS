@@ -4,8 +4,7 @@
 
 void strcpy(char* dest, const char* src)
 {
-    while (*src)
-    {
+    while (*src) {
         *dest++ = *src++;
     }
     *dest = '\0';
@@ -13,8 +12,7 @@ void strcpy(char* dest, const char* src)
 
 void strncpy(char* dest, const char* src, unsigned n)
 {
-    while (*src && n--)
-    {
+    while (*src && n--) {
         *dest++ = *src++;
     }
     *dest = '\0';
@@ -22,8 +20,7 @@ void strncpy(char* dest, const char* src, unsigned n)
 
 int strcmp(const char* str1, const char* str2)
 {
-    while (*str1 && *str2)
-    {
+    while (*str1 && *str2) {
         if (*str1 != *str2)
             return *str1 - *str2;
         str1++;
@@ -34,8 +31,7 @@ int strcmp(const char* str1, const char* str2)
 
 int strncmp(const char* a, const char* b, unsigned n)
 {
-    while (*a && *b && n--)
-    {
+    while (*a && *b && n--) {
         if (*a != *b)
             return *a - *b;
         a++;
@@ -49,8 +45,7 @@ int strncmp(const char* a, const char* b, unsigned n)
 unsigned strlen(const char* s)
 {
     unsigned len = 0;
-    while (*s++)
-    {
+    while (*s++) {
         len++;
     }
     return len;
@@ -59,8 +54,7 @@ unsigned strlen(const char* s)
 unsigned strnlen(const char* s, unsigned maxlen)
 {
     unsigned len = 0;
-    while (*s++ && len < maxlen)
-    {
+    while (*s++ && len < maxlen) {
         len++;
     }
     return len;
@@ -68,8 +62,7 @@ unsigned strnlen(const char* s, unsigned maxlen)
 
 char* strcat(const char* s, char c)
 {
-    while (*s)
-    {
+    while (*s) {
         if (*s == c)
             return (char*)s;
         s++;
@@ -81,11 +74,10 @@ char* uint_to_string(uint32_t u, char* str)
 {
     char* start = str;
     char* end;
-    char temp;
+    char  temp;
 
     // Convert number to string in reverse order
-    do
-    {
+    do {
         *str++ = (u % 10) + '0';
         u /= 10;
     } while (u);
@@ -95,11 +87,10 @@ char* uint_to_string(uint32_t u, char* str)
 
     // Reverse the string
     end = str - 1;
-    while (start < end)
-    {
-        temp = *start;
+    while (start < end) {
+        temp   = *start;
         *start = *end;
-        *end = temp;
+        *end   = temp;
         start++;
         end--;
     }
@@ -111,21 +102,19 @@ char* strrev(char* str)
 {
     char* start = str;
     char* end;
-    char temp;
+    char  temp;
 
     // Find the end of the string
     end = str;
-    while (*end++)
-    {
+    while (*end++) {
     }
     end--;
 
     // Reverse the string
-    while (start < end)
-    {
-        temp = *start;
+    while (start < end) {
+        temp   = *start;
         *start = *end;
-        *end = temp;
+        *end   = temp;
         start++;
         end--;
     }
@@ -136,8 +125,7 @@ char* strrev(char* str)
 void strrstrip(char* str)
 {
     char* end = str + strlen(str) - 1;
-    while (end >= str && (*end == ' ' || *end == '\t' || *end == '\n'))
-    {
+    while (end >= str && (*end == ' ' || *end == '\t' || *end == '\n')) {
         *end-- = '\0';
     }
 }
@@ -145,15 +133,12 @@ void strrstrip(char* str)
 void strlstrip(char* str)
 {
     char* start = str;
-    while (*start == ' ' || *start == '\t' || *start == '\n')
-    {
+    while (*start == ' ' || *start == '\t' || *start == '\n') {
         start++;
     }
-    if (start != str)
-    {
+    if (start != str) {
         char* dst = str;
-        while (*start)
-        {
+        while (*start) {
             *dst++ = *start++;
         }
         *dst = '\0';
@@ -163,20 +148,17 @@ void strlstrip(char* str)
 char* strtok(char* str, const char* delim)
 {
     static char* last = NULL;
-    char* start;
-    const char* d;
+    char*        start;
+    const char*  d;
 
     // If str is NULL, use the last token as the start
-    if (str == NULL)
-    {
+    if (str == NULL) {
         str = last;
     }
 
     // Skip leading delimiters
-    while (*str)
-    {
-        for (d = delim; *d; d++)
-        {
+    while (*str) {
+        for (d = delim; *d; d++) {
             if (*str == *d)
                 break;
         }
@@ -186,8 +168,7 @@ char* strtok(char* str, const char* delim)
     }
 
     // If we're at the end of the string, return NULL
-    if (!*str)
-    {
+    if (!*str) {
         last = NULL;
         return NULL;
     }
@@ -196,10 +177,8 @@ char* strtok(char* str, const char* delim)
     start = str;
 
     // Find the end of the token
-    while (*str)
-    {
-        for (d = delim; *d; d++)
-        {
+    while (*str) {
+        for (d = delim; *d; d++) {
             if (*str == *d)
                 break;
         }
@@ -209,8 +188,7 @@ char* strtok(char* str, const char* delim)
     }
 
     // Null-terminate the token
-    if (*str)
-    {
+    if (*str) {
         *str = '\0';
         str++;
     }
@@ -239,8 +217,7 @@ char* strndup(const char* s, unsigned n)
 
 void strtoupper(char* str)
 {
-    while (*str)
-    {
+    while (*str) {
         if (*str >= 'a' && *str <= 'z')
             *str -= 32;
         str++;
@@ -249,8 +226,7 @@ void strtoupper(char* str)
 
 void strntoupper(char* str, unsigned n)
 {
-    while (*str && n--)
-    {
+    while (*str && n--) {
         if (*str >= 'a' && *str <= 'z')
             *str -= 32;
         str++;
@@ -259,8 +235,7 @@ void strntoupper(char* str, unsigned n)
 
 void strtolower(char* str)
 {
-    while (*str)
-    {
+    while (*str) {
         if (*str >= 'A' && *str <= 'Z')
             *str += 32;
         str++;
@@ -269,8 +244,7 @@ void strtolower(char* str)
 
 void strntolower(char* str, unsigned n)
 {
-    while (*str && n--)
-    {
+    while (*str && n--) {
         if (*str >= 'A' && *str <= 'Z')
             *str += 32;
         str++;
@@ -280,26 +254,23 @@ void strntolower(char* str, unsigned n)
 int str2int(const char* str)
 {
     int result = 0;
-    int sign = 1;
+    int sign   = 1;
 
     // Skip leading whitespace
     while (*str == ' ' || *str == '\t')
         str++;
 
     // Check for a sign
-    if (*str == '-')
-    {
+    if (*str == '-') {
         sign = -1;
         str++;
     }
-    else if (*str == '+')
-    {
+    else if (*str == '+') {
         str++;
     }
 
     // Parse the number
-    while (*str >= '0' && *str <= '9')
-    {
+    while (*str >= '0' && *str <= '9') {
         result = result * 10 + (*str - '0');
         str++;
     }
@@ -309,8 +280,7 @@ int str2int(const char* str)
 
 const char* strchr(const char* s, int c)
 {
-    while (*s)
-    {
+    while (*s) {
         if (*s == c)
             return s;
         s++;
@@ -322,18 +292,15 @@ const char* strrchr(const char* s, int c)
 {
     const char* last = NULL;
 
-    while (*s)
-    {
-        if (*s == (char)c)
-        {
+    while (*s) {
+        if (*s == (char)c) {
             last = s;
         }
         s++;
     }
 
     // Also check if c is '\0' (valid per standard)
-    if (c == '\0')
-    {
+    if (c == '\0') {
         return (char*)s;
     }
 
@@ -343,18 +310,16 @@ const char* strrchr(const char* s, int c)
 void memset(void* dest, char val, unsigned len)
 {
     char* d = dest;
-    while (len--)
-    {
+    while (len--) {
         *d++ = val;
     }
 }
 
 void memcpy(void* dest, const void* src, unsigned len)
 {
-    char* d = dest;
+    char*       d = dest;
     const char* s = src;
-    while (len--)
-    {
+    while (len--) {
         *d++ = *s++;
     }
 }

@@ -10,8 +10,7 @@ void _start()
     int wid2 = win_create("Blue Window", 90, 60, 200, 100);
     int wid3 = win_create("Green Window", 160, 100, 150, 80);
 
-    if (wid1 < 0 || wid2 < 0 || wid3 < 0)
-    {
+    if (wid1 < 0 || wid2 < 0 || wid3 < 0) {
         print("Failed to create windows\n");
         exit(1);
     }
@@ -37,12 +36,10 @@ void _start()
     gfx_draw_string_ctx(ctx2, 10, 20, "Size: 200x100", COLOR_WHITE, 255);
 
     // Draw diagonal lines
-    for (int i = 0; i < 200; i += 20)
-    {
+    for (int i = 0; i < 200; i += 20) {
         gfx_draw_line_ctx(ctx2, i, 0, i, 99, COLOR_LIGHT_BLUE);
     }
-    for (int i = 0; i < 100; i += 10)
-    {
+    for (int i = 0; i < 100; i += 10) {
         gfx_draw_line_ctx(ctx2, 0, i, 199, i, COLOR_LIGHT_CYAN);
     }
 
@@ -54,10 +51,8 @@ void _start()
     gfx_draw_string_ctx(ctx3, 10, 20, "Size: 150x80", COLOR_WHITE, 255);
 
     // Draw checkerboard pattern
-    for (int y = 30; y < 75; y += 5)
-    {
-        for (int x = 10; x < 140; x += 5)
-        {
+    for (int y = 30; y < 75; y += 5) {
+        for (int x = 10; x < 140; x += 5) {
             uint8_t color = ((x / 5 + y / 5) % 2) ? COLOR_DARK_GREY : COLOR_LIGHT_GREY;
             gfx_fill_rect_ctx(ctx3, x, y, 5, 5, color);
         }

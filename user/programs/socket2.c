@@ -11,8 +11,7 @@ void server_example(void)
 
     // Create and listen on server socket
     int server_fd = sock_create_server("/sock/myserver", SOCK_TYPE_STREAM, 5);
-    if (server_fd < 0)
-    {
+    if (server_fd < 0) {
         print("Failed to create server\n");
         exit(1);
     }
@@ -21,8 +20,7 @@ void server_example(void)
 
     // Accept a connection
     int client = accept(server_fd);
-    if (client < 0)
-    {
+    if (client < 0) {
         print("Failed to accept connection\n");
         close(server_fd);
         exit(1);
@@ -32,9 +30,8 @@ void server_example(void)
 
     // Receive message
     char buffer[256];
-    int received = recv(client, buffer, sizeof(buffer) - 1, 0);
-    if (received > 0)
-    {
+    int  received = recv(client, buffer, sizeof(buffer) - 1, 0);
+    if (received > 0) {
         buffer[received] = '\0';
         print("Received: ");
         print(buffer);
@@ -58,8 +55,7 @@ void client_example(void)
 
     // Connect to server
     int sockfd = sock_connect_client("/sock/myserver", SOCK_TYPE_STREAM);
-    if (sockfd < 0)
-    {
+    if (sockfd < 0) {
         print("Failed to connect to server\n");
         exit(1);
     }
@@ -68,8 +64,7 @@ void client_example(void)
 
     // Send message
     const char* message = "Hello from client!";
-    if (sock_send_all(sockfd, message, 18) < 0)
-    {
+    if (sock_send_all(sockfd, message, 18) < 0) {
         print("Failed to send message\n");
         close(sockfd);
         exit(1);
@@ -79,9 +74,8 @@ void client_example(void)
 
     // Receive response
     char buffer[256];
-    int received = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
-    if (received > 0)
-    {
+    int  received = recv(sockfd, buffer, sizeof(buffer) - 1, 0);
+    if (received > 0) {
         buffer[received] = '\0';
         print("Received: ");
         print(buffer);

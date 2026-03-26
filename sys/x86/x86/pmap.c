@@ -14,9 +14,9 @@
 #include "string.h"
 
 page_table_t** current_pd_addr = (page_table_t**)0xFFFFFFFC;
-page_table_t* current_pd = (page_table_t*)PAGE_DIRECTORY_ADDRESS;
-page_table_t* current_pts = (page_table_t*)PAGE_TABLES_ADDRESS;
-page_table_t* edit_pd = (page_table_t*)PAGE_TABLE_EDIT_ADDRESS;
+page_table_t*  current_pd      = (page_table_t*)PAGE_DIRECTORY_ADDRESS;
+page_table_t*  current_pts     = (page_table_t*)PAGE_TABLES_ADDRESS;
+page_table_t*  edit_pd         = (page_table_t*)PAGE_TABLE_EDIT_ADDRESS;
 
 void tlb_invlpg(void* addr)
 {
@@ -39,10 +39,8 @@ void switch_page_directory(page_table_t** pd_ptr)
 
 int pmap_init()
 {
-    for (uint32_t i = 0; i < KERNEL_PAGE_ENTRIES - 1; i++)
-    {
-        if (!(current_pd->entries[i + KERNEL_PAGE_ENTRY_START] & 0x1))
-        {
+    for (uint32_t i = 0; i < KERNEL_PAGE_ENTRIES - 1; i++) {
+        if (!(current_pd->entries[i + KERNEL_PAGE_ENTRY_START] & 0x1)) {
             page_table_t* table = (page_table_t*)vm_phys_alloc_page();
             if (is_errno((paddr_t)table))
                 return -ENOMEM;
@@ -64,10 +62,8 @@ void pmap_debug(pmap_t* pmap)
     printf("Page Directory at: %p\n", *current_pd_addr);
     pmap_enter(kernel_vm_space->arch, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pmap->pd,
                VM_PROT_READ | VM_PROT_WRITE, PMAP_FLAG_NONE);
-    for (int i = 0; i < PAGE_ENTRIES_PER_TABLE; i++)
-    {
-        if (edit_pd->entries[i] & 0x1)
-        {
+    for (int i = 0; i < PAGE_ENTRIES_PER_TABLE; i++) {
+        if (edit_pd->entries[i] & 0x1) {
             printf("PD Entry %d: %p\n", i, edit_pd->entries[i] & 0xFFFFF000);
             i += 15;
         }
@@ -83,15 +79,13 @@ pmap_t* pmap_create()
         return NULL;
 
     pmap->pd = (page_table_t*)vm_phys_alloc_page();
-    if (is_errno((paddr_t)pmap->pd))
-    {
+    if (is_errno((paddr_t)pmap->pd)) {
         kfree(pmap);
         return NULL;
     }
     pmap_enter(kernel_vm_space->arch, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pmap->pd,
                VM_PROT_READ | VM_PROT_WRITE, PMAP_FLAG_NONE);
-    for (int i = KERNEL_PAGE_ENTRIES; i < PAGE_ENTRIES_PER_TABLE - 1; i++)
-    {
+    for (int i = KERNEL_PAGE_ENTRIES; i < PAGE_ENTRIES_PER_TABLE - 1; i++) {
         edit_pd->entries[i] = current_pd->entries[i];
     }
     edit_pd->entries[PAGE_ENTRIES_PER_TABLE - 1] =

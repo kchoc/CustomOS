@@ -4,22 +4,21 @@
 #include <string.h>
 
 // VGA Register ports
-#define VGA_MISC_WRITE 0x3C2
-#define VGA_SEQ_INDEX 0x3C4
-#define VGA_SEQ_DATA 0x3C5
-#define VGA_CRTC_INDEX 0x3D4
-#define VGA_CRTC_DATA 0x3D5
-#define VGA_GC_INDEX 0x3CE
-#define VGA_GC_DATA 0x3CF
-#define VGA_AC_INDEX 0x3C0
-#define VGA_AC_WRITE 0x3C0
-#define VGA_AC_READ 0x3C1
+#define VGA_MISC_WRITE  0x3C2
+#define VGA_SEQ_INDEX   0x3C4
+#define VGA_SEQ_DATA    0x3C5
+#define VGA_CRTC_INDEX  0x3D4
+#define VGA_CRTC_DATA   0x3D5
+#define VGA_GC_INDEX    0x3CE
+#define VGA_GC_DATA     0x3CF
+#define VGA_AC_INDEX    0x3C0
+#define VGA_AC_WRITE    0x3C0
+#define VGA_AC_READ     0x3C1
 #define VGA_INSTAT_READ 0x3DA
 
 static void write_regs(const uint8_t* regs, uint16_t count, uint16_t port_index, uint16_t port_data)
 {
-    for (uint16_t i = 0; i < count; i++)
-    {
+    for (uint16_t i = 0; i < count; i++) {
         outb(port_index, i);
         outb(port_data, regs[i]);
     }
@@ -62,8 +61,7 @@ void vga_set_mode_13h(void)
 
     // Write AC registers
     inb(VGA_INSTAT_READ); // Reset flip-flop
-    for (uint8_t i = 0; i < 21; i++)
-    {
+    for (uint8_t i = 0; i < 21; i++) {
         inb(VGA_INSTAT_READ);
         outb(VGA_AC_INDEX, i);
         outb(VGA_AC_WRITE, g_320x200x256[40 + i]);
@@ -112,8 +110,7 @@ void vga_set_mode_text(void)
 
     // Write AC registers
     inb(VGA_INSTAT_READ); // Reset flip-flop
-    for (uint8_t i = 0; i < 21; i++)
-    {
+    for (uint8_t i = 0; i < 21; i++) {
         inb(VGA_INSTAT_READ);
         outb(VGA_AC_INDEX, i);
         outb(VGA_AC_WRITE, g_80x25_text[40 + i]);

@@ -8,7 +8,7 @@
  *		@init - code to run in constructor
  */
 #define DEFINE_CLASS(_name, _type, _exit, _init, _init_args...)                                    \
-    typedef _type class_##_name##_t;                                                               \
+    typedef _type      class_##_name##_t;                                                          \
     static inline void class_##_name##_destructor(_type* p)                                        \
     {                                                                                              \
         _type _T = *p;                                                                             \
