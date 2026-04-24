@@ -162,14 +162,14 @@ file_t* vfs_open(const char* path, int flags, umode_t mode)
     if (res)
         return NULL;
 
-    file_t* file = file_create(vnode, mode, &regular_file_ops);
+    file_t* file = file_create(vnode, mode);
     if (!file) {
         vnode_dec_ref(vnode); // Decrement ref count since we won't use it
         return NULL;
     }
 
-    if (file->f_ops && file->f_ops->open) {
-        if (file->f_ops->open(file) != 0) {
+    if (file->f_vnode && file->f_vnode->v_ops->open) {
+        if (file->f_vnode->v_ops->open(vnode, file)) {
             kfree(file);
             vnode_dec_ref(vnode); // Decrement ref count since we won't use it
             return NULL;

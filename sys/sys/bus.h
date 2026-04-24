@@ -15,4 +15,13 @@ typedef struct bus {
     int (*remove)(struct device* dev);
 } bus_t;
 
+#define DECLARE_BUS(name)                                                                          \
+    extern bus_t bus_##name;                                                                       \
+    int          bus_##name##_enumerate(bus_t* bus);                                               \
+    int          bus_##name##_match(struct device* dev, struct driver* drv);                       \
+    int          bus_##name##_probe(struct device* dev, struct driver* drv);                       \
+    int          bus_##name##_remove(struct device* dev);
+
+DECLARE_BUS(none);
+
 #endif // SYS_BUS_H

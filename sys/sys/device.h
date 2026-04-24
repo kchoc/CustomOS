@@ -42,8 +42,8 @@ typedef struct driver {
 } driver_t;
 
 typedef struct device_ops {
-    int (*read)(device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer);
-    int (*write)(device_t* bdev, uint64_t lba, uint32_t count, const uint8_t* data);
+    int (*read)(device_t* dev, uint64_t offset, uint32_t size, uint8_t* buffer);
+    int (*write)(device_t* dev, uint64_t offset, uint32_t size, const uint8_t* data);
 } device_ops_t;
 
 typedef struct partition {
@@ -52,7 +52,17 @@ typedef struct partition {
     uint32_t block_size;
 } partition_t;
 
+#define DECLARE_DEVICE_TYPE(name)                                                                  \
+    extern device_ops_t name##_ops;                                                                \
+    extern driver_t     name##_driver;                                                             \
+    int                 name##_probe(device_t* dev);                                               \
+    int                 name##_read(device_t*, uint64_t, uint32_t, uint8_t*);                      \
+    int                 name##_write(device_t*, uint64_t, uint32_t, const uint8_t*);
+
+int device_misc_create(driver_t* driver, device_ops_t* ops, device_t** out_dev);
 int device_register(device_t* dev);
 int register_block_device(device_t* bdev);
+
+int driver_register(driver_t* driver);
 
 #endif // SYS_DEVICE_H

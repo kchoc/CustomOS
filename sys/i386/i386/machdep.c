@@ -4,6 +4,7 @@
 #include "rsd.h"
 
 #include <dev/pci/pci.h>
+#include <dev/vga/vga.h>
 
 #include <sys/pcpu.h>
 
@@ -90,6 +91,7 @@ void init386(void)
 
     printf("PCI Enumeration:\n");
     pci_bus.enumerate(&pci_bus);
+    vga_init();
 
     vfs_list_devices();
 
