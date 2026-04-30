@@ -43,6 +43,8 @@ int device_misc_create(driver_t* driver, device_ops_t* ops, device_t** out_dev)
     dev->ops      = ops;
     dev->driver   = driver;
 
+    driver->probe(dev); // Let the driver initialize any ops_data it needs
+
     *out_dev = dev;
     return 0; // Success
 }

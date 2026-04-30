@@ -23,33 +23,33 @@ fd_table_t* fd_table_create(void)
         return NULL;
 
     memset(table, 0, sizeof(fd_table_t));
-    // file_t* stdin  = vfs_open("/dev/console", FMODE_READ, 0);
-    // file_t* stdout = vfs_open("/dev/console", FMODE_WRITE, 0);
-    // file_t* stderr = vfs_open("/dev/console", FMODE_WRITE, 0);
+    file_t* stdin  = vfs_open("/dev/tty0", FMODE_READ, 0);
+    file_t* stdout = vfs_open("/dev/tty0", FMODE_WRITE, 0);
+    file_t* stderr = vfs_open("/dev/tty0", FMODE_WRITE, 0);
 
-    // if (stdin) {
-    //     table->fds[0]            = kmalloc(sizeof(fd_entry_t));
-    //     table->fds[0]->file      = stdin;
-    //     table->fds[0]->flags     = FMODE_READ;
-    //     table->fds[0]->ref_count = 1;
-    //     stdin->ref_count++;
-    // }
-    //
-    // if (stdout) {
-    //     table->fds[1]            = kmalloc(sizeof(fd_entry_t));
-    //     table->fds[1]->file      = stdout;
-    //     table->fds[1]->flags     = FMODE_WRITE;
-    //     table->fds[1]->ref_count = 1;
-    //     stdout->ref_count++;
-    // }
-    //
-    // if (stderr) {
-    //     table->fds[2]            = kmalloc(sizeof(fd_entry_t));
-    //     table->fds[2]->file      = stderr;
-    //     table->fds[2]->flags     = FMODE_WRITE;
-    //     table->fds[2]->ref_count = 1;
-    //     stderr->ref_count++;
-    // }
+    if (stdin) {
+        table->fds[0]            = kmalloc(sizeof(fd_entry_t));
+        table->fds[0]->file      = stdin;
+        table->fds[0]->flags     = FMODE_READ;
+        table->fds[0]->ref_count = 1;
+        stdin->ref_count++;
+    }
+
+    if (stdout) {
+        table->fds[1]            = kmalloc(sizeof(fd_entry_t));
+        table->fds[1]->file      = stdout;
+        table->fds[1]->flags     = FMODE_WRITE;
+        table->fds[1]->ref_count = 1;
+        stdout->ref_count++;
+    }
+
+    if (stderr) {
+        table->fds[2]            = kmalloc(sizeof(fd_entry_t));
+        table->fds[2]->file      = stderr;
+        table->fds[2]->flags     = FMODE_WRITE;
+        table->fds[2]->ref_count = 1;
+        stderr->ref_count++;
+    }
 
     table->next_fd = 3; // Start after stdin, stdout, stderr
 

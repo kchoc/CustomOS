@@ -9,12 +9,21 @@
 #define SEEK_CUR 1
 #define SEEK_END 2
 
+typedef struct file_ops {
+  ssize_t (*read)(file_t* file, void* buf, size_t count);
+  ssize_t (*write)(file_t* file, const void* buf, size_t count);
+  int     (*ioctl)(file_t* file, int cmd, void* arg);
+  int     (*close)(file_t* file);
+  int     (*seek)(file_t* file, loff_t offset, int whence); 
+} file_ops_t;
+
 typedef struct file {
-    vnode_t* f_vnode;
-    fmode_t  f_mode;
-    loff_t   f_pos;
-    int      ref_count;
-    void* private; // For filesystem-specific data
+  file_ops_t* f_ops;
+  vnode_t* f_vnode;
+  fmode_t  f_mode;
+  loff_t   f_pos;
+  int      ref_count;
+  void* private; // For filesystem-specific data
 } file_t;
 
 void file_inc_ref(file_t* file);

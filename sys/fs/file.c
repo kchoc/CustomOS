@@ -31,6 +31,10 @@ file_t* file_create(vnode_t* vnode, fmode_t mode)
     file->f_mode    = mode;
     file->f_pos     = 0;
     file->ref_count = 1;
+    file->f_ops     = NULL;
+    file->private   = NULL;
+
+    vnode_inc_ref(vnode); // Increment ref count for the vnode since the file will hold a reference
 
     return file;
 }
@@ -40,9 +44,13 @@ void file_destroy(file_t* file)
     if (!file)
         return;
 
-    // Call release operation if provided
-    if (file->f_vnode && file->f_vnode->v_ops && file->f_vnode->v_ops->close)
+    if (file->f_ops && file->f_ops->close)
+        file->f_ops->close(file);
+    else if (file->f_vnode && file->f_vnode->v_ops && file->f_vnode->v_ops->close)
         file->f_vnode->v_ops->close(file->f_vnode);
+
+    if (file->f_vnode)
+        vnode_dec_ref(file->f_vnode);
 
     kfree(file);
 }

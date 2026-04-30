@@ -42,8 +42,11 @@ typedef struct driver {
 } driver_t;
 
 typedef struct device_ops {
+    int (*open)(device_t* dev);
     int (*read)(device_t* dev, uint64_t offset, uint32_t size, uint8_t* buffer);
     int (*write)(device_t* dev, uint64_t offset, uint32_t size, const uint8_t* data);
+    int (*ioctl)(device_t* dev, int cmd, void* arg);
+    int (*close)(device_t* dev);
 } device_ops_t;
 
 typedef struct partition {
@@ -56,8 +59,11 @@ typedef struct partition {
     extern device_ops_t name##_ops;                                                                \
     extern driver_t     name##_driver;                                                             \
     int                 name##_probe(device_t* dev);                                               \
+    int                 name##_open(device_t*);                                                    \
     int                 name##_read(device_t*, uint64_t, uint32_t, uint8_t*);                      \
-    int                 name##_write(device_t*, uint64_t, uint32_t, const uint8_t*);
+    int                 name##_write(device_t*, uint64_t, uint32_t, const uint8_t*);               \
+    int                 name##_ioctl(device_t*, int, void*);                                       \
+    int                 name##_close(device_t*);
 
 int device_misc_create(driver_t* driver, device_ops_t* ops, device_t** out_dev);
 int device_register(device_t* dev);

@@ -23,6 +23,7 @@ int execve(const char* path, char* const argv[], char* const envp[])
     const char* extension = strrchr(path, '.');
     if (!extension || strcmp(extension, ".elf") != 0)
         return -ENOEXEC;
+
     file_t* file = vfs_open(path, 0, 0);
     if (!file)
         return -ENOENT;

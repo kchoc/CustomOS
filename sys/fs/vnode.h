@@ -36,10 +36,11 @@ typedef int (*rename_fn)(struct vnode* old_dir, const char* old_name, struct vno
 typedef int (*mkdir_fn)(struct vnode* dir, const char* name, vmode_t mode);
 typedef int (*rmdir_fn)(struct vnode* dir, const char* name);
 typedef int (*readdir_fn)(struct vnode* dir, void* buf, size_t size, size_t offset);
-typedef int (*open_fn)(struct vnode* node, fmode_t mode);
+typedef int (*open_fn)(struct vnode* node, file_t* file);
 typedef int (*close_fn)(struct vnode* node);
 typedef int (*read_fn)(struct vnode* node, void* buf, size_t size, size_t offset);
 typedef int (*write_fn)(struct vnode* node, const void* buf, size_t size, size_t offset);
+typedef int (*ioctl_fn)(struct vnode* node, int cmd, void* arg);
 typedef int (*getattr_fn)(struct vnode* node, stat_t* st);
 typedef int (*setattr_fn)(struct vnode* node, const stat_t* st);
 typedef int (*truncate_fn)(struct vnode* node, size_t size);
@@ -64,6 +65,7 @@ typedef struct vnode_ops {
     close_fn    close;
     read_fn     read;
     write_fn    write;
+    ioctl_fn    ioctl;
     getattr_fn  getattr;
     setattr_fn  setattr;
     truncate_fn truncate;
@@ -87,10 +89,11 @@ typedef struct vnode_ops {
     int fs_name##_vnode_mkdir(struct vnode* dir, const char* name, vmode_t mode);                  \
     int fs_name##_vnode_rmdir(struct vnode* dir, const char* name);                                \
     int fs_name##_vnode_readdir(struct vnode* dir, void* buf, size_t size, size_t offset);         \
-    int fs_name##_vnode_open(struct vnode* node, fmode_t mode);                                    \
+    int fs_name##_vnode_open(struct vnode* node, file_t* file);                                    \
     int fs_name##_vnode_close(struct vnode* node);                                                 \
     int fs_name##_vnode_read(struct vnode* node, void* buf, size_t size, size_t offset);           \
     int fs_name##_vnode_write(struct vnode* node, const void* buf, size_t size, size_t offset);    \
+    int fs_name##_vnode_ioctl(struct vnode* node, int cmd, void* arg);                             \
     int fs_name##_vnode_getattr(struct vnode* node, stat_t* st);                                   \
     int fs_name##_vnode_setattr(struct vnode* node, const stat_t* st);                             \
     int fs_name##_vnode_truncate(struct vnode* node, size_t size);                                 \

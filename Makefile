@@ -29,6 +29,7 @@ gdb: $(IMAGE)
 clean:
 	rm -rf $(BUILDDIR)
 	@mkdir -p $(BUILDDIR)
+	@mkdir -p $(BUILDDIR)/boot
 	touch $(IMAGE)
 
 -include $(shell find $(BUILDDIR) -name '*.d' 2>/dev/null)

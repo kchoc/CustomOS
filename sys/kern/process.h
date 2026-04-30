@@ -67,6 +67,8 @@ void      tasking_init();
 thread_t* create_kernel_thread(void (*entry)(void), proc_t* p, uint32_t priority, pcpu_t* pcpu);
 thread_t* create_user_thread(void (*entry)(void), proc_t* p, uint32_t priority, pcpu_t* pcpu);
 proc_t*   create_process(const char* name);
+proc_t*   fork_process(thread_t* t, int flags, proc_t** child_out);
+void      yield();
 pcpu_t*   select_pcpu();
 void      schedule_from_irq(registers_t* regs);
 void      thread_exit(registers_t* regs);

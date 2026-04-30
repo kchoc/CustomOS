@@ -25,7 +25,7 @@ int devfs_init()
     return dev_mount->mnt_ops->mount(dev_mount, NULL);
 }
 
-int devfs_lookup(vnode_t* dir, const char* name, vnode_t** result)
+int devfs_vnode_lookup(vnode_t* dir, const char* name, vnode_t** result)
 {
     if (!dir || !name || !result)
         return -EINVAL;
@@ -65,7 +65,7 @@ int devfs_lookup(vnode_t* dir, const char* name, vnode_t** result)
  * For faster access the vnode data is temporarily set to the devfs_device_t structure, but this
  * should be updated by the caller to point to the actual device structure (e.g., block_device_t or
  * char_device_t) after creation. */
-int devfs_create(vnode_t* dir, const char* name, enum vnode_type type, vnode_t** result)
+int devfs_vnode_create(vnode_t* dir, const char* name, enum vnode_type type, vnode_t** result)
 {
     if (!dir || !name || !result)
         return -EINVAL;
@@ -129,7 +129,7 @@ found_slot:
     return 0;
 }
 
-int devfs_unlink(vnode_t* dir, const char* name)
+int devfs_vnode_unlink(vnode_t* dir, const char* name)
 {
     if (!dir || !name)
         return -EINVAL;
@@ -158,7 +158,7 @@ int devfs_unlink(vnode_t* dir, const char* name)
     return -ENOENT; // Not found
 }
 
-int devfs_readdir(vnode_t* dir, void* buf, size_t size, size_t offset)
+int devfs_vnode_readdir(vnode_t* dir, void* buf, size_t size, size_t offset)
 {
     if (!dir || !buf)
         return -EINVAL;
@@ -192,7 +192,82 @@ int devfs_readdir(vnode_t* dir, void* buf, size_t size, size_t offset)
     return bytes_written; // Return the total bytes written to the buffer
 }
 
-int devfs_reclaim(vnode_t* vnode)
+int devfs_vnode_open(vnode_t* vnode, file_t* file) {
+    if (!vnode)
+        return -EINVAL;
+
+    devfs_device_t* dev = (devfs_device_t*)vnode->v_data;
+    if (!dev)
+        return -EINVAL;
+
+    device_t* device = (device_t*)dev->device;
+    if (!device || !device->ops || !device->ops->open)
+        return -ENODEV;
+
+    return device->ops->open(device);
+}
+
+int devfs_vnode_close(vnode_t* vnode) {
+    if (!vnode)
+        return -EINVAL;
+
+    devfs_device_t* dev = (devfs_device_t*)vnode->v_data;
+    if (!dev)
+        return -EINVAL;
+
+    device_t* device = (device_t*)dev->device;
+    if (!device || !device->ops || !device->ops->close)
+        return -ENODEV;
+
+    return device->ops->close(device);
+}
+
+int devfs_vnode_read(vnode_t* vnode, void* buf, size_t size, size_t offset) {
+    if (!vnode || !buf)
+        return -EINVAL;
+
+    devfs_device_t* dev = (devfs_device_t*)vnode->v_data;
+    if (!dev)
+        return -EINVAL;
+
+    device_t* device = (device_t*)dev->device;
+    if (!device || !device->ops || !device->ops->read)
+        return -ENODEV;
+
+    return device->ops->read(device, offset, size, buf);
+}
+
+int devfs_vnode_write(vnode_t* vnode, const void* buf, size_t size, size_t offset) {
+    if (!vnode || !buf)
+        return -EINVAL;
+
+    devfs_device_t* dev = (devfs_device_t*)vnode->v_data;
+    if (!dev)
+        return -EINVAL;
+
+    device_t* device = (device_t*)dev->device;
+    if (!device || !device->ops || !device->ops->write)
+        return -ENODEV;
+
+    return device->ops->write(device, offset, size, buf);
+}
+
+int devfs_vnode_ioctl(vnode_t* vnode, int cmd, void* arg) {
+    if (!vnode)
+        return -EINVAL;
+
+    devfs_device_t* dev = (devfs_device_t*)vnode->v_data;
+    if (!dev)
+        return -EINVAL;
+
+    device_t* device = (device_t*)dev->device;
+    if (!device || !device->ops || !device->ops->ioctl)
+        return -ENODEV;
+
+    return device->ops->ioctl(device, cmd, arg);
+}
+
+int devfs_vnode_reclaim(vnode_t* vnode)
 {
     vnode->v_data = NULL; // Clear the data pointer, but do not free it since it may be shared with
                           // other vnodes (e.g., multiple references to the same device)
@@ -200,24 +275,25 @@ int devfs_reclaim(vnode_t* vnode)
     return 0;
 }
 
-int devfs_inactive(vnode_t* vnode)
+int devfs_vnode_inactive(vnode_t* vnode)
 {
     // No special action needed for inactive vnodes in this implementation
     return 0;
 }
 
-vnode_ops_t devfs_vnode_ops = {.lookup   = devfs_lookup,
-                               .create   = devfs_create,
+vnode_ops_t devfs_vnode_ops = {.lookup   = devfs_vnode_lookup,
+                               .create   = devfs_vnode_create,
                                .link     = DISALLOWED_OP,
-                               .unlink   = devfs_unlink,
+                               .unlink   = devfs_vnode_unlink,
                                .rename   = DISALLOWED_OP,
                                .mkdir    = DISALLOWED_OP,
                                .rmdir    = DISALLOWED_OP,
-                               .readdir  = devfs_readdir,
-                               .open     = DISALLOWED_OP,
-                               .close    = DISALLOWED_OP,
-                               .read     = DISALLOWED_OP,
-                               .write    = DISALLOWED_OP,
+                               .readdir  = devfs_vnode_readdir,
+                               .open     = devfs_vnode_open,
+                               .close    = devfs_vnode_close,
+                               .read     = devfs_vnode_read,
+                               .write    = devfs_vnode_write,
+                               .ioctl    = devfs_vnode_ioctl,
                                .getattr  = DISALLOWED_OP,
                                .setattr  = DISALLOWED_OP,
                                .truncate = DISALLOWED_OP,
@@ -226,5 +302,5 @@ vnode_ops_t devfs_vnode_ops = {.lookup   = devfs_lookup,
                                .readlink = DISALLOWED_OP,
                                .mknod    = DISALLOWED_OP,
                                .fsync    = DISALLOWED_OP,
-                               .inactive = devfs_inactive,
-                               .reclaim  = devfs_reclaim};
+                               .inactive = devfs_vnode_inactive,
+                               .reclaim  = devfs_vnode_reclaim};

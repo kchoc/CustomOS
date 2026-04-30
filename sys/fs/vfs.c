@@ -87,7 +87,9 @@ void vfs_list_devices(void)
     }
 }
 
-/* --Drive Mount Management -- */
+/* ==================
+   VFS INITIALIZATION
+   ================== */
 
 int vfs_init(void)
 {
@@ -163,15 +165,13 @@ file_t* vfs_open(const char* path, int flags, umode_t mode)
         return NULL;
 
     file_t* file = file_create(vnode, mode);
-    if (!file) {
-        vnode_dec_ref(vnode); // Decrement ref count since we won't use it
+    vnode_dec_ref(vnode);
+    if (!file)
         return NULL;
-    }
 
-    if (file->f_vnode && file->f_vnode->v_ops->open) {
-        if (file->f_vnode->v_ops->open(vnode, file)) {
-            kfree(file);
-            vnode_dec_ref(vnode); // Decrement ref count since we won't use it
+    if (vnode->v_ops && vnode->v_ops->open) {
+        if (vnode->v_ops->open(vnode, file)) {
+            file_dec_ref(file);
             return NULL;
         }
     }
@@ -184,25 +184,29 @@ void vfs_close(file_t* file)
     if (!file)
         return;
 
-    if (file->f_ops && file->f_ops->close)
-        file->f_ops->close(file);
-
-    vnode_dec_ref(file->f_vnode);
-    kfree(file);
+    file_dec_ref(file);
 }
 
 ssize_t vfs_read(file_t* file, void __user* buf, size_t count, size_t offset)
 {
-    if (!file)
-        return -1;
+    if (!file || !buf)
+        return -EINVAL;
     if (!file->f_ops || !file->f_ops->read)
-        return -1;
+        return -EBADF;
+    if (!(file->f_mode & FMODE_READ))
+        return -EACCES;
 
-    int bytes = file->f_ops->read(file, buf, count, offset ? offset : file->f_pos);
-    if (is_errno(bytes))
-        return bytes;
-    if (offset == 0)
-        file->f_pos += bytes;
+    loff_t pos = offset ? offset : file->f_pos;
+
+    loff_t saved = file->f_pos;
+    file->f_pos = pos;
+
+    int bytes = file->f_ops->read(file, buf, count);
+
+    if (offset == 0 && bytes > 0)
+      ;
+    else
+        file->f_pos = saved; // Restore original position if using offset or if read failed
 
     return bytes;
 }
@@ -210,23 +214,32 @@ ssize_t vfs_read(file_t* file, void __user* buf, size_t count, size_t offset)
 ssize_t vfs_write(file_t* file, const void __user* buf, size_t count, size_t offset)
 {
     if (!file || !buf)
-        return -1;
+        return -EINVAL;
     if (!file->f_ops || !file->f_ops->write)
-        return -1;
+        return -EBADF;
+    if (!(file->f_mode & FMODE_WRITE))
+        return -EACCES;
 
-    return file->f_ops->write(file, buf, count, offset);
+    loff_t saved = file->f_pos;
+    if (offset)
+        file->f_pos = offset;
+
+    int bytes = file->f_ops->write(file, buf, count);
+
+    if (offset == 0 && bytes > 0)
+        ;
+    else
+        file->f_pos = saved; // Restore original position if using offset or if write failed
+
+    return bytes;
 }
 
 int vfs_llseek(file_t* file, loff_t offset, int whence)
 {
     if (!file)
         return -1;
-    if (!file->f_ops || !file->f_ops->llseek)
+    if (!file->f_ops || !file->f_ops->seek)
         return -1;
 
-    int res = file->f_ops->llseek(file, offset, whence);
-    if (res == 0) {
-        file->f_pos = offset;
-    }
-    return res;
+    return file->f_ops->seek(file, offset, whence); 
 }

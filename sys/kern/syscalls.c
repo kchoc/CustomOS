@@ -57,6 +57,7 @@ void syscalls_init()
     g_syscalls[SYSCALL_READ_STDIN] = syscall_read_stdin;
 
     // Process Syscalls
+    g_syscalls[SYSCALL_FORK]   = syscall_fork;
     g_syscalls[SYSCALL_EXECVE] = syscall_execve;
     g_syscalls[SYSCALL_EXIT]   = syscall_exit;
 }
@@ -423,36 +424,16 @@ void* syscall_win_getbuf(uint32_t wid, SYSCALL1)
 
 int syscall_read_stdin(char* buffer, int count, SYSCALL1)
 {
-    if (!buffer || count <= 0)
-        return -1;
+    return -1;
+}
 
-    int read_count = 0;
+int syscall_fork(SYSCALL1)
+{
+    proc_t* child;
+    int res = fork_process(PCPU_GET(current_thread), 0, child);
+    if (res) return res;
 
-    // Read available characters up to count
-    while (read_count < count && keyboard_has_input()) {
-        char c = keyboard_getchar();
-        if (c == 0)
-            break;
-        buffer[read_count++] = c;
-    }
-
-    // If nothing available, block properly (Linux-style wait queue)
-    if (read_count == 0) {
-        // Block this thread on the stdin wait queue
-        // The keyboard interrupt will wake us up when input arrives
-        block_current_thread(get_stdin_wait_queue());
-
-        // When we wake up, input should be available
-        if (keyboard_has_input()) {
-            char c = keyboard_getchar();
-            if (c != 0) {
-                buffer[0]  = c;
-                read_count = 1;
-            }
-        }
-    }
-
-    return read_count;
+    return child->pid; // Return child's PID to parent, 0 to child
 }
 
 int syscall_execve(const char* path, char* const argv[], char* const envp[], SYSCALL2)

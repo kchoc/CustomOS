@@ -61,6 +61,10 @@ void isr_keyboard_handler(registers_t* regs)
 
     // Send an EOI to the LAPIC
     lapic_write(LAPIC_EOI, 0);
+
+    // Send an EOI to the PIC
+    outb(0x20, 0x20); // Send EOI to PIC1 
+    outb(0xA0, 0x20); // Send EOI to PIC2
 }
 
 // The page fault ISR handler

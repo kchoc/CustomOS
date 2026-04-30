@@ -7,6 +7,7 @@
 #include <dev/vga/vga.h>
 
 #include <sys/pcpu.h>
+#include <sys/tty.h>
 
 #include <fs/sockfs.h>
 #include <fs/vfs.h>
@@ -81,21 +82,22 @@ void init386(void)
 
     lapic_init();
     pcpu_init(0);
-
-    tasking_init();
-
-    asm volatile("sti"); // Enable interrupts
-    printf("Interrupts enabled.\n");
-
+ 
     vfs_init();
 
     printf("PCI Enumeration:\n");
     pci_bus.enumerate(&pci_bus);
+    tty_init(); 
     vga_init();
 
     vfs_list_devices();
 
     printf("i386 architecture initialization complete.\n");
+
+    tasking_init();
+
+    asm volatile("sti"); // Enable interrupts
+    printf("Interrupts enabled.\n");
 
     system_init();
 

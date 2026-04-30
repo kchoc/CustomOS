@@ -79,6 +79,9 @@ void* syscall_win_getbuf(uint32_t wid, SYSCALL1);
 /* Input syscalls */
 int syscall_read_stdin(char* buffer, int count, SYSCALL1);
 
+/* Process syscalls */
+int syscall_fork(SYSCALL1);
+
 /* Exec syscall */
 int syscall_execve(const char* path, char* const argv[], char* const envp[], SYSCALL2);
 

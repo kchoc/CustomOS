@@ -44,14 +44,31 @@ typedef enum {
     ECHO   = 0x0004, // Enable echo
     ECHOE  = 0x0008, // Echo erase character as BS-SP-BS
     ECHOK  = 0x0010, // Echo KILL character by erasing current line
+    IEXTEN = 0x0020, // Enable extended input processing
 } c_lflag_t;
+
+typedef enum {
+    VEOF   = 0,  // End-of-file character 
+    VEOL   = 1,  // End-of-line character
+    VERASE = 2,  // Erase character
+    VINTR  = 3,  // Interrupt character
+    VIKILL = 4,  // Kill-line character
+    VMIN   = 5,  // Minimum number of characters for non-canonical read
+    VQUIT  = 6,  // Quit character
+    VSTART  = 7, // Start character
+    VSTOP   = 8, // Stop character
+    VSUSP   = 9, // Suspend character 
+    VTIME   = 10, // Timeout in deciseconds for non-canonical read
+    VWERASE = 11, // Word erase character
+    NCCS    = 32  // Size of c_cc array
+} cc_index_t;
 
 typedef struct termios {
     c_iflag_t c_iflag;  // Input modes
     c_oflag_t c_oflag;  // Output modes
     c_cflag_t c_cflag;  // Control modes
     c_lflag_t c_lflag;  // Local modes
-    uint8_t   c_cc[32]; // Control characters
+    uint8_t   c_cc[NCCS]; // Control characters
 } termios_t;
 
 #endif // SYS_TERMIOS_H

@@ -1,6 +1,6 @@
 #include "keyboard.h"
 
-#include <dev/video/vga.h>
+#include <sys/tty.h>
 
 #include <kern/panic.h>
 #include <kern/process.h>
@@ -104,17 +104,14 @@ static const char keyboard_shift_map[128] = {
 // Key state bitmask
 static uint8_t shift = 0;
 static uint8_t ctrl  = 0;
-
 static uint64_t keys[2] = {0};
 
-// Keyboard input circular buffer
-#define KBD_BUFFER_SIZE 256
-static char         kbd_buffer[KBD_BUFFER_SIZE];
-static volatile int kbd_read_pos  = 0;
-static volatile int kbd_write_pos = 0;
+static tty_t* active_tty = NULL;
 
-// Wait queue for processes blocked on stdin
-static list_t stdin_wait_queue = {0};
+void keyboard_set_active_tty(tty_t* tty)
+{
+    active_tty = tty;
+}
 
 // Convert scancode to ASCII, considering modifiers
 char scancode_to_ascii(uint8_t scancode)
@@ -124,9 +121,10 @@ char scancode_to_ascii(uint8_t scancode)
 
     char base = (shift ? keyboard_shift_map : keyboard_map)[scancode];
 
-    // Optionally, handle Ctrl combinations
     if (ctrl && base >= 'a' && base <= 'z')
         return base - 'a' + 1; // Ctrl+A = 0x01, Ctrl+B = 0x02, etc.
+    if (ctrl && base >= 'A' && base <= 'Z')
+        return base - 'A' + 1; // Ctrl+A = 0x01, Ctrl+B = 0x02, etc.
 
     return base;
 }
@@ -149,53 +147,24 @@ void handle_keypress(uint8_t scancode)
         ctrl = !is_release;
         return;
     case 0x01: // ESC key
-        if (!is_release) {
-            vga_set_mode_text();
-        }
+        if (!is_release && active_tty)
+            tty_input(active_tty, 0x1B, 0); // Send ESC character to active TTY
         return;
     }
 
     if (is_release)
         return; // Ignore key releases for characters
 
-    if (hasPanicOccurred)
+    if (hasPanicOccurred) {
         reboot_system();
+        return;
+    }
+
     char c = scancode_to_ascii(scancode);
 
     // Add to keyboard buffer
-    if (c != 0) {
-        int next_pos = (kbd_write_pos + 1) % KBD_BUFFER_SIZE;
-        if (next_pos != kbd_read_pos) { // Don't overflow
-            kbd_buffer[kbd_write_pos] = c;
-            kbd_write_pos             = next_pos;
-
-            // Wake up any tasks blocked on stdin
-            wake_up_queue(&stdin_wait_queue);
-        }
+    if (c != 0 && active_tty) {
+        tty_input(active_tty, c, 0);
     }
-
-    terminal_input(scancode, c);
 }
 
-// Check if keyboard buffer has input
-int keyboard_has_input(void)
-{
-    return kbd_read_pos != kbd_write_pos;
-}
-
-// Get a character from keyboard buffer (non-blocking, returns 0 if empty)
-char keyboard_getchar(void)
-{
-    if (kbd_read_pos == kbd_write_pos) {
-        return 0;
-    }
-    char c       = kbd_buffer[kbd_read_pos];
-    kbd_read_pos = (kbd_read_pos + 1) % KBD_BUFFER_SIZE;
-    return c;
-}
-
-// Get the stdin wait queue (for blocking operations)
-list_t* get_stdin_wait_queue(void)
-{
-    return &stdin_wait_queue;
-}

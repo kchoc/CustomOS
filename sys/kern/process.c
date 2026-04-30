@@ -306,6 +306,11 @@ void thread_exit(registers_t* regs)
           "happen!");
 }
 
+void yield()
+{
+    asm volatile("int $0x40" : : "a"(0)); // Trigger scheduler interrupt (vector 64)
+}
+
 void schedule_from_irq(registers_t* regs)
 {
     pcpu_t* pcpu = get_pcpu();

@@ -13,12 +13,12 @@
 
 int load_elf(const char* filepath, thread_t* thread)
 {
-    file_t* file = vfs_open(filepath, 0, 0);
+    file_t* file = vfs_open(filepath, 0, 0x1);
     if (!file)
         return -1;
 
     Elf32_Ehdr eh;
-    vfs_read(file, (uint8_t*)&eh, sizeof(Elf32_Ehdr), 0);
+    int res = vfs_read(file, (uint8_t*)&eh, sizeof(Elf32_Ehdr), 0);
 
     /* Basic ELF validation */
     if (eh.e_ident[0] != 0x7F || eh.e_ident[1] != 'E' || eh.e_ident[2] != 'L' ||
