@@ -1,6 +1,7 @@
 #include "keyboard.h"
 
 #include <sys/tty.h>
+#include <sys/pcpu.h>
 
 #include <kern/panic.h>
 #include <kern/process.h>
@@ -161,6 +162,9 @@ void handle_keypress(uint8_t scancode)
     }
 
     char c = scancode_to_ascii(scancode);
+
+    if (c == '!')
+        printf("Current thread: %d (%s)\n", PCPU_GET(current_thread)->tid, PCPU_GET(current_thread)->proc->name);
 
     // Add to keyboard buffer
     if (c != 0 && active_tty) {

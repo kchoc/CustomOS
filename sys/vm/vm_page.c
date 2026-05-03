@@ -3,6 +3,8 @@
 #include "vm_object.h"
 #include "vm_phys.h"
 
+#include <kern/errno.h>
+
 #define list_node_to_page(node) ((vm_page_t*)((char*)(node)-offsetof(vm_page_t, node)))
 
 vm_page_t* vm_page_lookup(vm_object_t* obj, size_t offset)
@@ -11,12 +13,22 @@ vm_page_t* vm_page_lookup(vm_object_t* obj, size_t offset)
     list_for_each(node, &obj->pages)
     {
         vm_page_t* page = list_node_to_page(node);
-        if (page->offset == offset) {
+        if ((page->offset & ~(PAGE_SIZE - 1)) == (offset & ~(PAGE_SIZE - 1))) {
             return page;
         }
     }
 
     return NULL;
+}
+
+vm_page_t* vm_page_get_cow_page(vm_object_t* obj, size_t offset)
+{
+    if (obj->shadow == NULL) return ERR_PTR(-EINVAL);
+    
+    vm_page_t* page = vm_page_lookup(obj->shadow, offset);
+    if (page) return page;
+
+    return vm_page_get_cow_page(obj->shadow, offset);
 }
 
 vm_page_t* vm_page_bookmark(vm_object_t* obj, size_t offset, paddr_t phys_addr)

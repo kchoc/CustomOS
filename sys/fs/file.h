@@ -26,6 +26,14 @@ typedef struct file {
   void* private; // For filesystem-specific data
 } file_t;
 
+#define CREATE_FILE_OPS(name) \
+  int name##_file_read(file_t* file, void* buf, size_t count); \
+  int name##_file_write(file_t* file, const void* buf, size_t count); \
+  int name##_file_ioctl(file_t* file, int cmd, void* arg); \
+  int name##_file_close(file_t* file); \
+  int name##_file_seek(file_t* file, loff_t offset, int whence); \
+  extern file_ops_t name##_file_ops;
+
 void file_inc_ref(file_t* file);
 void file_dec_ref(file_t* file);
 

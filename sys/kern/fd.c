@@ -20,38 +20,9 @@ fd_table_t* fd_table_create(void)
 {
     fd_table_t* table = kmalloc(sizeof(fd_table_t));
     if (!table)
-        return NULL;
+        return NULL; 
 
-    memset(table, 0, sizeof(fd_table_t));
-    file_t* stdin  = vfs_open("/dev/tty0", FMODE_READ, 0);
-    file_t* stdout = vfs_open("/dev/tty0", FMODE_WRITE, 0);
-    file_t* stderr = vfs_open("/dev/tty0", FMODE_WRITE, 0);
-
-    if (stdin) {
-        table->fds[0]            = kmalloc(sizeof(fd_entry_t));
-        table->fds[0]->file      = stdin;
-        table->fds[0]->flags     = FMODE_READ;
-        table->fds[0]->ref_count = 1;
-        stdin->ref_count++;
-    }
-
-    if (stdout) {
-        table->fds[1]            = kmalloc(sizeof(fd_entry_t));
-        table->fds[1]->file      = stdout;
-        table->fds[1]->flags     = FMODE_WRITE;
-        table->fds[1]->ref_count = 1;
-        stdout->ref_count++;
-    }
-
-    if (stderr) {
-        table->fds[2]            = kmalloc(sizeof(fd_entry_t));
-        table->fds[2]->file      = stderr;
-        table->fds[2]->flags     = FMODE_WRITE;
-        table->fds[2]->ref_count = 1;
-        stderr->ref_count++;
-    }
-
-    table->next_fd = 3; // Start after stdin, stdout, stderr
+    table->next_fd = 0;
 
     return table;
 }
@@ -93,6 +64,7 @@ fd_table_t* fd_table_fork(fd_table_t* src)
 {
     if (!src)
         return NULL;
+
 
     fd_table_t* table = fd_table_create();
     if (!table)
@@ -178,7 +150,6 @@ file_t* fd_get_file(proc_t* proc, int fd)
         return NULL;
     if (fd < 0 || fd >= MAX_FDS)
         return NULL;
-
     fd_entry_t* entry = proc->fd_table->fds[fd];
     if (!entry)
         return NULL;
@@ -301,21 +272,38 @@ int fd_init_stdio(proc_t* proc)
     if (!proc || !proc->fd_table)
         return -1;
 
-    // For now, stdin/stdout/stderr are NULL (no terminal file yet)
-    // This should be set up to point to a terminal device or console
-    // We'll just create placeholder entries
+    fd_table_t* table = proc->fd_table;
 
-    for (int i = 0; i < 3; i++) {
-        fd_entry_t* entry = kmalloc(sizeof(fd_entry_t));
-        if (!entry)
-            return -1;
+    memset(table, 0, sizeof(fd_table_t));
+    file_t* stdin  = vfs_open("/dev/tty0", 0, FMODE_READ);
+    file_t* stdout = vfs_open("/dev/tty0", 0, FMODE_WRITE);
+    file_t* stderr = vfs_open("/dev/tty0", 0, FMODE_WRITE);
 
-        entry->file      = NULL; // TODO: Set to actual console/terminal device
-        entry->flags     = 0;
-        entry->ref_count = 1;
-
-        proc->fd_table->fds[i] = entry;
+    if (stdin) {
+        table->fds[0]            = kmalloc(sizeof(fd_entry_t));
+        table->fds[0]->file      = stdin;
+        table->fds[0]->flags     = FMODE_READ;
+        table->fds[0]->ref_count = 1;
+        stdin->ref_count++;
     }
+
+    if (stdout) {
+        table->fds[1]            = kmalloc(sizeof(fd_entry_t));
+        table->fds[1]->file      = stdout;
+        table->fds[1]->flags     = FMODE_WRITE;
+        table->fds[1]->ref_count = 1;
+        stdout->ref_count++;
+    }
+
+    if (stderr) {
+        table->fds[2]            = kmalloc(sizeof(fd_entry_t));
+        table->fds[2]->file      = stderr;
+        table->fds[2]->flags     = FMODE_WRITE;
+        table->fds[2]->ref_count = 1;
+        stderr->ref_count++;
+    }
+
+    table->next_fd = 3; // Start after stdin, stdout, stderr
 
     return 0;
 }

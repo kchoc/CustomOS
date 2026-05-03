@@ -5,12 +5,12 @@
 #include <stdint.h>
 
 // Syscall numbers (must match kernel definitions)
-#define SYSCALL_EXIT        0
-#define SYSCALL_PRINT       1
-#define SYSCALL_OPEN        2
-#define SYSCALL_CLOSE       3
-#define SYSCALL_READ        4
-#define SYSCALL_WRITE       5
+#define SYSCALL_EXIT        1
+#define SYSCALL_FORK        2
+#define SYSCALL_READ        3
+#define SYSCALL_WRITE       4
+#define SYSCALL_OPEN        5
+#define SYSCALL_CLOSE       6
 #define SYSCALL_SOCKET      6
 #define SYSCALL_CONNECT     7
 #define SYSCALL_LISTEN      8
@@ -24,6 +24,9 @@
 #define SYSCALL_WIN_UPDATE  16
 #define SYSCALL_WIN_GETBUF  17
 #define SYSCALL_READ_STDIN  18
+
+#define SYSCALL_PRINT       100
+#define SYSCALL_EXECVE       59
 
 // Memory mapping flags
 #define MMAP_FRAMEBUFFER 0x1
@@ -158,6 +161,16 @@ static inline void* win_getbuf(int wid)
 static inline int read_stdin(char* buffer, int count)
 {
     return (int)syscall(SYSCALL_READ_STDIN, (uint32_t)buffer, count, 0, 0, 0);
+}
+
+static inline int fork()
+{
+    return syscall(SYSCALL_FORK, 0, 0, 0, 0, 0);
+}
+
+static inline int execve(const char* path, char* const argv[], char* const envp[])
+{
+    return syscall(SYSCALL_EXECVE, (uint32_t)path, (uint32_t)argv, (uint32_t)envp, 0, 0);
 }
 
 #endif // USER_SYSCALLS_H

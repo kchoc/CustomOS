@@ -1,5 +1,6 @@
 #include "vnode.h"
 #include "mount.h"
+#include "file.h"
 
 #include <fs/mount.h>
 #include <fs/vnode.h>
@@ -118,7 +119,7 @@ found_slot:
         return res;
     }
 
-    dev->vnode->v_ops  = NULL;
+    dev->vnode->v_ops  = &devfs_vnode_ops;
     dev->vnode->v_data = dev;
     dev->vnode->v_type = type;
 
@@ -196,75 +197,72 @@ int devfs_vnode_open(vnode_t* vnode, file_t* file) {
     if (!vnode)
         return -EINVAL;
 
-    devfs_device_t* dev = (devfs_device_t*)vnode->v_data;
+    device_t* dev = (device_t*)vnode->v_data;
     if (!dev)
         return -EINVAL;
 
-    device_t* device = (device_t*)dev->device;
-    if (!device || !device->ops || !device->ops->open)
+    if (!dev->ops || !dev->ops->open)
         return -ENODEV;
 
-    return device->ops->open(device);
+    file->f_ops = &devfs_file_ops; // Set the file operations for this file to the devfs file ops
+
+    return dev->ops->open(dev);
 }
 
 int devfs_vnode_close(vnode_t* vnode) {
     if (!vnode)
         return -EINVAL;
 
-    devfs_device_t* dev = (devfs_device_t*)vnode->v_data;
+    device_t* dev = (device_t*)vnode->v_data;
     if (!dev)
         return -EINVAL;
 
-    device_t* device = (device_t*)dev->device;
-    if (!device || !device->ops || !device->ops->close)
+    if (!dev->ops || !dev->ops->close)
         return -ENODEV;
 
-    return device->ops->close(device);
+    return dev->ops->close(dev);
 }
 
 int devfs_vnode_read(vnode_t* vnode, void* buf, size_t size, size_t offset) {
     if (!vnode || !buf)
         return -EINVAL;
 
-    devfs_device_t* dev = (devfs_device_t*)vnode->v_data;
+    device_t* dev = (device_t*)vnode->v_data;
     if (!dev)
         return -EINVAL;
 
-    device_t* device = (device_t*)dev->device;
-    if (!device || !device->ops || !device->ops->read)
+    if (!dev->ops || !dev->ops->read)
         return -ENODEV;
 
-    return device->ops->read(device, offset, size, buf);
+    return dev->ops->read(dev, offset, size, buf);
 }
 
 int devfs_vnode_write(vnode_t* vnode, const void* buf, size_t size, size_t offset) {
     if (!vnode || !buf)
         return -EINVAL;
 
-    devfs_device_t* dev = (devfs_device_t*)vnode->v_data;
+    device_t* dev = (device_t*)vnode->v_data;
     if (!dev)
         return -EINVAL;
 
-    device_t* device = (device_t*)dev->device;
-    if (!device || !device->ops || !device->ops->write)
+    if (!dev->ops || !dev->ops->write)
         return -ENODEV;
 
-    return device->ops->write(device, offset, size, buf);
+    return dev->ops->write(dev, offset, size, buf);
 }
 
 int devfs_vnode_ioctl(vnode_t* vnode, int cmd, void* arg) {
     if (!vnode)
         return -EINVAL;
 
-    devfs_device_t* dev = (devfs_device_t*)vnode->v_data;
+    device_t* dev = (device_t*)vnode->v_data; 
     if (!dev)
         return -EINVAL;
 
-    device_t* device = (device_t*)dev->device;
-    if (!device || !device->ops || !device->ops->ioctl)
+    if (!dev->ops || !dev->ops->ioctl)
         return -ENODEV;
 
-    return device->ops->ioctl(device, cmd, arg);
+    return dev->ops->ioctl(dev, cmd, arg);
 }
 
 int devfs_vnode_reclaim(vnode_t* vnode)

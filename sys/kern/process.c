@@ -11,6 +11,8 @@
 
 #include <machine/gdt.h>
 
+#include <kern/errno.h>
+
 #include <list.h>
 #include <string.h>
 
@@ -106,13 +108,10 @@ thread_t* create_kernel_thread(void (*entry)(void), proc_t* p, uint32_t priority
     return t;
 }
 
-thread_t* create_user_thread(void (*entry)(void), proc_t* p, uint32_t priority, pcpu_t* pcpu)
+thread_t* create_user_thread(void (*entry)(void), proc_t* p, uint32_t priority, pcpu_t* pcpu, void* user_stack_top)
 {
     if (!p)
         return NULL;
-
-    vm_map_anon(p->vmspace, &user_stack_bottom, STACK_SIZE,
-                VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER, 0);
 
     thread_t* t = kmalloc(sizeof(thread_t));
     if (!t)
@@ -133,9 +132,46 @@ thread_t* create_user_thread(void (*entry)(void), proc_t* p, uint32_t priority, 
     t->kstack_size = STACK_SIZE;
 
     uint32_t* stk = (uint32_t*)(t->kstack + STACK_SIZE);
-    context_init(t, entry, stk, user_stack_bottom + STACK_SIZE); // Start user stack at the top
+    context_init(t, entry, stk, user_stack_top); // Start user stack at the top
 
     list_push_tail(&p->threads, &t->proc_node);
+    if (!pcpu)
+        pcpu = select_pcpu();
+    list_push_tail(&pcpu->runqueue, &t->node);
+    pcpu->total_priority += priority;
+
+    return t;
+}
+
+thread_t* fork_user_thread(thread_t* parent_thread, proc_t* child_proc, uint32_t priority, pcpu_t* pcpu)
+{
+    if (!parent_thread || !child_proc)
+        return NULL;
+
+    thread_t* t = kmalloc(sizeof(thread_t));
+    if (!t)
+        return NULL;
+    memset(t, 0, sizeof(*t));
+
+    t->tid      = next_tid++;
+    t->state    = TASK_READY;
+    t->priority = priority;
+    t->proc     = child_proc;
+
+    t->kstack = kmalloc(STACK_SIZE);
+    if (!t->kstack) {
+        kfree(t);
+        return NULL;
+    }
+    memset(t->kstack, 0, STACK_SIZE);
+    t->kstack_size = STACK_SIZE;
+
+    uint32_t* stk = (uint32_t*)(t->kstack + STACK_SIZE);
+    // context_init(t, &fork_user_thread, stk, 0xc0000000); // Start user stack at the top
+
+    context_fork(t, parent_thread, stk); // Set up context to start at start_fork with a copy of the parent's trapframe
+
+    list_push_tail(&child_proc->threads, &t->proc_node);
     if (!pcpu)
         pcpu = select_pcpu();
     list_push_tail(&pcpu->runqueue, &t->node);
@@ -176,15 +212,15 @@ proc_t* create_process(const char* name)
     return p;
 }
 
-proc_t* fork_process(thread_t* t, int flags, proc_t** child_out)
+int fork_process(thread_t* t, int flags, proc_t** child_out)
 {
     if (!t || !t->proc)
-        return NULL;
+        return -EINVAL;
 
     proc_t* parent = t->proc;
     proc_t* child  = kmalloc(sizeof(proc_t));
     if (!child)
-        return NULL;
+        return -ENOMEM;
     memset(child, 0, sizeof(*child));
 
     child->pid  = next_pid++;
@@ -199,21 +235,23 @@ proc_t* fork_process(thread_t* t, int flags, proc_t** child_out)
     list_push_tail(&all_processes, &child->node);
 
     // Create a new thread for the child process that starts at the same entry point as the parent
-    thread_t* child_thread = create_user_thread((void*)t->context->eip, child, t->priority, NULL);
+    thread_t* child_thread = fork_user_thread(t, child, t->priority, NULL);
     if (!child_thread) {
         list_remove(&child->node);
         kfree(child);
-        return NULL;
+        return -ENOMEM;
     }
 
     if (child_out)
         *child_out = child;
-    return child;
+
+    return 0;
 }
 
 pcpu_t* select_pcpu()
 {
     pcpu_t* lowest = &pcpus[0];
+    return lowest;
     for (uint32_t i = 1; i < cpu_count; i++) {
         if (pcpus[i].total_priority < lowest->total_priority)
             lowest = &pcpus[i];
@@ -263,23 +301,6 @@ void free_process(proc_t* p)
     kfree(p);
 }
 
-// Reap all zombie threads in the runqueue
-static void reap_zombies(pcpu_t* pcpu)
-{
-    if (!pcpu || !pcpu->runqueue.head)
-        return;
-
-    thread_t* t = (thread_t*)pcpu->runqueue.head;
-
-    do {
-        thread_t* next = (thread_t*)t->node.next;
-        if (t != pcpu->current_thread && t->state == TASK_ZOMBIE) {
-            free_thread(t);
-        }
-        t = next;
-    } while (t && t != (thread_t*)pcpu->runqueue.head);
-}
-
 /* ---------------- Scheduling ---------------- */
 
 thread_t* get_next_ready_thread(thread_t* prev)
@@ -290,17 +311,22 @@ thread_t* get_next_ready_thread(thread_t* prev)
 
     thread_t* start = next;
     while (next->state != TASK_READY) {
-        next = (thread_t*)next->node.next;
+        if (next->state == TASK_ZOMBIE && next != PCPU_GET(current_thread)) {
+            thread_t* to_free = next;
+            next              = (thread_t*)next->node.next; // Move to next thread before freeing
+            free_thread(to_free);
+        } else {
+            next = (thread_t*)next->node.next;
+        }
         if (!next || next == start)
             return NULL;
-    }
+    } while (next->state != TASK_READY);
     return next;
 }
 
 void thread_exit(registers_t* regs)
 {
-    pcpu_t* pcpu                = get_pcpu();
-    pcpu->current_thread->state = TASK_ZOMBIE;
+    PCPU_GET(current_thread)->state = TASK_ZOMBIE;
     schedule_from_irq(regs);
     PANIC("thread_exit: Returned from scheduler after marking thread as zombie, this should never "
           "happen!");
@@ -308,14 +334,12 @@ void thread_exit(registers_t* regs)
 
 void yield()
 {
-    asm volatile("int $0x40" : : "a"(0)); // Trigger scheduler interrupt (vector 64)
+    asm volatile("int $0x20" : : "a"(0)); // Trigger scheduler interrupt (vector 64)
 }
 
 void schedule_from_irq(registers_t* regs)
 {
     pcpu_t* pcpu = get_pcpu();
-
-    reap_zombies(pcpu);
 
     thread_t* prev = pcpu->current_thread;
     thread_t* next = get_next_ready_thread(prev);
@@ -343,6 +367,7 @@ void schedule_from_irq(registers_t* regs)
 
     // Load general purpose regs for next thread
     next->state = TASK_RUNNING;
+
     context_switch(&prev->context, next->context);
     spin_unlock(&pcpu->scheduler_lock);
 }

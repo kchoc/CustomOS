@@ -4,20 +4,21 @@
 
 /* Input buffer (filled by read_stdin syscall) */
 #define INPUT_BUFFER_SIZE 256
-static char input_buffer[INPUT_BUFFER_SIZE];
+static char input_buffer[INPUT_BUFFER_SIZE] = {0};
 static int  input_pos  = 0;
 static int  input_size = 0;
 
 /* Output buffer (flushed by write syscall) */
 #define OUTPUT_BUFFER_SIZE 256
-static char output_buffer[OUTPUT_BUFFER_SIZE];
+static char output_buffer[OUTPUT_BUFFER_SIZE] = {0};
 static int  output_pos = 0;
 
 /* Flush output buffer to stdout */
 void flush_stdout(void)
 {
     if (output_pos > 0) {
-        print(output_buffer); // Use existing print syscall
+        output_buffer[output_pos] = '\0'; // Null-terminate
+        fputs(output_buffer, 1); // Write to stdout (fd=1)
         output_pos = 0;
     }
 }
@@ -26,14 +27,15 @@ void flush_stdout(void)
 int getchar(void)
 {
     if (input_pos >= input_size) {
-        // Refill buffer with blocking read
-        input_size = read_stdin(input_buffer, INPUT_BUFFER_SIZE);
-        input_pos  = 0;
+        // Refill input buffer from stdin
+        input_size = fgets(input_buffer, INPUT_BUFFER_SIZE, 0); // Read from stdin (fd=0)
         if (input_size <= 0) {
-            return EOF;
+            return EOF; // No more input
         }
+        input_pos = 0;
     }
-    return (unsigned char)input_buffer[input_pos++];
+
+    return (unsigned char)input_buffer[input_pos++]; 
 }
 
 /* Buffered putchar - writes to output buffer, flushes when full or on newline */
@@ -192,6 +194,60 @@ int vprintf(const char* format, va_list args)
     return count;
 }
 
+int scanf(const char* format, ...)
+{
+    // For simplicity, we only implement %s and %d in this example
+    va_list args;
+    va_start(args, format);
+    int count = 0;
+
+    while (*format) {
+        if (*format == '%') {
+            format++;
+            switch (*format) {
+            case 'd': {
+                int* n = va_arg(args, int*);
+                *n     = 0;
+                int c   = getchar();
+                while (c >= '0' && c <= '9') {
+                    *n = (*n * 10) + (c - '0');
+                    c   = getchar();
+                }
+                count++;
+                break;
+            }
+            case 's': {
+                char* buf = va_arg(args, char*);
+                char c     = getchar();
+                while (c == ' ' || c == '\n') {
+                    c = getchar(); // Skip whitespace
+                }
+                while (c != ' ' && c != '\n' && c != EOF) {
+                    *buf++ = (char)c;
+                    c      = getchar();
+                }
+                *buf = '\0'; // Null-terminate
+                count++;
+                break;
+            }
+            default:
+                // Unsupported format specifier
+                break;
+            }
+            format++;
+        }
+        else {
+            // Skip literal characters in format string
+            if (*format == getchar()) {
+                format++;
+            }
+        }
+    }
+
+    va_end(args);
+    return count;
+}
+
 /* File descriptor functions */
 int fputc(int c, int fd)
 {
@@ -206,3 +262,37 @@ int fputs(const char* s, int fd)
     size_t len = strlen(s);
     return write(fd, s, len);
 }
+
+int fgetc(int fd)
+{
+    char c;
+    ptrdiff_t result = read(fd, &c, 1);
+    if (result <= 0) {
+        return EOF;
+    }
+    return (unsigned char)c;
+}
+
+int fgets(char* buf, size_t size, int fd)
+{
+    if (!buf || size == 0) {
+        return NULL;
+    }
+
+    size_t i = 0;
+    while (i < size - 1) {
+        char c;
+        ptrdiff_t result = read(fd, &c, 1);
+        if (result <= 0) {
+            break; // EOF or error
+        }
+        buf[i++] = c;
+        if (c == '\n') {
+            break; // End of line
+        }
+    }
+
+    buf[i] = '\0'; // Null-terminate
+    return (i > 0) ? i : NULL; // Return number of characters read or NULL on error
+}
+

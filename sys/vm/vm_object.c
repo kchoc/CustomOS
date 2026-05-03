@@ -23,6 +23,7 @@ void vm_object_dec_ref(vm_object_t* obj)
             vm_page_t* page = list_node_to_page(obj->pages.head);
             vm_page_free(page);
         }
+        if (obj->shadow) vm_object_dec_ref(obj->shadow);
         kfree(obj);
     }
 }

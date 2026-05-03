@@ -102,6 +102,7 @@ vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_
         object->ref_count++;
     }
 
+    region->object = object;
     region->ref_count = 1;
 
     // TODO: Allow 0 to be mapped
@@ -127,7 +128,6 @@ vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_
     region->end    = region->base + size;
     region->prot   = prot;
     region->flags  = flags;
-    region->object = object;
     region->offset = offset;
 
     vm_region_t* new_region = vm_region_insert(space, region);

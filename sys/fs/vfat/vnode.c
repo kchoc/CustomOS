@@ -200,8 +200,8 @@ static int lookup_cb(void* dev, uint64_t lba, void* ctx)
         }
         if ((uint8_t)e->name[0] == 0xE5) continue;
         if (e->attributes == VFAT_ATTR_LFN) {
-          printf("Warning: Found LFN entry while looking up '%s' - long filename support is not implemented, skipping\n",
-                 lc->target);
+          // printf("Warning: Found LFN entry while looking up '%s' - long filename support is not implemented, skipping\n",
+                 // lc->target);
           continue;
         }
         if (e->attributes & VFAT_ATTR_VOLUME_ID) continue;

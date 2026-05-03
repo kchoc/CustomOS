@@ -137,7 +137,7 @@ int syscall_read(int fd, void* buf, size_t count, SYSCALL2)
         return -1;
 
     // Read via VFS
-    return vfs_read(file, buf, count, NULL);
+    return vfs_read(file, buf, count, 0);
 }
 
 int syscall_write(int fd, const void* buf, size_t count, SYSCALL2)
@@ -155,7 +155,7 @@ int syscall_write(int fd, const void* buf, size_t count, SYSCALL2)
         return -1;
 
     // Write via VFS
-    return vfs_write(file, buf, count, NULL);
+    return vfs_write(file, buf, count, 0);
 }
 
 /* ================
@@ -430,9 +430,8 @@ int syscall_read_stdin(char* buffer, int count, SYSCALL1)
 int syscall_fork(SYSCALL1)
 {
     proc_t* child;
-    int res = fork_process(PCPU_GET(current_thread), 0, child);
+    int res = fork_process(PCPU_GET(current_thread), 0, &child);
     if (res) return res;
-
     return child->pid; // Return child's PID to parent, 0 to child
 }
 
@@ -440,8 +439,6 @@ int syscall_execve(const char* path, char* const argv[], char* const envp[], SYS
 {
     if (!path)
         return -1;
-
-    printf("syscall_execve: Executing %s\n", path);
 
     return execve(path, argv, envp);
 }

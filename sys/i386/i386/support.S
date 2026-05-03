@@ -75,9 +75,9 @@ ENTRY(start_thread)
     movl    %gs:0, %eax  # Load the pcpu pointer from gs:0 into eax
     addl    $SCHEDULER_LOCK_OFFSET, %eax  # Add the offset of the scheduler lock to get its address
    
-    pushl   %eax      # Push the address of the scheduler lock onto the stack for spin_unlock
-    call    spin_unlock  # Unlock the scheduler lock
-    popl    %eax      # Clean up the stack after the call to spin_unlock
+    pushl   %eax      # push the address of the scheduler lock onto the stack for spin_unlock
+    call    spin_unlock  # unlock the scheduler lock
+    popl    %eax      # clean up the stack after the call to spin_unlock
 
     popl    %eax      # Pop the thread's entry point into eax
     popl    %ebx      # Pop the user esp or 0 for kernel thread into ebx
@@ -100,6 +100,8 @@ ENTRY(start_thread)
     pushl   $UCSEL   # User code segment selector
     pushl   %eax     # Push the thread's entry point as the return address
 
+    movl    $0, %eax     # Clear eax for user mode (0 for forked child)
+
     iret                # Return to user mode
 
 .kernel_thread:
@@ -119,4 +121,21 @@ ENTRY(start_thread)
     iret                # Return to kernel mode
 
 END(start_thread)
+
+ENTRY(start_fork)
+    # Unlock the scheduler lock before starting the thread's entry pointer
+    movl    %gs:0, %eax  # Load the pcpu pointer from gs:0 into eax
+    addl    $SCHEDULER_LOCK_OFFSET, %eax  # Add the offset of the scheduler lock to get its address
+    pushl   %eax      # push the address of the scheduler lock onto the stack for spin_unlock
+    call    spin_unlock  # unlock the scheduler lock
+    popl    %eax      # clean up the stack after the call to spin_unlock
+    
+    popl %gs
+    popl %fs
+    popl %es
+    popl %ds
+    popal
+    addl $8, %esp          /* drop error code + int number */
+    iret                # Return to user mode with the same context as the parent thread
+END(start_fork)
 

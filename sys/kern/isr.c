@@ -75,11 +75,12 @@ void isr_page_fault_handler(registers_t* regs)
 
     // printf("===== Page Fault =====\n");
     // printf("CPU ID: %d\n", get_current_cpu()->apic_id);
-    // printf("Current process name: %s\n", get_current_cpu()->current_thread->proc->name);
-    // printf("Return Address: %x\n", &regs->eip);
+    // printf("Current process name: %s\n", PCPU_GET(current_thread)->proc->name);
+    // printf("Current process PID: %d\n", PCPU_GET(current_thread)->proc->pid);
+    // printf("Return Address: %x\n", regs->eip);
+    // printf("Current ESP: %x\n",PCPU_GET(current_thread)->trapframe->user_esp);
     // printf("Fault Address: %x\n", faulting_address);
-    // printf("Error Code: %s %s %x\n", regs->errorCode & 0x1 ? "Present" : "Not Present",
-    // regs->errorCode & 0x2 ? "Write" : "Read", regs->errorCode);
+    // delay(10);
     // printf("Error Code (raw): %x\n", regs->errorCode);
     // uint32_t cr3;
     // asm volatile("mov %%cr3, %0" : "=r"(cr3));
@@ -94,6 +95,8 @@ void isr_page_fault_handler(registers_t* regs)
     // Map the page
     vm_fault(PCPU_GET(current_thread)->proc->vmspace, faulting_address,
              VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER);
+
+    // printf("Handled page fault for address: %x\n", faulting_address);
 
     // Send an EOI to the LAPIC
     lapic_write(LAPIC_EOI, 0);
@@ -125,6 +128,10 @@ void isr_syscall(registers_t* regs)
 void isr_divide_by_zero(registers_t* regs)
 {
     printf("Divide by zero\n");
+    printf("Error Code: 0x%x\n", regs->errorCode);
+    printf("Return Address: 0x%x\n", regs->eip);
+    printf("Current ESP: 0x%x\n", PCPU_GET(current_thread)->trapframe->user_esp);
+    printf("Current process name: %s\n", PCPU_GET(current_thread)->proc->name);
     asm volatile("hlt");
 }
 
@@ -203,7 +210,7 @@ void isr_stack_segment_fault(registers_t* regs)
 void isr_general_protection_fault(registers_t* regs)
 {
     printf("General protection fault\n");
-    printf("Error Code: %x\n", regs->errorCode);
+    printf("Error Code: 0x%x\n", regs->errorCode);
     PANIC_DUMP_REGISTERS(regs);
 }
 
@@ -237,8 +244,14 @@ void isr_timer_handler(registers_t* regs)
     outb(0x20, 0x20); // Send EOI to PIC1
     outb(0xA0, 0x20); // Send EOI to PIC2
 
+    // printf("Process %s (PID %d) - Timer tick\n", PCPU_GET(current_thread)->proc->name,
+           // PCPU_GET(current_thread)->proc->pid);
+
     // Schedule next task
     schedule_from_irq(regs);
+
+    // printf("Process %s (PID %d) - Resumed after timer tick\n", PCPU_GET(current_thread)->proc->name,
+           // PCPU_GET(current_thread)->proc->pid);
 
     // Send EOI to LAPIC
     lapic_write(LAPIC_EOI, 0);

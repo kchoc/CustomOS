@@ -100,6 +100,22 @@ void vm_space_destroy(vm_space_t* space)
     kfree(space);
 }
 
+void vm_space_clean(vm_space_t* space)
+{
+    if (!space)
+        return;
+
+    // Similar to destroy, but kernel regions should not be freed, and the vm_space itself should not be freed. Only user regions should be cleaned
+    list_node_t* node = space->regions.head;
+    while (node) {
+        vm_region_t* region = list_node_to_region(node);
+        node = node->next;
+        if (!(region->flags & VM_REG_F_KERNEL)) {
+            vm_region_dec_ref(region);
+        }
+    }
+}
+
 void vm_space_activate(vm_space_t* space)
 {
     if (!space)

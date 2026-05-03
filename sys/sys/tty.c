@@ -51,6 +51,7 @@ static void tty_vga_output(tty_t* tty, const char* buf, size_t count)
 {
     device_t* dev = (device_t*)tty->output_data;
     if (!dev) return;
+
     dev->ops->write(dev, 0, (uint32_t)count, (const uint8_t*)buf);
 }
 
@@ -209,12 +210,8 @@ static ssize_t tty_tx_chars(tty_t* tty, const char* buf, size_t count)
             char nl = '\n';
             tty->output(tty, &nl, 1);
             start = i + 1;
-        } else if (c == '\r' && (tty->termios.c_oflag & ONOCR) && i == 0) {
-            // No CR output at column 0
-            start = i + 1;
-        } else {
-            i++;
         }
+        i++;
     }
 
     if (i > start)
@@ -259,36 +256,6 @@ int tty_probe(device_t* dev)
     tty_t* tty = kmalloc(sizeof(tty_t));
     if (!tty) return -ENOMEM;
     dev->ops_data = tty;
-    return 0;
-}
-
-driver_t tty_driver = {
-    .name        = "tty",
-    .vendor_id   = 0,
-    .device_id   = 0,
-    .device_type = DEV_TYPE_CHAR,
-    .probe       = tty_probe
-};
-
-/* =========================================================================
- * TTY input handling (called by keyboard IRQ handler)
- * ========================================================================= */
-void tty_input(tty_t* tty, char c, uint8_t flags)
-{
-    if (!tty || !tty->tty_ops || !tty->tty_ops->rx_char) return;
-    // SPINLOCK REQUIRED
-    tty->tty_ops->rx_char(tty, c, flags);
-}
-
-/* =========================================================================
- * tty device ops
- * ========================================================================= */ 
-
-int tty_open(device_t* dev)
-{
-    if (!dev) return -ENODEV;
-    tty_t* tty = (tty_t*)dev->ops_data;
-    if (!tty) return -ENODEV;
 
     // Initialise TTY state
     memset(&tty->in_ring, 0, sizeof(tty_ring_t));
@@ -318,6 +285,33 @@ int tty_open(device_t* dev)
 
     keyboard_set_active_tty(tty); // set this TTY as active for keyboard input
 
+    return 0;
+}
+
+driver_t tty_driver = {
+    .name        = "tty",
+    .vendor_id   = 0,
+    .device_id   = 0,
+    .device_type = DEV_TYPE_CHAR,
+    .probe       = tty_probe
+};
+
+/* =========================================================================
+ * TTY input handling (called by keyboard IRQ handler)
+ * ========================================================================= */
+void tty_input(tty_t* tty, char c, uint8_t flags)
+{
+    if (!tty || !tty->tty_ops || !tty->tty_ops->rx_char) return;
+    // SPINLOCK REQUIRED
+    tty->tty_ops->rx_char(tty, c, flags);
+}
+
+/* =========================================================================
+ * tty device ops
+ * ========================================================================= */ 
+
+int tty_open(device_t* dev)
+{
     return 0;
 }
 

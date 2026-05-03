@@ -48,7 +48,7 @@ system_init: userland $(DISK)
 
 install-userland: userland $(DISK)
 	for prog in $(USERLAND_ELFS); do \
-		mcopy -o -i "$(DISK)@@2048S" $$prog ::$$(basename $$prog); \
+		mcopy -o -i "$(DISK)@@2048S" $$prog ::/sbin/$$(basename $$prog); \
 	done
 	for file in $(USER_FILES); do \
 		mcopy -o -i "$(DISK)@@2048S" $$file ::$$(basename $$file); \
