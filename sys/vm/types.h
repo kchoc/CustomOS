@@ -15,6 +15,11 @@ typedef uintptr_t paddr_t;
 
 typedef uint64_t vm_ooffset_t; // Object Offset
 
+typedef enum vm_map_flags {
+    VM_MAP_F_NONE = 0x0,
+    VM_MAP_F_FIXED = 0x1, // Must use the exact address provided (addr parameter is not a hint)
+} vm_map_flags_t;
+
 typedef enum vm_prot {
     VM_PROT_NONE     = 0x0,
     VM_PROT_READ     = 0x1,
@@ -37,10 +42,9 @@ typedef enum vm_region_flags {
     VM_REG_F_WIRED      = 0x4,  // Never pageable
     VM_REG_F_DEVICE     = 0x8,  // MMIO / physical device memory
     VM_REG_F_STACK      = 0x10, // Grows downwards
-    VM_REG_F_FIXED      = 0x20, // Must use exact address
-    VM_REG_F_KERNEL     = 0x40, // Map in kernel space (ignored for user regions)
-    VM_REG_F_NOCACHE    = 0x80, // Don't allow caching of this region
-    VM_REG_F_EARLYENTER = 0x100,
+    VM_REG_F_KERNEL     = 0x20, // Map in kernel space (ignored for user regions)
+    VM_REG_F_NOCACHE    = 0x40, // Don't allow caching of this region
+    VM_REG_F_EARLYENTER = 0x80,
 } vm_region_flags_t;
 
 typedef enum vm_obj_flags {

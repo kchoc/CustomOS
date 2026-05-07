@@ -243,3 +243,14 @@ int vfs_llseek(file_t* file, loff_t offset, int whence)
 
     return file->f_ops->seek(file, offset, whence); 
 }
+
+int vfs_getdirent(file_t* file, char* __user buf, size_t count, int offset)
+{
+    if (!file || !buf)
+        return -EINVAL;
+    if (!file->f_vnode || !file->f_vnode->v_ops || !file->f_vnode->v_ops->readdir)
+        return -EBADF;
+
+    return file->f_vnode->v_ops->readdir(file->f_vnode, buf, count, offset);
+}
+

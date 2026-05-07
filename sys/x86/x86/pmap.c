@@ -37,32 +37,12 @@ void switch_page_directory(page_table_t** pd_ptr)
     asm volatile("mov %0, %%cr3" : : "r"(*pd_ptr) : "memory");
 }
 
-int pmap_init()
-{
-    for (uint32_t i = 0; i < KERNEL_PAGE_ENTRIES - 1; i++) {
-        if (!(current_pd->entries[i + KERNEL_PAGE_ENTRY_START] & 0x1)) {
-            page_table_t* table = (page_table_t*)vm_phys_alloc_page();
-            if (is_errno((paddr_t)table))
-                return -ENOMEM;
-
-            current_pd->entries[i + KERNEL_PAGE_ENTRY_START] =
-                (page_entry_t)table | VM_PROT_READ | VM_PROT_WRITE | VM_PROT_GLOBAL;
-            tlb_invlpg(&current_pts[i + KERNEL_PAGE_ENTRY_START]);
-            memset(&current_pts[i + KERNEL_PAGE_ENTRY_START], 0, PAGE_SIZE);
-        }
-    }
-    current_pd->entries[PAGE_ENTRIES_PER_TABLE - 1] =
-        ((uint32_t)*current_pd_addr) | VM_PROT_READ | VM_PROT_WRITE |
-        VM_PROT_GLOBAL; // Recursive mapping for the page directory
-    return 0;
-}
-
 void pmap_debug(pmap_t* pmap)
 {
     printf("Page Directory at: %p\n", *current_pd_addr);
     pmap_enter(kernel_vm_space->arch, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pmap->pd,
                VM_PROT_READ | VM_PROT_WRITE, PMAP_FLAG_NONE);
-    for (int i = 0; i < PAGE_ENTRIES_PER_TABLE; i++) {
+    for (int i = 767; i < 768; i++) {
         if (edit_pd->entries[i] & 0x1) {
             printf("PD Entry %d: %p\n", i, edit_pd->entries[i] & 0xFFFFF000);
             i += 15;
@@ -85,12 +65,13 @@ pmap_t* pmap_create()
     }
     pmap_enter(kernel_vm_space->arch, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pmap->pd,
                VM_PROT_READ | VM_PROT_WRITE, PMAP_FLAG_NONE);
-    for (int i = KERNEL_PAGE_ENTRIES; i < PAGE_ENTRIES_PER_TABLE - 1; i++) {
+
+    // Copy kernel mappings from the current page directory, leaving user-space entries as not present
+    for (int i = KERNEL_PAGE_ENTRY_START; i < PAGE_ENTRIES_PER_TABLE - 1; i++) {
         edit_pd->entries[i] = current_pd->entries[i];
     }
     edit_pd->entries[PAGE_ENTRIES_PER_TABLE - 1] =
-        ((uint32_t)pmap->pd) | VM_PROT_READ | VM_PROT_WRITE |
-        VM_PROT_GLOBAL; // Recursive mapping for the page directory
+        ((uint32_t)pmap->pd) | VM_PROT_READ | VM_PROT_WRITE; // Recursive mapping for the page directory
     pmap_remove(kernel_vm_space->arch, PAGE_TABLE_EDIT_ADDRESS,
                 PAGE_TABLE_EDIT_ADDRESS + PAGE_SIZE);
 

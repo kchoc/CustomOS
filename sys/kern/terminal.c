@@ -1,4 +1,5 @@
 #include "terminal.h"
+#include "process.h"
 
 #include <dev/port/port_io.h>
 
@@ -59,7 +60,7 @@ void terminal_putchar(char c)
         terminal_row++;
     }
 
-    if (terminal_row >= 25) {
+    if (terminal_row >= 24) {
         terminal_row = 0;
     }
 }
@@ -467,3 +468,19 @@ void delay(uint32_t ms)
         }
     }
 }
+
+#include <vm/vm_space.h>
+
+void terminal_display_scheduler_info(thread_t* t)
+{
+    char message[80] = {0};
+    snprintf(message, sizeof(message), "Running thread: %s (TID %u) (CR3 %x)", t->proc->name, t->tid, *(t->proc->vmspace->arch));
+    // Displayed at the bottom of the terminal with white text on blue background
+    for (size_t i = 0; i < 80; i++) {
+        video_memory[i + 80 * 24] = (message[i] ? message[i] : ' ') | 0x1F00; // White on blue  
+    }
+    // if (t->proc->pid == 2 && t->trapframe) {
+        // printf("Scheduler: Return to eip %x\n", t->trapframe->eip);
+    // }
+}
+

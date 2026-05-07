@@ -44,7 +44,7 @@ void handle_isr(registers_t regs)
     }
     else {
         printf("Unhandled interrupt: %d\n", int_no);
-        PANIC("Unhandled interrupt");
+        PANIC_DUMP_REGISTERS(&regs);
     }
     PCPU_GET(current_thread)->trapframe =
         old_tf; // Restore original trapframe pointer after handling the interrupt

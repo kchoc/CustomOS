@@ -11,19 +11,8 @@
 #define SYSCALL_WRITE       4
 #define SYSCALL_OPEN        5
 #define SYSCALL_CLOSE       6
-#define SYSCALL_SOCKET      6
-#define SYSCALL_CONNECT     7
-#define SYSCALL_LISTEN      8
-#define SYSCALL_ACCEPT      9
-#define SYSCALL_SEND        10
-#define SYSCALL_RECV        11
-#define SYSCALL_UNLINK      12
-#define SYSCALL_MMAP        13
-#define SYSCALL_WIN_CREATE  14
-#define SYSCALL_WIN_DESTROY 15
-#define SYSCALL_WIN_UPDATE  16
-#define SYSCALL_WIN_GETBUF  17
-#define SYSCALL_READ_STDIN  18
+
+#define SYSCALL_GETDIRENT   554
 
 #define SYSCALL_PRINT       100
 #define SYSCALL_EXECVE       59
@@ -96,71 +85,9 @@ static inline int write(int fd, const void* buf, size_t count)
     return syscall(SYSCALL_WRITE, fd, (uint32_t)buf, count, 0, 0);
 }
 
-// Socket syscalls
-static inline int socket(int type)
+static inline int getdirent(int fd, char* buf, size_t count, uintptr_t offset)
 {
-    return syscall(SYSCALL_SOCKET, type, 0, 0, 0, 0);
-}
-
-static inline int connect(int sockfd, const char* path)
-{
-    return syscall(SYSCALL_CONNECT, sockfd, (uint32_t)path, 0, 0, 0);
-}
-
-static inline int listen(int sockfd, int backlog)
-{
-    return syscall(SYSCALL_LISTEN, sockfd, backlog, 0, 0, 0);
-}
-
-static inline int accept(int sockfd)
-{
-    return syscall(SYSCALL_ACCEPT, sockfd, 0, 0, 0, 0);
-}
-
-static inline int send(int sockfd, const void* buf, size_t len, int flags)
-{
-    return syscall(SYSCALL_SEND, sockfd, (uint32_t)buf, len, flags, 0);
-}
-
-static inline int recv(int sockfd, void* buf, size_t len, int flags)
-{
-    return syscall(SYSCALL_RECV, sockfd, (uint32_t)buf, len, flags, 0);
-}
-
-static inline int unlink(const char* path)
-{
-    return syscall(SYSCALL_UNLINK, (uint32_t)path, 0, 0, 0, 0);
-}
-
-static inline void* mmap(void* addr, size_t length, int prot, int flags)
-{
-    return (void*)syscall(SYSCALL_MMAP, (uint32_t)addr, length, prot, flags, 0);
-}
-
-// Window management syscalls
-static inline int win_create(const char* title, int x, int y, int width, int height)
-{
-    return syscall(SYSCALL_WIN_CREATE, (uint32_t)title, x, y, width, height);
-}
-
-static inline int win_destroy(int wid)
-{
-    return syscall(SYSCALL_WIN_DESTROY, wid, 0, 0, 0, 0);
-}
-
-static inline int win_update(int wid)
-{
-    return syscall(SYSCALL_WIN_UPDATE, wid, 0, 0, 0, 0);
-}
-
-static inline void* win_getbuf(int wid)
-{
-    return (void*)syscall(SYSCALL_WIN_GETBUF, wid, 0, 0, 0, 0);
-}
-
-static inline int read_stdin(char* buffer, int count)
-{
-    return (int)syscall(SYSCALL_READ_STDIN, (uint32_t)buffer, count, 0, 0, 0);
+    return syscall(SYSCALL_GETDIRENT, fd, (uint32_t)buf, count, 0, 0);
 }
 
 static inline int fork()

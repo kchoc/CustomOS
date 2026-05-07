@@ -10,12 +10,12 @@ typedef struct vm_space  vm_space_t;
 typedef struct vm_object vm_object_t;
 
 int vm_map(vm_space_t* space, vaddr_t* virt, size_t size, vm_prot_t prot, vm_region_flags_t flags,
-           vm_object_t* object, vm_ooffset_t offset);
+           vm_object_t* object, vm_ooffset_t offset, vm_map_flags_t map_flags);
 int vm_unmap(vm_space_t* space, vaddr_t virt, size_t size);
-int vm_protect(vm_space_t* space, vaddr_t virt, size_t size, vm_prot_t prot);
-
 int vm_map_anon(vm_space_t* space, vaddr_t* virt, size_t size, vm_prot_t prot,
-                vm_region_flags_t flags);
+                vm_region_flags_t flags, vm_map_flags_t map_flags);
+
+int vm_protect(vm_space_t* space, vaddr_t virt, size_t size, vm_prot_t prot);
 
 void* vm_map_device(paddr_t phys, size_t size, vm_prot_t prot, vm_region_flags_t flags);
 void  vm_unmap_device(void* virt, size_t size);

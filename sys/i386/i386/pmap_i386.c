@@ -121,7 +121,7 @@ void pmap_protect(pmap_t* pmap, vaddr_t sva, vaddr_t eva, vm_prot_t prot)
             continue; // Page not mapped
         }
 
-        *entry = (page_entry_t)(((uintptr_t)entry & ~PAGE_MASK) | (prot & PAGE_MASK));
+        *entry = (page_entry_t)(((uintptr_t)*entry & ~PAGE_MASK) | (prot & PAGE_MASK));
         tlb_invlpg((void*)addr);
     }
 }

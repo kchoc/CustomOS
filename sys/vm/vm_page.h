@@ -4,26 +4,28 @@
 #include "types.h"
 #include "vm_object.h"
 
+#include <kern/spinlock.h>
+
 #include <list.h>
 
 typedef enum vm_page_flags {
-    VM_PAGE_FLAG_FREE,
-    VM_PAGE_FLAG_ACTIVE,
-    VM_PAGE_FLAG_INACTIVE,
-    VM_PAGE_FLAG_WIRED
+    VM_PAGE_FLAG_FREE       = 0x0,
+    VM_PAGE_FLAG_WIRED      = 0x1,
+    VM_PAGE_FLAG_COW        = 0x2,
+    VM_PAGE_FLAG_TO_BE_ZEROED = 0x4, // Page is allocated but not yet zeroed out (used for optimization)
 } vm_page_flags_t;
 
 typedef struct vm_page {
     list_node_t  node;
     paddr_t      phys_addr; // Physical address of the page
     vm_ooffset_t offset;    // Offset within the object
+    struct vm_page* cow_source;
 
     vm_page_flags_t state;
 
     bool dirty;     // Whether the page has been modified
-    bool busy_lock; // Whether the page is currently being read/written to disk
+    spinlock_t lock; // Lock for synchronizing access to the page when swapping or modifying its state
     int  ref_count; // Reference count for shared pages
-    bool wired;     // Whether the page is wired (cannot be paged out)
 } vm_page_t;
 
 inline vm_page_t* list_node_to_page(list_node_t* node)

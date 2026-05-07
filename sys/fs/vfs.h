@@ -89,6 +89,8 @@ ssize_t vfs_read(file_t* file, void* __user buf, size_t count, size_t offset);
 ssize_t vfs_write(file_t* file, const void* __user buf, size_t count, size_t offset);
 int     vfs_llseek(file_t* file, loff_t offset, int whence);
 
+int     vfs_getdirent(file_t* file, char* __user buf, size_t count, int offset);
+
 /* Socket operations */
 int     vfs_socket_create(const char* path, sock_type_t type, umode_t mode);
 file_t* vfs_socket_connect(const char* path, int flags);

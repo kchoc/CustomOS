@@ -368,6 +368,8 @@ void schedule_from_irq(registers_t* regs)
     // Load general purpose regs for next thread
     next->state = TASK_RUNNING;
 
+    terminal_display_scheduler_info(next);
+
     context_switch(&prev->context, next->context);
     spin_unlock(&pcpu->scheduler_lock);
 }

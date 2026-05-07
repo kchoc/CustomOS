@@ -11,24 +11,7 @@
 #include <kern/panic.h>
 #include <kern/terminal.h>
 
-void vm_region_inc_ref(vm_region_t* region)
-{
-    __sync_fetch_and_add(&region->ref_count, 1);
-}
-
-void vm_region_dec_ref(vm_region_t* region)
-{
-    if (__sync_sub_and_fetch(&region->ref_count, 1) == 0) {
-        // Free the region and its object if this was the last reference
-        if (!(region->flags & VM_REG_F_KERNEL))
-            pmap_remove(vm_space_from_region(region)->arch, region->base, region->end);
-        vm_object_dec_ref(region->object);
-        list_remove(&region->node);
-        kfree(region);
-    }
-}
-
-bool vm_region_overlaps(vm_region_t* region, uintptr_t start, uintptr_t end)
+static inline bool vm_region_overlaps(vm_region_t* region, uintptr_t start, uintptr_t end)
 {
     return !(start >= region->end || end <= region->base);
 }
@@ -89,36 +72,30 @@ vm_region_t* vm_region_lookup_range(vm_space_t* space, uintptr_t addr, size_t si
 }
 
 vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_object_t* object,
-                              vm_ooffset_t offset, vm_prot_t prot, vm_region_flags_t flags)
+                              vm_ooffset_t offset, vm_prot_t prot, vm_region_flags_t flags, vm_map_flags_t map_flags)
 {
     vm_region_t* region = kmalloc(sizeof(vm_region_t));
-    if (!region)
-        return ERR_PTR(-ENOMEM);
+    if (!region) return ERR_PTR(-ENOMEM);
 
-    if (object == NULL) {
+    if (object == NULL)
         object = vm_object_create_anon();
-    }
-    else {
+    else
         object->ref_count++;
-    }
 
     region->object = object;
-    region->ref_count = 1;
 
     // TODO: Allow 0 to be mapped
-    if (addr && *addr != VM_REGION_ALLOCATE_ADDR) {
+    if (addr && (map_flags & VM_MAP_F_FIXED)) {
         region->base = *addr;
         if (vm_region_lookup_range(space, region->base, size)) {
-            vm_region_dec_ref(region); // This will free the region since its ref count is 1 and
-                                       // also free the object
+            vm_region_destroy(region);
             return ERR_PTR(-EEXIST);   // Overlap detected
         }
     }
     else {
         region->base = vm_find_free_region(space, size, flags);
         if (IS_ERR(region->base)) {
-            vm_region_dec_ref(region);    // This will free the region since its ref count is 1 and
-                                          // also free the object
+            vm_region_destroy(region);
             return ERR_PTR(region->base); // No suitable free region found
         }
         if (addr)
@@ -132,8 +109,7 @@ vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_
 
     vm_region_t* new_region = vm_region_insert(space, region);
     if (IS_ERR(new_region)) {
-        vm_region_dec_ref(
-            region); // This will free the region since its ref count is 1 and also free the object
+        vm_region_destroy(region);
         return new_region; // error code
     }
 
@@ -150,7 +126,6 @@ vm_region_t* vm_region_fork(vm_region_t* parent)
         return ERR_PTR(-ENOMEM);
 
     *child           = *parent; // shallow copy
-    child->ref_count = 1;
 
     bool private     = !(parent->flags & VM_REG_F_SHARED);
     bool writable    = parent->prot & VM_PROT_WRITE;
@@ -170,29 +145,20 @@ vm_region_t* vm_region_fork(vm_region_t* parent)
             return ERR_PTR(-ENOMEM);
         }
 
-        vm_object_dec_ref(
-            parent->object); // The parent region will now point to the shadow object, so we need to
-                             // decrement the ref count of the original object
+        vm_object_dec_ref(parent->object);
 
         parent->object = parent_shadow;
         child->object  = child_shadow;
 
-        return child;
-
         pmap_protect(vm_space_from_region(parent)->arch, parent->base, parent->end,
                      parent->prot & ~VM_PROT_WRITE);
+
+        return child;
     }
     else {
         vm_object_inc_ref(parent->object);
         child->object = parent->object;
-
-        // If the region is shared, we need to make sure the child region is also marked as shared
-        if (parent->flags & VM_REG_F_SHARED)
-            child->flags |= VM_REG_F_SHARED;
     }
-
-    // Pmap entries will be copied on demand when the child process tries to access the region
-    // TODO: COPY MAPPINGS
 
     return child;
 }
@@ -233,7 +199,7 @@ vm_region_t* vm_region_insert(vm_space_t* space, vm_region_t* new_region)
         prev->flags == new_region->flags && prev->object == new_region->object &&
         prev->offset + (prev->end - prev->base) == new_region->offset) {
         prev->end = new_region->end;
-        vm_region_dec_ref(new_region); // Free the new region since we're merging it into prev
+        vm_region_destroy(new_region); // Free the new region since we're merging it into prev
         new_region = prev;
     }
     else {
@@ -249,7 +215,7 @@ vm_region_t* vm_region_insert(vm_space_t* space, vm_region_t* new_region)
         new_region->flags == next->flags && new_region->object == next->object &&
         new_region->offset + (new_region->end - new_region->base) == next->offset) {
         new_region->end = next->end;
-        vm_region_dec_ref(next); // Free the next region since we're merging it into new_region
+        vm_region_destroy(next); // Free the next region since we're merging it into new_region
     }
 
     return new_region;
@@ -272,7 +238,6 @@ vm_region_t* vm_region_split(vm_region_t* region, uintptr_t addr)
     new_region->object = region->object;
     region->object->ref_count++; // Increment ref count for the shared object
     new_region->offset    = region->offset + (addr - region->base);
-    new_region->ref_count = 1;
 
     region->end = addr;
 
@@ -294,7 +259,7 @@ vm_region_t* vm_region_merge(vm_region_t* region, vm_region_t* other)
             region->offset = other->offset;
         }
 
-        vm_region_dec_ref(other); // Free the other region since we're merging it into region
+        vm_region_destroy(other); // Free the other region since we're merging it into region
         return region;
     }
 
@@ -372,6 +337,8 @@ int vm_region_remap(vm_region_t* region, uintptr_t new_addr, size_t new_size)
 
 void vm_region_destroy(vm_region_t* region)
 {
-    vm_region_dec_ref(
-        region); // This will free the region and its object if this was the last reference
+    vm_object_dec_ref(region->object);
+    list_remove(&region->node);
+    kfree(region);
 }
+

@@ -12,9 +12,9 @@
 
 // TODO: Add flags
 int vm_map(vm_space_t* space, vaddr_t* virt, size_t size, vm_prot_t prot, vm_region_flags_t flags,
-           vm_object_t* object, vm_ooffset_t offset)
+           vm_object_t* object, vm_ooffset_t offset, vm_map_flags_t map_flags)
 {
-    vm_region_t* region = vm_region_create(space, virt, size, object, offset, prot, flags);
+    vm_region_t* region = vm_region_create(space, virt, size, object, offset, prot, flags, map_flags);
     if (IS_ERR(region))
         return (int)region;
 
@@ -26,12 +26,12 @@ int vm_map(vm_space_t* space, vaddr_t* virt, size_t size, vm_prot_t prot, vm_reg
     for (size_t offset = region->base; offset < region->end; offset += PAGE_SIZE) {
         vm_page_t* page = vm_page_allocate(obj, offset);
         if (IS_ERR(page)) {
-            vm_region_dec_ref(region);
+            vm_region_destroy(region);
             return (int)page;
         }
         int ret = pmap_enter(space->arch, offset, page->phys_addr, prot, pmap_flags);
         if (IS_ERR(ret)) {
-            vm_region_dec_ref(region);
+            vm_region_destroy(region);
             return ret;
         }
     }
@@ -39,9 +39,9 @@ int vm_map(vm_space_t* space, vaddr_t* virt, size_t size, vm_prot_t prot, vm_reg
 }
 
 int vm_map_anon(vm_space_t* space, uintptr_t* virt, size_t size, vm_prot_t prot,
-                vm_region_flags_t flags)
+                vm_region_flags_t flags, vm_map_flags_t map_flags)
 {
-    return vm_map(space, virt, size, prot, flags, NULL, 0);
+    return vm_map(space, virt, size, prot, flags, NULL, 0, map_flags);
 }
 
 int vm_unmap(vm_space_t* space, uintptr_t virt, size_t size)
@@ -51,10 +51,12 @@ int vm_unmap(vm_space_t* space, uintptr_t virt, size_t size)
         return -ENOENT;
 
     // TODO: Handle unmapping of partial regions (split the region if necessary)
-    if (region->base != virt || region->end != virt + size)
+    if (region->base != virt || region->end != virt + size) {
         return -EINVAL;
+    }
 
-    vm_region_dec_ref(region); // This will free the region if this was the last reference
+    pmap_remove(space->arch, virt, virt + size);
+    vm_region_destroy(region); // This will free the region if this was the last reference
 
     return 0;
 }
@@ -125,8 +127,8 @@ void vm_unmap_device(void* virt, size_t size)
 void* kvm_alloc(size_t size, vm_prot_t prot, vm_region_flags_t flags)
 {
     size_t  aligned_size = PAGE_ALIGN_UP(size);
-    vaddr_t virt         = VM_REGION_ALLOCATE_ADDR;
-    int ret = vm_map(kernel_vm_space, &virt, aligned_size, prot, VM_REG_F_KERNEL | flags, NULL, 0);
+    vaddr_t virt;
+    int ret = vm_map(kernel_vm_space, &virt, aligned_size, prot, VM_REG_F_KERNEL | flags, NULL, 0, 0);
 
     if (IS_ERR(ret))
         return ERR_PTR(ret);

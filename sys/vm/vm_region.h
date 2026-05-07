@@ -15,10 +15,9 @@ typedef struct vm_region {
     vaddr_t           end;
     vm_prot_t         prot;
     vm_region_flags_t flags;
-    int               ref_count;
 
-    vm_object_t* object;
-    size_t       offset;
+    vm_object_t*      object;
+    size_t            offset;
 } vm_region_t;
 
 #define list_node_to_region(nptr) ((vm_region_t*)((char*)(nptr)-offsetof(vm_region_t, node)))
@@ -27,22 +26,14 @@ typedef struct vm_region {
 #define GET_NEXT_REGION(region) list_node_to_region((region)->node.next)
 #define GET_PREV_REGION(region) list_node_to_region((region)->node.prev)
 
-void vm_region_inc_ref(vm_region_t* region);
-void vm_region_dec_ref(vm_region_t* region);
-
 /* Returns the region that contains the address addr, or NULL if no such region exists */
 vm_region_t* vm_region_lookup(vm_space_t* space, uintptr_t addr);
 /* Returns the first region that overlaps with the range [addr, addr + size) */
 vm_region_t* vm_region_lookup_range(vm_space_t* space, uintptr_t addr, size_t size);
-
-bool vm_region_overlaps(vm_region_t* region, uintptr_t addr, size_t size);
-
 vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_object_t* object,
-                              vm_ooffset_t offset, vm_prot_t prot, vm_region_flags_t flags);
+                              vm_ooffset_t offset, vm_prot_t prot, vm_region_flags_t flags, vm_map_flags_t map_flags);
 vm_region_t* vm_region_fork(vm_region_t* parent);
-
 vm_region_t* vm_region_insert(vm_space_t* space, vm_region_t* new_region);
-
 vm_region_t* vm_region_split(vm_region_t* region, uintptr_t addr);
 vm_region_t* vm_region_merge(vm_region_t* region, vm_region_t* other);
 void         vm_region_protect(vm_region_t* region, vm_prot_t new_prot);

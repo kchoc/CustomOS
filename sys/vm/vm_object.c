@@ -38,9 +38,12 @@ vm_object_t* vm_object_create_anon(void)
     new_obj->ref_count     = 1;
     new_obj->shadow        = NULL;
     new_obj->shadow_offset = 0;
-    new_obj->pager         = NULL;
+    new_obj->pager         = vm_pager_create(&anon_pager_ops, NULL);
+    if (IS_ERR(new_obj->pager)) {
+        kfree(new_obj);
+        return ERR_PTR(-ENOMEM); 
+    }
     list_init(&new_obj->pages, 0);
-    new_obj->size = 0;
 
     return new_obj;
 }
@@ -55,9 +58,8 @@ vm_object_t* vm_object_create_shadow(vm_object_t* shadow, vm_ooffset_t offset)
     new_obj->ref_count     = 1;
     new_obj->shadow        = shadow;
     new_obj->shadow_offset = offset;
-    new_obj->pager         = NULL;
+    new_obj->pager         = vm_pager_create(&anon_pager_ops, NULL);
     list_init(&new_obj->pages, 0);
-    new_obj->size = shadow ? shadow->size : 0;
 
     if (shadow) {
         vm_object_inc_ref(shadow);
@@ -88,7 +90,6 @@ vm_object_t* vm_object_create_vnode(vnode_t* vnode)
     obj->shadow_offset = 0;
     obj->pager         = pager;
     list_init(&obj->pages, 0);
-    obj->size = 0;
 
     return obj;
 }

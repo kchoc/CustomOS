@@ -50,7 +50,7 @@ int load_elf(const char* filepath, thread_t* thread)
 
         // Allocate memory in the process's VM space
         vm_map_anon(thread->proc->vmspace, &ph[i].p_vaddr, ph[i].p_memsz,
-                    VM_PROT_READ | VM_PROT_USER | VM_PROT_WRITE, VM_REG_F_PRIVATE);
+                    VM_PROT_READ | VM_PROT_USER | VM_PROT_WRITE, VM_REG_F_PRIVATE, VM_MAP_F_FIXED);
 
         // Load file data into the mapped memory
         vfs_llseek(file, ph[i].p_offset, 0);
@@ -60,13 +60,11 @@ int load_elf(const char* filepath, thread_t* thread)
     thread->trapframe->eip      = eh.e_entry; // Set entry point for the new executable
     uint32_t stack_bottom = 0xC0000000 - PAGE_SIZE;
     vm_map_anon(thread->proc->vmspace, &stack_bottom, PAGE_SIZE, VM_PROT_READ | VM_PROT_USER | VM_PROT_WRITE,
-                VM_REG_F_PRIVATE); // Map user stack 
+                VM_REG_F_PRIVATE, VM_MAP_F_FIXED); // Map user stack 
 
     thread->trapframe->user_esp = stack_bottom + PAGE_SIZE; 
     kfree(ph);
     vfs_close(file);
-
-
 
     return 0;
 

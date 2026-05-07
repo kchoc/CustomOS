@@ -21,7 +21,6 @@ int kvm_space_init()
     if (IS_ERR(kernel_vm_space))
         return (int)kernel_vm_space;
 
-    kernel_vm_space->ref_count = 1;
     list_init(&kernel_vm_space->regions, 0);
     kernel_vm_space->arch = kmalloc(sizeof(pmap_t));
     if (IS_ERR(kernel_vm_space->arch)) {
@@ -35,11 +34,9 @@ int kvm_space_init()
     // Since this is the first kvm call, the start is at 0xC0000000, so we can allocate that
     vaddr_t virt = KERNEL_BASE;
     int     ret  = vm_map_anon(kernel_vm_space, &virt, 0x00400000, VM_PROT_READ | VM_PROT_WRITE,
-                               VM_REG_F_KERNEL);
+                               VM_REG_F_KERNEL, VM_MAP_F_FIXED);
     if (IS_ERR(ret))
         return ret;
-
-    pmap_init();
 
     // TODO: Need to bookkeep the vm_pages from the bootloader
     return 0;
@@ -53,7 +50,6 @@ vm_space_t* vm_space_create()
 
     list_init(&space->regions, 0);
     space->arch      = pmap_create();
-    space->ref_count = 1;
 
     return space;
 }
@@ -91,7 +87,7 @@ void vm_space_destroy(vm_space_t* space)
     // the last reference)
     while (space->regions.head) {
         vm_region_t* region = list_node_to_region(space->regions.head);
-        vm_region_dec_ref(region);
+        vm_region_destroy(region);
     }
 
     // Free architecture-specific data
@@ -111,7 +107,8 @@ void vm_space_clean(vm_space_t* space)
         vm_region_t* region = list_node_to_region(node);
         node = node->next;
         if (!(region->flags & VM_REG_F_KERNEL)) {
-            vm_region_dec_ref(region);
+            pmap_remove(space->arch, region->base, region->end);
+            vm_region_destroy(region);
         }
     }
 }
@@ -129,7 +126,6 @@ void vm_space_debug(vm_space_t* space)
         return;
 
     printf("VM Space at %p\n", space);
-    printf("  Ref Count: %d\n", space->ref_count);
     printf("  Regions:\n");
     list_node_t* node;
     list_for_each(node, &space->regions)

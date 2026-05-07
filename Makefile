@@ -15,7 +15,7 @@ RUN:= ${QEMU} -cpu $(QEMU_CPU) -m 512M -serial file:serial.log -D qemu.log -no-r
 GDB ?= gdb
 GDB_PORT ?= 1234
 
-all: $(IMAGE)
+all: headers $(IMAGE)
 
 run: $(IMAGE)
 	$(RUN) -hda $< -d cpu_reset,guest_errors

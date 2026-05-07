@@ -12,7 +12,6 @@
 
 #include <vm/kmalloc.h>
 #include <vm/vm_map.h>
-#include <wm/window.h>
 
 #include <sys/pcpu.h>
 
@@ -34,27 +33,7 @@ void syscalls_init()
     g_syscalls[SYSCALL_CLOSE] = syscall_close;
     g_syscalls[SYSCALL_READ]  = syscall_read;
     g_syscalls[SYSCALL_WRITE] = syscall_write;
-
-    // Socket syscalls
-    g_syscalls[SYSCALL_SOCKET]  = syscall_socket;
-    g_syscalls[SYSCALL_CONNECT] = syscall_connect;
-    g_syscalls[SYSCALL_LISTEN]  = syscall_listen;
-    g_syscalls[SYSCALL_ACCEPT]  = syscall_accept;
-    g_syscalls[SYSCALL_SEND]    = syscall_send;
-    g_syscalls[SYSCALL_RECV]    = syscall_recv;
-    g_syscalls[SYSCALL_UNLINK]  = syscall_unlink;
-
-    // Memory syscalls
-    g_syscalls[SYSCALL_MMAP] = syscall_mmap;
-
-    // Window syscalls
-    g_syscalls[SYSCALL_WIN_CREATE]  = syscall_win_create;
-    g_syscalls[SYSCALL_WIN_DESTROY] = syscall_win_destroy;
-    g_syscalls[SYSCALL_WIN_UPDATE]  = syscall_win_update;
-    g_syscalls[SYSCALL_WIN_GETBUF]  = syscall_win_getbuf;
-
-    // Input syscalls
-    g_syscalls[SYSCALL_READ_STDIN] = syscall_read_stdin;
+    g_syscalls[SYSCALL_GETDIRENT] = syscall_getdirent;
 
     // Process Syscalls
     g_syscalls[SYSCALL_FORK]   = syscall_fork;
@@ -156,6 +135,24 @@ int syscall_write(int fd, const void* buf, size_t count, SYSCALL2)
 
     // Write via VFS
     return vfs_write(file, buf, count, 0);
+}
+
+int syscall_getdirent(int fd, char* buf, size_t count, int offset, SYSCALL2)
+{
+    if (!buf)
+        return -1;
+
+    proc_t* proc = PCPU_GET(current_thread)->proc;
+    if (!proc)
+        return -1;
+
+    // Get the file from fd
+    file_t* file = fd_get_file(proc, fd);
+    if (!file)
+        return -1;
+
+    // Get directory entry via VFS
+    return vfs_getdirent(file, buf, count, offset);
 }
 
 /* ================
@@ -345,92 +342,20 @@ void* syscall_mmap(uintptr_t addr, size_t length, int prot, int flags, SYSCALL1)
     printf("syscall_mmap: Mapping %u bytes at %p\n", length, addr);
 
     // Map memory in process's VM space
-    if (vm_map_anon(proc->vmspace, &addr, length, prot, flags) < 0) {
+    if (vm_map_anon(proc->vmspace, &addr, length, prot, flags, VM_MAP_F_NONE) < 0) {
         return NULL;
     }
 
     return (void*)addr;
 }
 
-int syscall_win_create(const char* title, int x, int y, int width, int height)
-{
-    proc_t* proc = PCPU_GET(current_thread)->proc;
-    if (!proc)
-        return -1;
-
-    window_t* win = wm_create_window(proc->pid, title, x, y, width, height);
-    if (!win)
-        return -1;
-
-    // Map window backbuffer physical pages into process's address space
-    void* user_virt = (void*)(0x80000000 + (win->wid * 0x00400000)); // 4MB per window
-
-    // Map each physical page from kernel buffer to user space
-    vm_unmap(proc->vmspace, (uintptr_t)user_virt, win->buffer_size);
-    // vm_copy_mappings(proc->vmspace,
-    //                           (uintptr_t)win->backbuffer,
-    //                           (uintptr_t)user_virt,
-    //                           win->buffer_size,
-    //                           VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER);
-
-    return win->wid;
-}
-
-int syscall_win_destroy(uint32_t wid, SYSCALL1)
-{
-    // Verify window belongs to calling process
-    proc_t* proc = PCPU_GET(current_thread)->proc;
-    if (!proc)
-        return -1;
-
-    window_t* win = wm_get_window(wid);
-    if (!win || win->pid != proc->pid)
-        return -1;
-
-    wm_destroy_window(wid);
-    return 0;
-}
-
-int syscall_win_update(uint32_t wid, SYSCALL1)
-{
-    // Verify window belongs to calling process
-    proc_t* proc = PCPU_GET(current_thread)->proc;
-    if (!proc)
-        return -1;
-
-    window_t* win = wm_get_window(wid);
-    if (!win || win->pid != proc->pid)
-        return -1;
-
-    wm_mark_dirty(wid);
-    wm_composite();
-    return 0;
-}
-
-void* syscall_win_getbuf(uint32_t wid, SYSCALL1)
-{
-    // Verify window belongs to calling process
-    proc_t* proc = PCPU_GET(current_thread)->proc;
-    if (!proc)
-        return NULL;
-
-    window_t* win = wm_get_window(wid);
-    if (!win || win->pid != proc->pid)
-        return NULL;
-
-    // Return the virtual address where buffer is mapped (4MB per window)
-    return (void*)(0x80000000 + (wid * 0x00400000));
-}
-
-int syscall_read_stdin(char* buffer, int count, SYSCALL1)
-{
-    return -1;
-}
-
 int syscall_fork(SYSCALL1)
 {
     proc_t* child;
+    printf("syscall_fork: Forking process %s (PID %d)\n", PCPU_GET(current_thread)->proc->name,
+           PCPU_GET(current_thread)->proc->pid);
     int res = fork_process(PCPU_GET(current_thread), 0, &child);
+    printf("syscall_fork: Forked process %s (PID %d)\n", child->name, child->pid);
     if (res) return res;
     return child->pid; // Return child's PID to parent, 0 to child
 }
@@ -439,6 +364,8 @@ int syscall_execve(const char* path, char* const argv[], char* const envp[], SYS
 {
     if (!path)
         return -1;
+
+    printf("syscall_execve: Executing %s (PID=%d)\n", path, PCPU_GET(current_thread)->proc->pid);
 
     return execve(path, argv, envp);
 }

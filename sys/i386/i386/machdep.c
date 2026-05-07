@@ -39,8 +39,6 @@ void init386(void)
 
     terminal_init();
 
-    terminal_print("Initializing i386 architecture...\n");
-
     // Initialise the gdt
     SET_SEGMENT_LIMIT(gdt[GCODE_SEL], 0xFFFFF);
     SET_SEGMENT_LIMIT(gdt[GDATA_SEL], 0xFFFFF);
@@ -70,15 +68,15 @@ void init386(void)
     kvm_space_init();
     printf("Kernel VM space initialized.\n");
 
+    syscalls_init();
+
+    idt_init();
+
     if (is_errno(load_bda()))
         PANIC("BDA initialization: FAILED");
 
     if (is_errno(rsdt_init()))
-        PANIC("RSDT initialization: FAILED");
-
-    syscalls_init();
-
-    idt_init();
+        PANIC("RSDT initialization: FAILED"); 
 
     lapic_init();
     pcpu_init(0);

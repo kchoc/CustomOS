@@ -3,6 +3,8 @@
 
 #include "types.h"
 
+#include <kern/spinlock.h>
+
 #include <list.h>
 #include <stddef.h>
 
@@ -22,6 +24,7 @@ typedef struct vm_object {
     list_node_t      node;
     vm_object_type_t type;
     int              ref_count;
+    spinlock_t       lock;  // Protects the pages list
 
     struct vm_object* shadow;        // Shadow object for copy-on-write
     vm_ooffset_t      shadow_offset; // Offset within the shadow object
@@ -29,7 +32,6 @@ typedef struct vm_object {
     struct vm_pager* pager; // Pager for handling page faults and backing storage
     list_t           pages; // List of vm_page_t
 
-    size_t size; // Size of the object in bytes
 } vm_object_t;
 
 inline bool vm_object_supports_cow(vm_object_type_t type)

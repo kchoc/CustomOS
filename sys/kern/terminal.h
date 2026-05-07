@@ -6,6 +6,8 @@
 #include <inttypes.h>
 #include <stddef.h>
 
+typedef struct thread thread_t;
+
 // Initialize the terminal
 int terminal_init(void);
 
@@ -45,5 +47,8 @@ void terminal_print_registers(registers_t* regs);
 
 // Delay function
 void delay(uint32_t ms);
+
+// Display scheduler info on the terminal
+void terminal_display_scheduler_info(thread_t* t);
 
 #endif // TERMINAL_H
