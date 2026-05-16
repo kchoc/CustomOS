@@ -3,11 +3,15 @@
 #include <dev/port/port_io.h>
 #include <sys/tty.h>
 #include <vm/kmalloc.h>
-#include <errno.h>
+
+#include <kern/errno.h>
+#include <kern/terminal.h>
 
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+
+DECLARE_DRIVER(vga, root);
 
 /* =========================================================================
  * Hardware register tables for standard modes
@@ -406,7 +410,7 @@ int vga_set_mode(vga_device_t *dev, vga_mode_t mode)
 
 int vga_init() {
     device_t* dev;
-    int res = device_misc_create(&vga_driver, &vga_ops, &dev);
+    int res = device_misc_create(&__driver_vga, &dev);
     if (res)
         return res;
     vga_open(dev);
@@ -417,7 +421,6 @@ int vga_init() {
     if (tty_dev) {
         // Set VGA device as output for the first TTY
         tty_ioctl(tty_dev, TTY_IOCTL_SETOUTPUTDEV, dev);
-        tty_open(tty_dev);
     } else {
         printf("Warning: No TTY device found to set VGA output\n");
     }
@@ -425,24 +428,8 @@ int vga_init() {
     return 0;
 }
 /* =========================================================================
- * Device open / close
+ * VGA driver implementation
  * ========================================================================= */
-
-driver_t vga_driver = {
-    .name        = "vga",
-    .vendor_id   = 0,
-    .device_id   = 0,
-    .device_type = DEV_TYPE_GENERIC,
-    .probe       = vga_probe
-};
-
-device_ops_t vga_ops = {
-    .open  = vga_open,
-    .read  = vga_read,
-    .write = vga_write,
-    .ioctl = vga_ioctl,
-    .close = vga_close
-};
 
 int vga_probe(device_t *dev)
 {
@@ -452,21 +439,18 @@ int vga_probe(device_t *dev)
     if (!vdev) return -ENOMEM;
 
     memset(vdev, 0, sizeof(*vdev));
-    dev->ops_data = vdev;
+    dev->softc = vdev;
     return 0;
 }
 
-int vga_open(device_t *dev)
+int vga_attach(device_t *dev)
 {
     if (!dev) return -ENODEV;
   
-    vga_device_t *vdev = (vga_device_t *)dev->ops_data;
+    vga_device_t* vdev = kmalloc(sizeof(vga_device_t));
     if (!vdev) return -ENODEV;
 
-    if (vdev->open) {
-        vdev->ref_count++;
-        return 0;
-    }
+    dev->softc = vdev;
 
     memset(vdev, 0, sizeof(*vdev));
     vdev->cur_attr       = VGA_ATTR(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
@@ -481,11 +465,42 @@ int vga_open(device_t *dev)
     return 0;
 }
 
+int vga_detach(device_t *dev)
+{
+    if (!dev) return -ENODEV;
+    /* Resources are cleaned up in close() */
+    return 0;
+}
+
+int vga_suspend(device_t *dev)
+{
+    return 0;
+}
+
+int vga_resume(device_t *dev)
+{
+    return 0;
+}
+
+int vga_shutdown(device_t *dev)
+{
+    return 0;
+}
+
+/* ========================================================================
+ * vga device ops: open, close, read, write, ioctl
+ * ========================================================================= */
+
+int vga_open(device_t *dev)
+{ 
+    return 0;
+}
+
 int vga_close(device_t *dev)
 {
     if (!dev) return -ENODEV;
 
-    vga_device_t *vdev = (vga_device_t *)dev->ops_data;
+    vga_device_t *vdev = (vga_device_t *)dev->softc;
     if (!vdev || !vdev->open) return -EBADF;
 
     if (--vdev->ref_count > 0) return 0;
@@ -514,7 +529,7 @@ ssize_t vga_read(device_t *dev, uint64_t offset, uint32_t size, uint8_t *buf)
 {
     if (!dev)        return -ENODEV;
 
-    vga_device_t *vdev = (vga_device_t *)dev->ops_data;
+    vga_device_t *vdev = (vga_device_t *)dev->softc;
     if (!vdev || !vdev->open) return -EBADF;
     if (!buf)                return -EFAULT;
     if (size == 0)          return 0;
@@ -554,7 +569,7 @@ int vga_write(device_t *dev, uint64_t offset, uint32_t count, const uint8_t *buf
 {
     if (!dev) return -ENODEV;
 
-    vga_device_t* vdev = (vga_device_t *)dev->ops_data;
+    vga_device_t* vdev = (vga_device_t *)dev->softc;
     if (!vdev || !vdev->open) return -EBADF;
     if (!buf)               return -EFAULT;
     if (count == 0)         return 0;
@@ -627,7 +642,7 @@ int vga_ioctl(device_t *dev, int cmd, void* arg)
 {
     if (!dev) return -ENODEV;
 
-    vga_device_t *vdev = (vga_device_t *)dev->ops_data;
+    vga_device_t *vdev = (vga_device_t *)dev->softc;
     if (!vdev || !vdev->open) return -EBADF;
 
     switch (cmd) {

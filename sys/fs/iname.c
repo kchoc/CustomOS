@@ -40,6 +40,7 @@ int iname_lookup(const char* name, vnode_t* dir, vnode_t** result)
         if (res) {
             printf("iname_lookup: Failed to lookup '%s' in vnode with type %d, error %d\n", token,
                    current->v_type, res);
+            delay(2000);
             kfree(name_copy);
             return res; // Lookup failed
         }

@@ -29,14 +29,12 @@ static uint32_t next_pid = 1;
 static uint32_t next_tid = 1;
 
 // Helpers to convert between list nodes and thread/process structures
-#define PCPU_FROM_TASK(t)   ((pcpu_t*)(t->node.list - offsetof(pcpu_t, runqueue)))
-#define GET_RUNQUEUE        (list_t*)(&PCPU_GET(runqueue) - offsetof(pcpu_t, runqueue))
-#define PROC_FROM_NODE(n)   ((n) ? (proc_t*)((uint8_t*)n - offsetof(proc_t, node)) : NULL)
-#define THREAD_FROM_NODE(n) ((n) ? (thread_t*)((uint8_t*)n - offsetof(thread_t, node)) : NULL)
-#define THREAD_FROM_PROC_NODE(n)                                                                   \
-    ((n) ? (thread_t*)((uint8_t*)n - offsetof(thread_t, proc_node)) : NULL)
-#define WAIT_NODE_FROM_NODE(n)                                                                     \
-    ((n) ? (wait_node_t*)((uint8_t*)n - offsetof(wait_node_t, node)) : NULL)
+#define PCPU_FROM_TASK(t)   container_of((t)->node.list, pcpu_t, runqueue)
+#define GET_RUNQUEUE        container_of(PCPU_GET(runqueue).list, thread_t, node)
+#define PROC_FROM_NODE(n)   ((n) ? (container_of((n), proc_t, node)) : NULL)
+#define THREAD_FROM_NODE(n) ((n) ? (container_of((n), thread_t, node)) : NULL)
+#define THREAD_FROM_PROC_NODE(n) ((n) ? (container_of((n), thread_t, proc_node)) : NULL)
+#define WAIT_NODE_FROM_NODE(n) ((n) ? (container_of((n), wait_node_t, node)) : NULL)
 
 void idle_task()
 {

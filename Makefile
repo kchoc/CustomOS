@@ -26,6 +26,10 @@ debug: $(IMAGE)
 gdb: $(IMAGE)
 	$(RUN) -hda $< -d cpu_reset,in_asm,int -S -s
 
+# Inspect the filesystem of the image using mtools
+lsfs: $(IMAGE)
+	mdir -i $(IMAGE)@@2048S / ::
+
 clean:
 	rm -rf $(BUILDDIR)
 	@mkdir -p $(BUILDDIR)

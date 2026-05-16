@@ -33,6 +33,7 @@ int execve(const char* path, char* const argv[], char* const envp[])
             vfs_close(file);
             return -ENOEXEC;
         }
+        vfs_close(file);
         return 0;
     }
     vfs_close(file);

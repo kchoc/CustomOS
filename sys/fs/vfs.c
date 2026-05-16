@@ -35,6 +35,9 @@ int vfs_register_device(device_t* dev)
 
     res = dev_mount->mnt_point->v_ops->create(dev_mount->mnt_point, dev->name,
                                               VNODE_TYPE_BLOCK_DEVICE, &dev_vnode);
+
+    printf("Registering block device: %s\n", dev->name);
+    delay(1000);
     if (res)
         return res;
 

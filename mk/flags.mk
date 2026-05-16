@@ -5,7 +5,8 @@ COMMON_CFLAGS := \
 	-nostdlib \
 	-O2 \
 	-Wall \
-	-Wextra
+	-Wextra \
+	-Wno-unused-parameter \
 
 CFLAGS  := $(ARCH_CFLAGS) $(COMMON_CFLAGS) -MMD -MP
 ASFLAGS := $(ARCH_CFLAGS) -x assembler-with-cpp -MMD -MP

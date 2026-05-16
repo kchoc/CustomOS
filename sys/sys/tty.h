@@ -1,6 +1,8 @@
 #ifndef DEV_TTY_H
 #define DEV_TTY_H
 
+#include "device.h"
+
 #include "termios.h"
 
 #include <stdbool.h>
@@ -122,7 +124,6 @@ typedef struct tty {
    API
    ----------------------------------------------------------------------- */
 
-DECLARE_DEVICE_TYPE(tty);
 void tty_input(tty_t* tty, char c, uint8_t flags); /* called by keyboard IRQ handler with input character */ 
 int tty_init();
 

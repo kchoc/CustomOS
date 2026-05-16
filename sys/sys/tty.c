@@ -5,9 +5,13 @@
 
 #include <sys/device.h>
 
+#include <vm/kmalloc.h>
+
 #include <kern/errno.h>
 
 #include <string.h>
+
+DECLARE_DRIVER(tty, root);
 
 /* -----------------------------------------------------------------------
    Ring buffer helpers (internal)
@@ -253,9 +257,15 @@ tty_ops_t default_tty_ops = {
 int tty_probe(device_t* dev)
 {
     if (!dev) return -ENODEV;
+    return 0;
+}
+
+int tty_attach(device_t* dev)
+{
+    if (!dev) return -ENODEV;
     tty_t* tty = kmalloc(sizeof(tty_t));
     if (!tty) return -ENOMEM;
-    dev->ops_data = tty;
+    dev->softc = tty;
 
     // Initialise TTY state
     memset(&tty->in_ring, 0, sizeof(tty_ring_t));
@@ -277,7 +287,7 @@ int tty_probe(device_t* dev)
     tty->termios.c_cc[VINTR] = 3;   // Ctrl-C
     tty->termios.c_cc[VIKILL] = 21; // Ctrl-U
     tty->termios.c_cc[VMIN] = 1;    // read() blocks until at least 1 char available
-    tty->termios.c_cc[VQUIT] = 28;  // Ctrl-\
+    tty->termios.c_cc[VQUIT] = 28;  // Ctrl-\  *
     tty->termios.c_cc[VSTART] = 17; // Ctrl-Q
     tty->termios.c_cc[VSTOP] = 19;  // Ctrl-S
     tty->termios.c_cc[VSUSP] = 26;  // Ctrl-Z
@@ -288,13 +298,31 @@ int tty_probe(device_t* dev)
     return 0;
 }
 
-driver_t tty_driver = {
-    .name        = "tty",
-    .vendor_id   = 0,
-    .device_id   = 0,
-    .device_type = DEV_TYPE_CHAR,
-    .probe       = tty_probe
-};
+int tty_detach(device_t* dev)
+{
+    if (!dev) return -ENODEV;
+    tty_t* tty = (tty_t*)dev->softc;
+    if (!tty) return -ENODEV;
+
+    kfree(tty);
+    dev->softc = NULL;
+    return 0;
+}
+
+int tty_suspend(device_t* dev)
+{
+    return 0;
+}
+
+int tty_resume(device_t* dev)
+{
+    return 0;
+}
+
+int tty_shutdown(device_t* dev)
+{
+    return 0;
+}
 
 /* =========================================================================
  * TTY input handling (called by keyboard IRQ handler)
@@ -319,14 +347,14 @@ int tty_close(device_t* dev)
 {
     if (!dev) return -ENODEV;
     
-    tty_t* tty = (tty_t*)dev->ops_data;
+    tty_t* tty = (tty_t*)dev->softc;
     if (!tty) return -ENODEV;
 
     if (tty->tty_ops && tty->tty_ops->tx_flush)
         tty->tty_ops->tx_flush(tty); // flush output before closing
 
     kfree(tty);
-    dev->ops_data = NULL;
+    dev->softc = NULL;
     return 0;
 }
 
@@ -336,7 +364,7 @@ int tty_read(device_t* dev, uint64_t offset, uint32_t size, uint8_t* buf)
     if (!buf) return -EFAULT;
     if (size == 0) return 0;
 
-    tty_t* tty = (tty_t*)dev->ops_data;
+    tty_t* tty = (tty_t*)dev->softc;
     if (!tty) return -EBADF;
 
     uint8_t* dst = buf;
@@ -392,7 +420,7 @@ int tty_write(device_t* dev, uint64_t offset, uint32_t count, const uint8_t* buf
     if (!buf) return -EFAULT;
     if (count == 0) return 0;
 
-    tty_t* tty = (tty_t*)dev->ops_data;
+    tty_t* tty = (tty_t*)dev->softc;
     if (!tty) return -ENODEV;
 
     if (!tty->tty_ops || !tty->tty_ops->tx_chars) return -EBADF;
@@ -403,7 +431,7 @@ int tty_write(device_t* dev, uint64_t offset, uint32_t count, const uint8_t* buf
 int tty_ioctl(device_t* dev, int cmd, void* arg)
 {
     if (!dev) return -ENODEV;
-    tty_t* tty = (tty_t*)dev->ops_data;
+    tty_t* tty = (tty_t*)dev->softc;
     if (!tty) return -ENODEV;
 
     // For simplicity, we only implement a few ioctl commands
@@ -432,21 +460,13 @@ int tty_ioctl(device_t* dev, int cmd, void* arg)
     }
 }
 
-device_ops_t tty_ops = {
-    .open  = tty_open,
-    .read  = tty_read,
-    .write = tty_write,
-    .ioctl = tty_ioctl,
-    .close = tty_close
-};
-
 /* =========================================================================
  * TTY initialization
  * ========================================================================= */ 
 int tty_init(void)
 {
     device_t* dev;
-    int res = device_misc_create(&tty_driver, &tty_ops, &dev);
+    int res = device_misc_create(&__driver_tty, &dev);
     if (res) return res;
 
     res = vfs_register_device(dev);

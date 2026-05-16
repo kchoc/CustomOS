@@ -10,4 +10,8 @@ typedef int          ssize_t;
 #define offsetof(type, member) ((size_t) & ((type*)0)->member)
 #endif
 
+#ifndef container_of
+#define container_of(ptr, type, member) ((type*)((char*)(ptr) - offsetof(type, member)))
+#endif
+
 #endif // _STDDEF_H_

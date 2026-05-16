@@ -68,6 +68,8 @@ int syscall_open(const char* path, int flags, uint32_t mode, SYSCALL2)
     if (!proc)
         return -1;
 
+    printf("syscall_open: Opening file '%s' with flags 0x%x for process %s (PID %d)\n", path, flags, proc->name, proc->pid);
+
     // Open the file via VFS
     file_t* file = vfs_open(path, flags, mode);
     if (!file)

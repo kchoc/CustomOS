@@ -3,6 +3,9 @@
 
 #include "vqueue.h"
 #include <dev/pci/pci.h>
+
+#include <sys/device.h>
+
 #include <inttypes.h>
 
 #define VIRTIO_PCI_STATUS_OFFSET   0x12
@@ -25,5 +28,7 @@ void virtio_pci_reset_device(pci_device_t* dev);
 vqueue_t* virtio_pci_alloc_queue(pci_device_t* dev, uint16_t queue_size);
 int       virtio_pci_setup_queue(pci_device_t* dev, vqueue_t* queue, uint16_t queue_index);
 void      virtio_pci_free_queue(vqueue_t* queue);
+
+DECLARE_DEVICE_TYPE(virtio_pci);
 
 #endif // VIRTIO_PCI_H

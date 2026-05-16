@@ -255,8 +255,6 @@ typedef struct {
  * Public Driver API (file-operation style)
  * ========================================================================= */
 
-DECLARE_DEVICE_TYPE(vga);
-
 int vga_init(void);
 
 /* =========================================================================

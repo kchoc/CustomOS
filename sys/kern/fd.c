@@ -177,12 +177,8 @@ int fd_close(proc_t* proc, int fd)
         // No more references to this fd entry
         if (entry->file) {
             entry->file->ref_count--;
-
-            // If file has no more references, close it
-            // Note: Should call vfs_close here, but avoiding circular dependency
             if (entry->file->ref_count <= 0) {
-                // File operations release should be called
-                // This will be handled by vfs_close in syscalls
+                vfs_close(entry->file);
             }
         }
 

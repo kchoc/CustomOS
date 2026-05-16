@@ -83,3 +83,9 @@ void virtio_pci_free_vqueue(vqueue_t* queue)
     kfree(queue->vqueue_memory);
     kfree(queue);
 }
+
+void virtio_probe(device_t* dev)
+{
+    // For simplicity, we just print the device info here.
+    // In a real implementation, you'd want to initialize the device and set up queues.
+}

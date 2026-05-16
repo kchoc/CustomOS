@@ -46,11 +46,10 @@ int mbr_parse(device_t* bdev)
         part->sector_count = entry->sector_count;
 
         snprintf(part_bdev->name, sizeof(part_bdev->name), "%sp%d", bdev->name, i + 1);
-        part_bdev->parent   = bdev;
+        part_bdev->softc   = part;
+        list_push_head(&bdev->children, &part_bdev->child_node);
         part_bdev->type     = DEV_TYPE_BLOCK;
         part_bdev->ops      = &mbr_device_ops;
-        part_bdev->bus_type = bdev->bus_type;
-        part_bdev->ops_data = part;
 
         // Register the partition block device with the VFS
         vfs_register_device(part_bdev);
@@ -61,18 +60,22 @@ int mbr_parse(device_t* bdev)
 
 int partition_read(device_t* bdev, uint64_t lba, uint32_t count, uint8_t* buffer)
 {
-    partition_t* part = (partition_t*)bdev->ops_data;
+    partition_t* part = (partition_t*)bdev->softc;
     if (!part)
         return -1;
 
-    return bdev->parent->ops->read(bdev->parent, part->start_lba + lba, count, buffer);
+    device_t* parent = device_get_parent(bdev);
+
+    return parent->ops->read(parent, part->start_lba + lba, count, buffer);
 }
 
 int partition_write(device_t* bdev, uint64_t lba, uint32_t count, const uint8_t* data)
 {
-    partition_t* part = (partition_t*)bdev->ops_data;
+    partition_t* part = (partition_t*)bdev->softc;
     if (!part)
         return -1;
 
-    return bdev->parent->ops->write(bdev->parent, part->start_lba + lba, count, data);
+    device_t* parent = device_get_parent(bdev);
+
+    return parent->ops->write(parent, part->start_lba + lba, count, data);
 }

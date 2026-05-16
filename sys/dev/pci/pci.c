@@ -6,11 +6,7 @@
 
 #include <kern/terminal.h>
 
-bus_t pci_bus = {.name      = "PCI",
-                 .enumerate = pci_enumerate,
-                 .match     = pci_match,
-                 .probe     = pci_probe,
-                 .remove    = pci_remove};
+DECLARE_BUS_DRIVER(pci, root);
 
 static inline void pci_write_config_address(uint32_t address)
 {
@@ -84,7 +80,24 @@ uint32_t pci_read_bar(pci_device_t* dev, uint8_t bar_index)
     return pci_dev_config_read32(dev, 0x10 + (bar_index * 4));
 }
 
-int pci_enumerate(struct bus* bus)
+device_t* pci_detect(device_t* parent)
+{
+    // For simplicity, we assume PCI is always present
+    device_t* pci_bus = kmalloc(sizeof(device_t));
+    if (!pci_bus)        return NULL;
+    strncpy(pci_bus->name, "pci_bus", sizeof(pci_bus->name));
+    pci_bus->type      = DEV_TYPE_BUS;
+    pci_bus->bus_data  = NULL;
+    pci_bus->driver    = &__driver_pci;
+    list_init(&pci_bus->children, 0);
+    pci_bus->bus_data = NULL;
+    
+    list_push_head(&parent->children, &pci_bus->child_node);
+
+    return pci_bus;
+}
+
+int pci_enumerate(device_t* bus)
 {
     uint8_t bus_num = 0;
     for (int i = 0; i < 256; ++i, ++bus_num) {
@@ -98,7 +111,7 @@ int pci_enumerate(struct bus* bus)
                 pdev->bus          = bus_num;
                 pdev->function     = func;
                 pdev->vendor_id    = vendor;
-                pdev->device_id    = pci_read_device_id(bus_num, dev, func);
+                pdev->product_id    = pci_read_device_id(bus_num, dev, func);
                 pdev->class_code   = pci_read_class(bus_num, dev, func);
                 pdev->subclass     = pci_read_subclass(bus_num, dev, func);
                 pdev->prog_if      = pci_read_prog_if(bus_num, dev, func);
@@ -106,42 +119,92 @@ int pci_enumerate(struct bus* bus)
                 // Wrap in device_t
                 device_t* dev_obj = kmalloc(sizeof(device_t));
                 if (!dev_obj) {
-                    // printf("Failed to allocate device object for PCI device %04X:%04X\n",
-                    // pdev->vendor_id, pdev->device_id);
                     kfree(pdev);
                     continue;
                 }
                 snprintf(dev_obj->name, sizeof(dev_obj->name), "pci:%x:%x", pdev->vendor_id,
-                         pdev->device_id);
-                dev_obj->bus_type = BUS_TYPE_PCI;
-                dev_obj->bus      = bus;
+                         pdev->product_id);
                 dev_obj->bus_data = pdev;
                 dev_obj->type     = DEV_TYPE_GENERIC;
 
-                device_register(dev_obj);
+                list_push_head(&bus->children, &dev_obj->child_node);
+
+                device_register(dev_obj, bus_type_pci);
             }
         }
     }
     return 0;
 }
 
-int pci_match(device_t* dev, driver_t* drv)
+int pci_add_child(device_t* bus, device_t* child)
 {
-    pci_device_t* pci_dev = (pci_device_t*)dev->bus_data;
-    if (drv->vendor_id == pci_dev->vendor_id && drv->device_id == pci_dev->device_id) {
-        return 1;
-    }
+    list_push_head(&bus->children, &child->child_node);
     return 0;
 }
 
-int pci_probe(device_t* dev, driver_t* drv)
+int pci_remove_child(device_t* bus, device_t* child)
 {
-    if (!pci_match(dev, drv))
-        return -1;
-    return drv->probe(dev);
-}
-
-int pci_remove(device_t* dev)
-{
+    list_remove(&child->child_node);
     return 0;
 }
+
+resource_t* pci_alloc_resource(device_t* bus, device_t* dev, resource_type_t type, size_t size)
+{
+    // For simplicity, we won't implement resource allocation in this example
+    return NULL;
+}
+
+int pci_free_resource(device_t* bus, device_t* dev, resource_t* res)
+{
+    // For simplicity, we won't implement resource freeing in this example
+    return 0;
+}
+
+int pci_setup_irq(device_t* bus, device_t* dev, int irq)
+{
+    // For simplicity, we won't implement IRQ setup in this example
+    return 0;
+}
+
+int pci_teardown_irq(device_t* bus, device_t* dev, int irq)
+{
+    // For simplicity, we won't implement IRQ teardown in this example
+    return 0;
+}
+
+int pci_probe(device_t* dev)
+{
+    // For simplicity, we won't implement probing in this example
+    return 0;
+}
+
+int pci_attach(device_t* dev)
+{
+    // For simplicity, we won't implement attaching in this example
+    return 0;
+}
+
+int pci_detach(device_t* dev)
+{
+    // For simplicity, we won't implement detaching in this example
+    return 0;
+}
+
+int pci_suspend(device_t* dev)
+{
+    // For simplicity, we won't implement suspending in this example
+    return 0;
+}
+
+int pci_resume(device_t* dev)
+{
+    // For simplicity, we won't implement resuming in this example
+    return 0;
+}
+
+int pci_shutdown(device_t* dev)
+{
+    // For simplicity, we won't implement shutdown in this example
+    return 0;
+}
+

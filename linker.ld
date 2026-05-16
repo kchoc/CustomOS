@@ -26,6 +26,13 @@ SECTIONS
         __bss_end = .;
     }
 
+    .drivers ALIGN(64) :
+    {
+        __drivers_start = .;
+        KEEP(*(.drivers))
+        __drivers_end = .;
+    }
+
     _kernel_end = .;
 
     /DISCARD/ :

@@ -20,9 +20,8 @@ typedef struct vm_region {
     size_t            offset;
 } vm_region_t;
 
-#define list_node_to_region(nptr) ((vm_region_t*)((char*)(nptr)-offsetof(vm_region_t, node)))
-#define vm_space_from_region(region)                                                               \
-    ((vm_space_t*)(region->node.list - offsetof(vm_space_t, regions)))
+#define list_node_to_region(nptr) container_of(nptr, vm_region_t, node)
+#define vm_space_from_region(region) container_of((region)->node.list, vm_space_t, regions) 
 #define GET_NEXT_REGION(region) list_node_to_region((region)->node.next)
 #define GET_PREV_REGION(region) list_node_to_region((region)->node.prev)
 

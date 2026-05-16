@@ -5,7 +5,7 @@
 
 #include <kern/errno.h>
 
-#define list_node_to_page(node) ((vm_page_t*)((char*)(node)-offsetof(vm_page_t, node)))
+#define list_node_to_page(node) container_of(node, vm_page_t, node)
 
 vm_page_t* vm_page_lookup(vm_object_t* obj, size_t offset)
 {
