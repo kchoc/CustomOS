@@ -33,6 +33,7 @@ void handle_isr(registers_t regs)
 {
     uint8_t      int_no = regs.interruptNumber & 0xFF;
     trapframe_t* old_tf = PCPU_GET(current_thread)->trapframe;
+    terminal_display_isr_info(int_no, &regs);
     PCPU_GET(current_thread)->trapframe =
         (trapframe_t*)&regs; // Update current thread's trapframe pointer to the new regs for
                              // handlers to access
@@ -93,7 +94,7 @@ void isr_page_fault_handler(registers_t* regs)
     // delay(5000);
 
     // Map the page
-    vm_fault(PCPU_GET(current_thread)->proc->vmspace, faulting_address,
+    vm_fault(get_proc_from_thread(PCPU_GET(current_thread))->vmspace, faulting_address,
              VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER);
 
     // printf("Handled page fault for address: %x\n", faulting_address);
@@ -128,10 +129,10 @@ void isr_syscall(registers_t* regs)
 void isr_divide_by_zero(registers_t* regs)
 {
     printf("Divide by zero\n");
-    printf("Error Code: 0x%x\n", regs->errorCode);
-    printf("Return Address: 0x%x\n", regs->eip);
-    printf("Current ESP: 0x%x\n", PCPU_GET(current_thread)->trapframe->user_esp);
-    printf("Current process name: %s\n", PCPU_GET(current_thread)->proc->name);
+    printf("CPU ID: %d\n", PCPU_GET(pc_cpu_id));
+    printf("Current process name: %s\n", get_proc_from_thread(PCPU_GET(current_thread))->name);
+    terminal_print_registers(regs);
+    PANIC("Divide by zero exception");
     asm volatile("hlt");
 }
 

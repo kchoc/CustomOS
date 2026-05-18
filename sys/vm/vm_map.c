@@ -10,7 +10,6 @@
 
 #include <string.h>
 
-// TODO: Add flags
 int vm_map(vm_space_t* space, vaddr_t* virt, size_t size, vm_prot_t prot, vm_region_flags_t flags,
            vm_object_t* object, vm_ooffset_t offset, vm_map_flags_t map_flags)
 {
@@ -101,7 +100,7 @@ void* vm_map_device(paddr_t addr, size_t size, vm_prot_t prot, vm_region_flags_t
         // TODO: Consider bookkeeping in object for device mappings to allow for proper unmapping
         // and cleanup
         int ret =
-            pmap_enter(kernel_vm_space->arch, virt + (phys - aligned_phys), phys, prot, pmap_flags);
+            pmap_enter(kernel_vm_space.arch, virt + (phys - aligned_phys), phys, prot, pmap_flags);
         if (IS_ERR(ret)) {
             kvm_unmap((void*)virt, phys - aligned_phys);
             return ERR_PTR(ret);
@@ -117,7 +116,7 @@ void vm_unmap_device(void* virt, size_t size)
     vaddr_t end_virt     = PAGE_ALIGN_UP((vaddr_t)virt + size);
 
     for (vaddr_t offset = 0; offset < end_virt - aligned_virt; offset += PAGE_SIZE) {
-        pmap_remove(kernel_vm_space->arch, aligned_virt + offset,
+        pmap_remove(kernel_vm_space.arch, aligned_virt + offset,
                     aligned_virt + offset + PAGE_SIZE);
     }
 
@@ -128,7 +127,7 @@ void* kvm_alloc(size_t size, vm_prot_t prot, vm_region_flags_t flags)
 {
     size_t  aligned_size = PAGE_ALIGN_UP(size);
     vaddr_t virt;
-    int ret = vm_map(kernel_vm_space, &virt, aligned_size, prot, VM_REG_F_KERNEL | flags, NULL, 0, 0);
+    int ret = vm_map(&kernel_vm_space, &virt, aligned_size, prot, VM_REG_F_KERNEL | flags, NULL, 0, 0);
 
     if (IS_ERR(ret))
         return ERR_PTR(ret);
@@ -139,7 +138,7 @@ void* kvm_alloc(size_t size, vm_prot_t prot, vm_region_flags_t flags)
 void kvm_free(void* virt, size_t size)
 {
     size_t aligned_size = PAGE_ALIGN_UP(size);
-    vm_unmap(kernel_vm_space, (uintptr_t)virt, aligned_size);
+    vm_unmap(&kernel_vm_space, (uintptr_t)virt, aligned_size);
 }
 
 void* kvm_map(size_t size, vm_prot_t prot, vm_region_flags_t flags)
@@ -154,7 +153,7 @@ void* kvm_map(size_t size, vm_prot_t prot, vm_region_flags_t flags)
     if (flags & VM_REG_F_NOCACHE)
         pmap_flags |= PMAP_FLAG_NOCACHE;
 
-    vm_object_t* obj = vm_region_lookup(kernel_vm_space, kva)->object;
+    vm_object_t* obj = vm_region_lookup(&kernel_vm_space, kva)->object;
     for (size_t offset = 0; offset < aligned_size; offset += PAGE_SIZE) {
         vm_page_t* page = vm_page_allocate(obj, offset);
         if (IS_ERR(page)) {
@@ -162,7 +161,7 @@ void* kvm_map(size_t size, vm_prot_t prot, vm_region_flags_t flags)
             return page;
         }
         int ret =
-            pmap_enter(kernel_vm_space->arch, kva + offset, page->phys_addr, prot, pmap_flags);
+            pmap_enter(kernel_vm_space.arch, kva + offset, page->phys_addr, prot, pmap_flags);
         if (IS_ERR(ret)) {
             kvm_unmap((void*)kva, offset);
             return ERR_PTR(ret);

@@ -73,6 +73,10 @@ void init386(void)
 
     idt_init();
 
+    pcpu_init(0);
+
+    asm volatile("sti"); // Enable interrupts
+
     if (is_errno(load_bda()))
         PANIC("BDA initialization: FAILED");
 
@@ -80,7 +84,6 @@ void init386(void)
         PANIC("RSDT initialization: FAILED"); 
 
     lapic_init();
-    pcpu_init(0);
  
     vfs_init();
 
@@ -92,14 +95,10 @@ void init386(void)
 
     vfs_list_devices();
 
-    tasking_init();
-
-    asm volatile("sti"); // Enable interrupts
-
     system_init();
 
     // list_tasks();
 
     while (1)
-        asm volatile("nop");
+        yield();
 }

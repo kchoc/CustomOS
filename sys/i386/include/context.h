@@ -18,7 +18,7 @@ extern void start_thread(void);
 extern void start_fork(void);
 extern void context_switch(context_t** old, context_t* new);
 
-void context_init(thread_t* thread, void (*entry)(void), uint32_t* stack_top,
-                  uint32_t user_stack_top);
+void context_init(thread_t* thread, void (*entry)(void), uint32_t* stack_top, uint32_t user_stack_top);
+void context_fork(thread_t* child, thread_t* parent, uint32_t* stack_top);
 
 #endif // _I386_CONTEXT_H_

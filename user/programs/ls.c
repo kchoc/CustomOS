@@ -2,7 +2,7 @@
 #include "syscalls.h"
 #include "string.h"
 
-int _start() {
+int main() {
     // List of files in the current directory
     printf("Files in current directory:\n");
     int fd = open("/", 0, 0);
@@ -28,6 +28,5 @@ int _start() {
         offset += name_len + 1; // Move to next entry (null-terminated)
     }
 
-    exit(0);
     return 0;
 }

@@ -41,7 +41,9 @@ int load_elf(const char* filepath, thread_t* thread)
     vfs_llseek(file, eh.e_phoff, 0);
     vfs_read(file, (uint8_t*)ph, eh.e_phnum * sizeof(Elf32_Phdr), 0);
 
-    vm_space_clean(thread->proc->vmspace); // Clean existing VM space (unmap old executable)
+    proc_t* p = get_proc_from_thread(thread);
+
+    vm_space_clean(p->vmspace); // Clean existing VM space (unmap old executable)
 
 
     for (int i = 0; i < eh.e_phnum; i++) {
@@ -49,7 +51,7 @@ int load_elf(const char* filepath, thread_t* thread)
             continue;
 
         // Allocate memory in the process's VM space
-        vm_map_anon(thread->proc->vmspace, &ph[i].p_vaddr, ph[i].p_memsz,
+        vm_map_anon(p->vmspace, &ph[i].p_vaddr, ph[i].p_memsz,
                     VM_PROT_READ | VM_PROT_USER | VM_PROT_WRITE, VM_REG_F_PRIVATE, VM_MAP_F_FIXED);
 
         // Load file data into the mapped memory
@@ -57,12 +59,7 @@ int load_elf(const char* filepath, thread_t* thread)
         vfs_read(file, (uint8_t*)ph[i].p_vaddr, ph[i].p_filesz, 0);
     }
 
-    thread->trapframe->eip      = eh.e_entry; // Set entry point for the new executable
-    uint32_t stack_bottom = 0xC0000000 - PAGE_SIZE;
-    vm_map_anon(thread->proc->vmspace, &stack_bottom, PAGE_SIZE, VM_PROT_READ | VM_PROT_USER | VM_PROT_WRITE,
-                VM_REG_F_PRIVATE, VM_MAP_F_FIXED); // Map user stack 
-
-    thread->trapframe->user_esp = stack_bottom + PAGE_SIZE; 
+    thread->trapframe->eip      = eh.e_entry; // Set entry point for the new executable 
     kfree(ph);
     vfs_close(file);
 

@@ -13,27 +13,24 @@
 
 #include <list.h>
 
-vm_space_t* kernel_vm_space = NULL;
+vm_space_t kernel_vm_space = {
+    .regions = LIST_INIT,
+    .arch    = NULL,
+};
 
 int kvm_space_init()
 {
-    kernel_vm_space = kmalloc(sizeof(vm_space_t));
-    if (IS_ERR(kernel_vm_space))
-        return (int)kernel_vm_space;
-
-    list_init(&kernel_vm_space->regions, 0);
-    kernel_vm_space->arch = kmalloc(sizeof(pmap_t));
-    if (IS_ERR(kernel_vm_space->arch)) {
-        kfree(kernel_vm_space);
-        return (int)kernel_vm_space->arch;
+    kernel_vm_space.arch = kmalloc(sizeof(pmap_t));
+    if (IS_ERR(kernel_vm_space.arch)) {
+        return (int)kernel_vm_space.arch;
     }
 
-    kernel_vm_space->arch->pd = *current_pd_addr; // Use the page directory set up by the bootloader
-    pcpus[0].vmspace          = kernel_vm_space;
+    kernel_vm_space.arch->pd = *current_pd_addr; // Use the page directory set up by the bootloader
+    pcpus[0].vmspace          = &kernel_vm_space;
 
     // Since this is the first kvm call, the start is at 0xC0000000, so we can allocate that
     vaddr_t virt = KERNEL_BASE;
-    int     ret  = vm_map_anon(kernel_vm_space, &virt, 0x00400000, VM_PROT_READ | VM_PROT_WRITE,
+    int     ret  = vm_map_anon(&kernel_vm_space, &virt, 0x00400000, VM_PROT_READ | VM_PROT_WRITE,
                                VM_REG_F_KERNEL, VM_MAP_F_FIXED);
     if (IS_ERR(ret))
         return ret;

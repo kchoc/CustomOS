@@ -40,7 +40,7 @@ void switch_page_directory(page_table_t** pd_ptr)
 void pmap_debug(pmap_t* pmap)
 {
     printf("Page Directory at: %p\n", *current_pd_addr);
-    pmap_enter(kernel_vm_space->arch, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pmap->pd,
+    pmap_enter(kernel_vm_space.arch, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pmap->pd,
                VM_PROT_READ | VM_PROT_WRITE, PMAP_FLAG_NONE);
     for (int i = 767; i < 768; i++) {
         if (edit_pd->entries[i] & 0x1) {
@@ -48,7 +48,7 @@ void pmap_debug(pmap_t* pmap)
             i += 15;
         }
     }
-    pmap_remove(kernel_vm_space->arch, PAGE_TABLE_EDIT_ADDRESS,
+    pmap_remove(kernel_vm_space.arch, PAGE_TABLE_EDIT_ADDRESS,
                 PAGE_TABLE_EDIT_ADDRESS + PAGE_SIZE);
 }
 
@@ -63,7 +63,8 @@ pmap_t* pmap_create()
         kfree(pmap);
         return NULL;
     }
-    pmap_enter(kernel_vm_space->arch, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pmap->pd,
+    pmap->lock = 0;
+    pmap_enter(kernel_vm_space.arch, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pmap->pd,
                VM_PROT_READ | VM_PROT_WRITE, PMAP_FLAG_NONE);
 
     // Copy kernel mappings from the current page directory, leaving user-space entries as not present
@@ -72,7 +73,7 @@ pmap_t* pmap_create()
     }
     edit_pd->entries[PAGE_ENTRIES_PER_TABLE - 1] =
         ((uint32_t)pmap->pd) | VM_PROT_READ | VM_PROT_WRITE; // Recursive mapping for the page directory
-    pmap_remove(kernel_vm_space->arch, PAGE_TABLE_EDIT_ADDRESS,
+    pmap_remove(kernel_vm_space.arch, PAGE_TABLE_EDIT_ADDRESS,
                 PAGE_TABLE_EDIT_ADDRESS + PAGE_SIZE);
 
     return pmap;

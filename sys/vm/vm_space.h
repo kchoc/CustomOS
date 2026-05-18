@@ -16,7 +16,7 @@ typedef struct vm_space {
     spinlock_t regions_lock; // Lock for synchronizing access to the regions list fault_count must be 0 before proceeding with alterations.
 } vm_space_t;
 
-extern vm_space_t* kernel_vm_space;
+extern vm_space_t kernel_vm_space;
 
 int         kvm_space_init();
 vm_space_t* vm_space_create();

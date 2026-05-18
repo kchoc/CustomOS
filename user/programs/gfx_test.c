@@ -1,7 +1,7 @@
 #include "graphics.h"
 #include "syscalls.h"
 
-void _start()
+int main()
 {
     // Initialize graphics library (maps framebuffer)
     // gfx_init();
@@ -29,5 +29,5 @@ void _start()
     // gfx_draw_string(10, 20, "Hello from userland!", COLOR_YELLOW, 255);
 
     // Exit
-    exit(0);
+    return 0;
 }

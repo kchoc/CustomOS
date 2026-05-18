@@ -23,11 +23,9 @@ struct process;
 typedef struct thread {
     list_node_t     node;      // For linking threads in a list
     list_node_t     proc_node; // For linking in process's thread list
-    struct process* proc;
 
     context_t*   context;   // CPU context for this threads
     trapframe_t* trapframe; // Pointer to saved registers (used during scheduling and stored on the
-                            // kernel stack)
 
     uint32_t tid;      // Thread ID
     uint8_t  state;    // Thread state (e.g., running, ready, blocked)
@@ -36,6 +34,11 @@ typedef struct thread {
     void*    kstack;      // Kernel stack pointer
     uint32_t kstack_size; // Kernel stack size
 } thread_t;
+
+#define get_proc_from_thread(t) container_of((t)->proc_node.list, proc_t, threads)
+#define get_pcpu_from_thread(t) container_of((t)->node.list, pcpu_t, runqueue)
+#define thread_from_proc_node(node) container_of((node), thread_t, proc_node)
+#define thread_from_runqueue_node(node) container_of((node), thread_t, node)
 
 typedef struct vm_space vm_space_t;
 typedef struct list     list_t;
@@ -53,6 +56,8 @@ typedef struct process {
     list_t threads; // Linked list of threads in the process
 } proc_t;
 
+#define get_proc_from_node(node) container_of((node), proc_t, node)
+
 typedef struct wait_node {
     list_node_t node;
     thread_t*   thread;
@@ -60,14 +65,13 @@ typedef struct wait_node {
 
 typedef struct pcpu pcpu_t;
 
-extern proc_t* idle_process;
+extern proc_t idle_process;
+extern thread_t idle_thread;
 
-void      idle_task(void);
-void      tasking_init();
 thread_t* create_kernel_thread(void (*entry)(void), proc_t* p, uint32_t priority, pcpu_t* pcpu);
 thread_t* create_user_thread(void (*entry)(void), proc_t* p, uint32_t priority, pcpu_t* pcpu, void* user_stack_top);
 proc_t*   create_process(const char* name);
-int   fork_process(thread_t* t, int flags, proc_t** child_out);
+int       fork_process(thread_t* t, int flags, proc_t** child_out);
 void      yield();
 pcpu_t*   select_pcpu();
 void      schedule_from_irq(registers_t* regs);

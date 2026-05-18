@@ -21,7 +21,7 @@ int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
     vm_region_t* region = vm_region_lookup(space, addr);
 
     if (!region) {
-        printf("vm_fault: No region found for address 0x%08x (PID=%d)\n", addr, PCPU_GET(current_thread)->proc->pid);
+        printf("vm_fault: No region found for address 0x%08x (PID=%d)\n", addr, get_proc_from_thread(PCPU_GET(current_thread))->pid);
         PANIC_DUMP_REGISTERS(PCPU_GET(current_thread)->trapframe);
         return -1; // invalid access
     }

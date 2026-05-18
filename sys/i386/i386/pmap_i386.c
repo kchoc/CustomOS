@@ -7,6 +7,7 @@
 
 #include <kern/errno.h>
 #include <kern/panic.h>
+#include <kern/spinlock.h>
 #include <kern/terminal.h>
 
 #include <string.h>
@@ -18,6 +19,8 @@ void pmap_destroy(pmap_t* pmap)
 {
     page_table_t* old_pd = *current_pd_addr;
     switch_page_directory(&pmap->pd); // Switch to the kernel page directory
+    
+    WITH_SPINLOCK(pmap->lock)
 
     // Assumes that all user-space mappings have been removed, so we only need to free the page
     // tables
@@ -38,16 +41,18 @@ void pmap_destroy(pmap_t* pmap)
 
     switch_page_directory(&old_pd); // Switch back to the original page directory
 
+    END_WITH_SPINLOCK
+
     vm_phys_free_page((paddr_t)pmap->pd);
     kfree(pmap);
 }
 
 int pmap_enter(pmap_t* pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, pmap_flags_t flags)
 {
-    SWITCH_SPACE(pmap);
-
     uint32_t table_idx = TABLE_IDX(virt);
     uint32_t entry_idx = ENTRY_IDX(virt);
+
+    WITH_SPINLOCK(pmap->lock)
 
     page_table_t* table = current_pd;
     if (!(table->entries[table_idx] & 0x1)) {
@@ -77,12 +82,16 @@ int pmap_enter(pmap_t* pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, pmap_fl
         memset((void*)virt, 0, PAGE_SIZE);
     }
 
+    END_WITH_SPINLOCK
+
     return 0;
 }
 
 void pmap_remove(pmap_t* pmap, vaddr_t sva, vaddr_t eva)
 {
     SWITCH_SPACE(pmap);
+
+    WITH_SPINLOCK(pmap->lock)
 
     for (vaddr_t addr = sva; addr < eva; addr += PAGE_SIZE) {
         uint32_t table_idx = TABLE_IDX(addr);
@@ -101,11 +110,15 @@ void pmap_remove(pmap_t* pmap, vaddr_t sva, vaddr_t eva)
         *entry = 0; // Clear the entry
         tlb_invlpg((void*)addr);
     }
+
+    END_WITH_SPINLOCK
 }
 
 void pmap_protect(pmap_t* pmap, vaddr_t sva, vaddr_t eva, vm_prot_t prot)
 {
     SWITCH_SPACE(pmap);
+
+    WITH_SPINLOCK(pmap->lock)
 
     for (vaddr_t addr = sva; addr < eva; addr += PAGE_SIZE) {
         uint32_t table_idx = TABLE_IDX(addr);
@@ -124,11 +137,15 @@ void pmap_protect(pmap_t* pmap, vaddr_t sva, vaddr_t eva, vm_prot_t prot)
         *entry = (page_entry_t)(((uintptr_t)*entry & ~PAGE_MASK) | (prot & PAGE_MASK));
         tlb_invlpg((void*)addr);
     }
+
+    END_WITH_SPINLOCK
 }
 
 paddr_t pmap_extract(pmap_t* pmap, vaddr_t virt)
 {
     SWITCH_SPACE(pmap);
+
+    WITH_SPINLOCK(pmap->lock)
 
     uint32_t table_idx = TABLE_IDX(virt);
     uint32_t entry_idx = ENTRY_IDX(virt);
@@ -144,4 +161,6 @@ paddr_t pmap_extract(pmap_t* pmap, vaddr_t virt)
     }
 
     return (paddr_t)(*entry & 0xFFFFF000);
+
+    END_WITH_SPINLOCK
 }

@@ -2,7 +2,7 @@
 #include "string.h"
 #include "syscalls.h"
 
-int _start() {
+int main() {
     printf("Welcome to the kernel!\n");
     printf("This is a minimal shell. Type 'help' for a list of commands.\n");
 
@@ -46,7 +46,6 @@ int _start() {
         printf("Started process for %s\n", program_path);
     }
 
-    exit(0);
     return 0;
 }
 

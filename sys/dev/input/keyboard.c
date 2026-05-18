@@ -164,7 +164,7 @@ void handle_keypress(uint8_t scancode)
     char c = scancode_to_ascii(scancode);
 
     if (c == '!')
-        printf("Current thread: %d (%s)\n", PCPU_GET(current_thread)->tid, PCPU_GET(current_thread)->proc->name);
+        printf("Current thread: %d (%s)\n", PCPU_GET(current_thread)->tid, get_proc_from_thread(PCPU_GET(current_thread))->name);
 
     // Add to keyboard buffer
     if (c != 0 && active_tty) {

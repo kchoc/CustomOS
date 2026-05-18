@@ -13,10 +13,11 @@ int pcpu_init(MACHDEP_PARAMS)
     pcpu_t* pcpu = &pcpus[cpu_count++];
     pcpu->self   = pcpu;
     list_init(&pcpu->runqueue, 1);
-    pcpu->current_thread = NULL;
+    list_push_tail(&pcpu->runqueue, &idle_thread.node);
+    pcpu->current_thread = &idle_thread;
     pcpu->total_priority = 0;
     pcpu->started        = 0;
-    pcpu->vmspace        = kernel_vm_space;
+    pcpu->vmspace        = &kernel_vm_space;
     machdep_init_pcpu(pcpu, MACHDEP_ARGUMENTS);
     return 0;
 }

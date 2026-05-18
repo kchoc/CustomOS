@@ -51,4 +51,7 @@ void delay(uint32_t ms);
 // Display scheduler info on the terminal
 void terminal_display_scheduler_info(thread_t* t);
 
+// Display ISR info on the terminal
+void terminal_display_isr_info(uint8_t int_no, registers_t* regs);
+
 #endif // TERMINAL_H

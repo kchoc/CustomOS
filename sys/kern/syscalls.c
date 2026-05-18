@@ -64,7 +64,7 @@ int syscall_open(const char* path, int flags, uint32_t mode, SYSCALL2)
     if (!path)
         return -1;
 
-    proc_t* proc = PCPU_GET(current_thread)->proc;
+    proc_t* proc = get_proc_from_thread(PCPU_GET(current_thread));
     if (!proc)
         return -1;
 
@@ -87,7 +87,7 @@ int syscall_open(const char* path, int flags, uint32_t mode, SYSCALL2)
 
 int syscall_close(int fd, SYSCALL1)
 {
-    proc_t* proc = PCPU_GET(current_thread)->proc;
+    proc_t* proc = get_proc_from_thread(PCPU_GET(current_thread));
     if (!proc)
         return -1;
 
@@ -108,7 +108,7 @@ int syscall_read(int fd, void* buf, size_t count, SYSCALL2)
     if (!buf)
         return -1;
 
-    proc_t* proc = PCPU_GET(current_thread)->proc;
+    proc_t* proc = get_proc_from_thread(PCPU_GET(current_thread));
     if (!proc)
         return -1;
 
@@ -126,7 +126,7 @@ int syscall_write(int fd, const void* buf, size_t count, SYSCALL2)
     if (!buf)
         return -1;
 
-    proc_t* proc = PCPU_GET(current_thread)->proc;
+    proc_t* proc = get_proc_from_thread(PCPU_GET(current_thread));
     if (!proc)
         return -1;
 
@@ -144,7 +144,7 @@ int syscall_getdirent(int fd, char* buf, size_t count, int offset, SYSCALL2)
     if (!buf)
         return -1;
 
-    proc_t* proc = PCPU_GET(current_thread)->proc;
+    proc_t* proc = get_proc_from_thread(PCPU_GET(current_thread));
     if (!proc)
         return -1;
 
@@ -337,7 +337,7 @@ int syscall(uint32_t syscall_id, int arg_count, ...)
 
 void* syscall_mmap(uintptr_t addr, size_t length, int prot, int flags, SYSCALL1)
 {
-    proc_t* proc = PCPU_GET(current_thread)->proc;
+    proc_t* proc = get_proc_from_thread(PCPU_GET(current_thread));
     if (!proc || !proc->vmspace)
         return NULL;
 
@@ -353,9 +353,9 @@ void* syscall_mmap(uintptr_t addr, size_t length, int prot, int flags, SYSCALL1)
 
 int syscall_fork(SYSCALL1)
 {
+    proc_t* parent = get_proc_from_thread(PCPU_GET(current_thread));
     proc_t* child;
-    printf("syscall_fork: Forking process %s (PID %d)\n", PCPU_GET(current_thread)->proc->name,
-           PCPU_GET(current_thread)->proc->pid);
+    printf("syscall_fork: Forking process %s (PID %d)\n", parent->name, parent->pid);
     int res = fork_process(PCPU_GET(current_thread), 0, &child);
     printf("syscall_fork: Forked process %s (PID %d)\n", child->name, child->pid);
     if (res) return res;
@@ -367,7 +367,7 @@ int syscall_execve(const char* path, char* const argv[], char* const envp[], SYS
     if (!path)
         return -1;
 
-    printf("syscall_execve: Executing %s (PID=%d)\n", path, PCPU_GET(current_thread)->proc->pid);
+    printf("syscall_execve: Executing %s (PID=%d)\n", path, get_proc_from_thread(PCPU_GET(current_thread))->pid);
 
     return execve(path, argv, envp);
 }
