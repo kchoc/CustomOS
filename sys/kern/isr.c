@@ -245,15 +245,13 @@ void isr_timer_handler(registers_t* regs)
     outb(0x20, 0x20); // Send EOI to PIC1
     outb(0xA0, 0x20); // Send EOI to PIC2
 
-    // printf("Process %s (PID %d) - Timer tick\n", PCPU_GET(current_thread)->proc->name,
-           // PCPU_GET(current_thread)->proc->pid);
-
+    // printf("Thread %s (TID %d) - Timer tick\n", get_proc_from_thread(PCPU_GET(current_thread))->name,
+           // PCPU_GET(current_thread)->tid); 
     // Schedule next task
     schedule_from_irq(regs);
 
-    // printf("Process %s (PID %d) - Resumed after timer tick\n", PCPU_GET(current_thread)->proc->name,
-           // PCPU_GET(current_thread)->proc->pid);
-
+    // printf("Thread %s (TID %d) - Resumed after timer tick\n", get_proc_from_thread(PCPU_GET(current_thread))->name,
+           // PCPU_GET(current_thread)->tid);
     // Send EOI to LAPIC
     lapic_write(LAPIC_EOI, 0);
 }

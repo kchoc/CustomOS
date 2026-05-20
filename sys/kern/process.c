@@ -276,7 +276,7 @@ void free_process(proc_t* p)
 
 thread_t* get_next_ready_thread(thread_t* prev)
 {
-    thread_t* next = (thread_t*)prev->node.next;
+    thread_t* next = thread_from_runqueue_node(prev->node.next);
     if (!next)
         PANIC("get_next_ready_thread: Current thread not in runqueue or runqueue is empty");
 
@@ -284,14 +284,14 @@ thread_t* get_next_ready_thread(thread_t* prev)
     while (next->state != TASK_READY) {
         if (next->state == TASK_ZOMBIE && next != PCPU_GET(current_thread)) {
             thread_t* to_free = next;
-            next              = (thread_t*)next->node.next; // Move to next thread before freeing
+            next              = thread_from_runqueue_node(next->node.next);
             free_thread(to_free);
         } else {
-            next = (thread_t*)next->node.next;
+            next = thread_from_runqueue_node(next->node.next);
         }
         if (!next || next == start)
             return NULL;
-    } while (next->state != TASK_READY);
+    }
     return next;
 }
 
@@ -312,14 +312,16 @@ void schedule_from_irq(registers_t* regs)
 {
     pcpu_t* pcpu = get_pcpu();
 
-    thread_t* prev = pcpu->current_thread;
-    thread_t* next = get_next_ready_thread(prev);
-
-    if (!next || next == prev) 
-        return;
-
     if (spin_trylock(&pcpu->scheduler_lock) != 0)
         return;
+
+    thread_t* prev = pcpu->current_thread;
+    thread_t* next = get_next_ready_thread(prev); 
+
+    if (!next || next == prev) {
+        spin_unlock(&pcpu->scheduler_lock);
+        return;
+    }
 
     if (prev->state == TASK_RUNNING)
         prev->state = TASK_READY;
@@ -330,10 +332,7 @@ void schedule_from_irq(registers_t* regs)
     vm_space_activate(next_proc->vmspace);
 
     // Update TSS.ESP0 so interrupts land on next kernel stack
-    pcpu->tss.esp0 =
-        (uint32_t)
-            next->context; // We can use the thread's context pointer as the new kernel stack
-                           // pointer since the context struct is at the top of the kernel stack
+    pcpu->tss.esp0 = (uint32_t)(next->kstack + next->kstack_size);
 
     // Set the CPU's notion of current thread
     pcpu->current_thread = next;
@@ -450,7 +449,7 @@ void list_pcpu_threads(pcpu_t* pcpu)
     }
 
     do {
-        thread_t*   t         = (thread_t*)node;
+        thread_t*   t         = thread_from_runqueue_node(node);
         proc_t*     p         = get_proc_from_thread(t);
         const char* state_str = "UNKNOWN";
         switch (t->state) {

@@ -42,8 +42,9 @@ int main() {
             printf("Failed to execute %s\n", program_path);
             exit(1);
         }
-        print("Started process\n");
         printf("Started process for %s\n", program_path);
+
+        while (1) asm volatile("nop");
     }
 
     return 0;

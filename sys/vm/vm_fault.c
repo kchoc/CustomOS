@@ -25,7 +25,7 @@ int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
         PANIC_DUMP_REGISTERS(PCPU_GET(current_thread)->trapframe);
         return -1; // invalid access
     }
-    if (!(region->prot & fault_type))
+    if (!(region->prot & fault_type)) 
         return -1; // protection fault
 
     uintptr_t page_addr = addr & ~(PAGE_SIZE - 1);
@@ -82,13 +82,13 @@ int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
 
         pmap_enter(space->arch, temp_page, shadow_page->phys_addr, VM_PROT_READ, 0);
 
+        pmap_enter(space->arch, page_addr, page->phys_addr, region->prot, 0);
+
         memcpy((void*)page_addr, temp_page, PAGE_SIZE);
 
         pmap_remove(space->arch, temp_page, temp_page + PAGE_SIZE);
         
         kvm_free(temp_page, PAGE_SIZE);
-
-        pmap_enter(space->arch, page_addr, page->phys_addr, region->prot, 0);
 
         return 0;
     }

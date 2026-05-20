@@ -24,14 +24,7 @@ void list_push_head(list_t* list, list_node_t* node)
     node->prev       = list->circular ? list->tail : NULL;
     list->head->prev = node;
     list->head       = node;
-    if (list->circular) {
-        list->tail->next = list->head;
-        list->head->prev = list->tail;
-    }
-    else {
-        list->tail->next = NULL;
-        list->head->prev = NULL;
-    }
+    list->tail->next = list->circular ? list->head : NULL;
 }
 
 void list_push_tail(list_t* list, list_node_t* node)
@@ -111,7 +104,7 @@ node_cleanup:
 
 void list_remove(list_node_t* node)
 {
-    if (node->prev == node || (node->next == NULL && node->prev == NULL)) {
+    if (node == node->list->head && node == node->list->tail) {
         node->list->head = node->list->tail = NULL;
         goto node_cleanup;
     }
@@ -164,13 +157,8 @@ void list_insert_after(list_node_t* prev, list_node_t* node)
         prev->next->prev = node;
     prev->next = node;
 
-    if (prev == prev->list->tail) {
+    if (prev == prev->list->tail)
         prev->list->tail = node;
-    }
-
-    if (prev->list->circular && prev->list->head == prev) {
-        prev->list->head = node;
-    }
 
     prev->list->size++;
 }

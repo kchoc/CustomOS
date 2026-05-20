@@ -152,8 +152,6 @@ vm_region_t* vm_region_fork(vm_region_t* parent)
 
         pmap_protect(vm_space_from_region(parent)->arch, parent->base, parent->end,
                      parent->prot & ~VM_PROT_WRITE);
-
-        return child;
     }
     else {
         vm_object_inc_ref(parent->object);

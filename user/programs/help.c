@@ -7,8 +7,5 @@ int main() {
     printf("  ls - List files in the current directory\n"); 
     printf("  exit - Exit the shell\n");
 
-    while(1) {
-        asm volatile("nop"); // Keep the shell running until the user exits
-    }
     return 0;
 }

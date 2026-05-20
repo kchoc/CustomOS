@@ -67,10 +67,6 @@ int pmap_enter(pmap_t* pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, pmap_fl
 
     page_entry_t* entry = &current_pts[table_idx].entries[entry_idx];
 
-    if (*entry & VM_PROT_READ) {
-        return -EEXIST; // Already mapped
-    }
-
     if (flags & PMAP_FLAG_NOCACHE) {
         prot |= VM_PROT_NOCACHE;
     }

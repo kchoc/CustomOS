@@ -38,7 +38,7 @@ typedef struct thread {
 #define get_proc_from_thread(t) container_of((t)->proc_node.list, proc_t, threads)
 #define get_pcpu_from_thread(t) container_of((t)->node.list, pcpu_t, runqueue)
 #define thread_from_proc_node(node) container_of((node), thread_t, proc_node)
-#define thread_from_runqueue_node(node) container_of((node), thread_t, node)
+#define thread_from_runqueue_node(n) container_of((n), thread_t, node)
 
 typedef struct vm_space vm_space_t;
 typedef struct list     list_t;

@@ -21,7 +21,7 @@ run: $(IMAGE)
 	$(RUN) -hda $< -d cpu_reset,guest_errors
 
 debug: $(IMAGE)
-	$(RUN) -hda $< -d cpu_reset,in_asm,int
+	$(RUN) -hda $< -d cpu_reset,int
 
 gdb: $(IMAGE)
 	$(RUN) -hda $< -d cpu_reset,in_asm,int -S -s
