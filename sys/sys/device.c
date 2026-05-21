@@ -19,11 +19,11 @@ int device_misc_create(driver_t* driver, device_t** out_dev)
         return -ENOMEM;
 
     snprintf(dev->name, MAX_DEVICE_NAME_LEN, "%s%d", driver->name, device_id_counter++);
-    dev->type     = DEV_TYPE_GENERIC;
-    dev->state    = DEV_STATE_PROBED;
+    dev->type      = DEV_TYPE_GENERIC;
+    dev->state     = DEV_STATE_PROBED;
     dev->ref_count = 1;
-    dev->driver   = driver;
-    dev->ops      = driver->ops;
+    dev->driver    = driver;
+    dev->ops       = driver->ops;
 
     driver->lifecycle_ops->attach(dev);
 
@@ -33,15 +33,16 @@ int device_misc_create(driver_t* driver, device_t** out_dev)
 
 int device_register(device_t* dev, bus_type_t type)
 {
-    list_t* driver_list = &driver_lists[type];
+    list_t*      driver_list = &driver_lists[type];
     list_node_t* node;
-    list_for_each(node, driver_list) {
-        driver_t* driver = get_driver_from_node(node); 
+    list_for_each(node, driver_list)
+    {
+        driver_t* driver = get_driver_from_node(node);
         if (driver->lifecycle_ops->probe(dev) == 0) {
             // Found a matching driver
-            dev->state = DEV_STATE_PROBED;
+            dev->state  = DEV_STATE_PROBED;
             dev->driver = driver;
-            dev->ops = driver->ops;
+            dev->ops    = driver->ops;
             driver->lifecycle_ops->attach(dev);
             dev->state = DEV_STATE_ATTACHED;
             return 0; // Success
@@ -54,4 +55,3 @@ int register_block_device(device_t* bdev)
 {
     return mbr_parse(bdev);
 }
-

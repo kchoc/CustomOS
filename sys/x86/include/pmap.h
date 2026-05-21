@@ -33,7 +33,7 @@ void switch_page_directory(page_table_t** pd_ptr);
 
 typedef struct pmap {
     page_table_t* pd; // Page directory
-    spinlock_t   lock;
+    spinlock_t    lock;
 } pmap_t;
 
 typedef enum pmap_flags {

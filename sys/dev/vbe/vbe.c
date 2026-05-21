@@ -6,7 +6,7 @@
 #include <string.h>
 #include <vm/vm_map.h>
 
-static vbe_mode_info_t current_mode_info = {0};
+static vbe_mode_info_t current_mode_info   = {0};
 static uint32_t*       framebuffer_virtual = 0;
 
 int vbe_init(void)
@@ -17,11 +17,14 @@ int vbe_init(void)
     }
 
     // Copy mode info from bootloader
-    current_mode_info.width = bootinfo->framebuffer_width;
-    current_mode_info.height = bootinfo->framebuffer_height;
-    current_mode_info.bpp = bootinfo->framebuffer_bpp;
-    current_mode_info.pitch = bootinfo->framebuffer_pitch;
-    current_mode_info.framebuffer = vm_map_device(bootinfo->framebuffer_addr, current_mode_info.width * current_mode_info.height * (current_mode_info.bpp / 8),VM_PROT_READ | VM_PROT_WRITE, 0);
+    current_mode_info.width       = bootinfo->framebuffer_width;
+    current_mode_info.height      = bootinfo->framebuffer_height;
+    current_mode_info.bpp         = bootinfo->framebuffer_bpp;
+    current_mode_info.pitch       = bootinfo->framebuffer_pitch;
+    current_mode_info.framebuffer = vm_map_device(
+        bootinfo->framebuffer_addr,
+        current_mode_info.width * current_mode_info.height * (current_mode_info.bpp / 8),
+        VM_PROT_READ | VM_PROT_WRITE, 0);
 
     return 0;
 }

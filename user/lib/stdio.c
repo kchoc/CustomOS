@@ -5,20 +5,20 @@
 /* Input buffer (filled by read_stdin syscall) */
 #define INPUT_BUFFER_SIZE 256
 static char input_buffer[INPUT_BUFFER_SIZE] = {0};
-static int  input_pos  = 0;
-static int  input_size = 0;
+static int  input_pos                       = 0;
+static int  input_size                      = 0;
 
 /* Output buffer (flushed by write syscall) */
 #define OUTPUT_BUFFER_SIZE 256
 static char output_buffer[OUTPUT_BUFFER_SIZE] = {0};
-static int  output_pos = 0;
+static int  output_pos                        = 0;
 
 /* Flush output buffer to stdout */
 void flush_stdout(void)
 {
     if (output_pos > 0) {
         output_buffer[output_pos] = '\0'; // Null-terminate
-        fputs(output_buffer, 1); // Write to stdout (fd=1)
+        fputs(output_buffer, stdout);     // Write to stdout (fd=1)
         output_pos = 0;
     }
 }
@@ -28,14 +28,14 @@ int getchar(void)
 {
     if (input_pos >= input_size) {
         // Refill input buffer from stdin
-        input_size = fgets(input_buffer, INPUT_BUFFER_SIZE, 0); // Read from stdin (fd=0)
+        input_size = fgets(input_buffer, INPUT_BUFFER_SIZE, stdin); // Read from stdin (fd=0)
         if (input_size <= 0) {
             return EOF; // No more input
         }
         input_pos = 0;
     }
 
-    return (unsigned char)input_buffer[input_pos++]; 
+    return (unsigned char)input_buffer[input_pos++];
 }
 
 /* Buffered putchar - writes to output buffer, flushes when full or on newline */
@@ -208,17 +208,17 @@ int scanf(const char* format, ...)
             case 'd': {
                 int* n = va_arg(args, int*);
                 *n     = 0;
-                int c   = getchar();
+                int c  = getchar();
                 while (c >= '0' && c <= '9') {
                     *n = (*n * 10) + (c - '0');
-                    c   = getchar();
+                    c  = getchar();
                 }
                 count++;
                 break;
             }
             case 's': {
                 char* buf = va_arg(args, char*);
-                char c     = getchar();
+                char  c   = getchar();
                 while (c == ' ' || c == '\n') {
                     c = getchar(); // Skip whitespace
                 }
@@ -265,7 +265,7 @@ int fputs(const char* s, int fd)
 
 int fgetc(int fd)
 {
-    char c;
+    char      c;
     ptrdiff_t result = read(fd, &c, 1);
     if (result <= 0) {
         return EOF;
@@ -281,7 +281,7 @@ int fgets(char* buf, size_t size, int fd)
 
     size_t i = 0;
     while (i < size - 1) {
-        char c;
+        char      c;
         ptrdiff_t result = read(fd, &c, 1);
         if (result <= 0) {
             break; // EOF or error
@@ -292,7 +292,6 @@ int fgets(char* buf, size_t size, int fd)
         }
     }
 
-    buf[i] = '\0'; // Null-terminate
+    buf[i] = '\0';             // Null-terminate
     return (i > 0) ? i : NULL; // Return number of characters read or NULL on error
 }
-

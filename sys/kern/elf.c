@@ -22,7 +22,7 @@ int load_elf(const char* filepath, thread_t* thread)
         return -1;
 
     Elf32_Ehdr eh;
-    int res = vfs_read(file, (uint8_t*)&eh, sizeof(Elf32_Ehdr), 0);
+    int        res = vfs_read(file, (uint8_t*)&eh, sizeof(Elf32_Ehdr), 0);
 
     /* Basic ELF validation */
     if (eh.e_ident[0] != 0x7F || eh.e_ident[1] != 'E' || eh.e_ident[2] != 'L' ||
@@ -37,14 +37,13 @@ int load_elf(const char* filepath, thread_t* thread)
     Elf32_Phdr* ph = kmalloc(eh.e_phnum * sizeof(Elf32_Phdr));
     if (!ph)
         goto fail;
-    
+
     vfs_llseek(file, eh.e_phoff, 0);
     vfs_read(file, (uint8_t*)ph, eh.e_phnum * sizeof(Elf32_Phdr), 0);
 
     proc_t* p = get_proc_from_thread(thread);
 
     vm_space_clean(p->vmspace); // Clean existing VM space (unmap old executable)
-
 
     for (int i = 0; i < eh.e_phnum; i++) {
         if (ph[i].p_type != 1 /* PT_LOAD */)
@@ -59,7 +58,7 @@ int load_elf(const char* filepath, thread_t* thread)
         vfs_read(file, (uint8_t*)ph[i].p_vaddr, ph[i].p_filesz, 0);
     }
 
-    thread->trapframe->eip      = eh.e_entry; // Set entry point for the new executable 
+    thread->trapframe->eip = eh.e_entry; // Set entry point for the new executable
     kfree(ph);
     vfs_close(file);
 

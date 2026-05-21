@@ -6,13 +6,13 @@
 // Set Segment Values
 #define SET_SEGMENT_LIMIT(seg, limit)                                                              \
     {                                                                                              \
-        (seg).sd_low_limit  = (limit)&0xFFFF;                                                      \
+        (seg).sd_low_limit  = (limit) & 0xFFFF;                                                    \
         (seg).sd_high_limit = ((limit) >> 16) & 0x0F;                                              \
     }
 
 #define SET_SEGMENT_BASE(seg, base)                                                                \
     {                                                                                              \
-        (seg).sd_low_base  = (base)&0xFFFFFF;                                                      \
+        (seg).sd_low_base  = (base) & 0xFFFFFF;                                                    \
         (seg).sd_high_base = ((base) >> 24) & 0xFF;                                                \
     }
 
@@ -54,10 +54,10 @@ typedef struct gate_descriptor {
  * Selectors
  */
 #define SEL_RPL_MASK 3                          /* requester priv level */
-#define ISPL(s)      ((s)&3)                    /* priority level of a selector */
+#define ISPL(s)      ((s) & 3)                  /* priority level of a selector */
 #define SEL_KPL      0                          /* kernel priority level */
 #define SEL_UPL      3                          /* user priority level */
-#define ISLDT(s)     ((s)&SEL_LDT)              /* is it local or global */
+#define ISLDT(s)     ((s) & SEL_LDT)            /* is it local or global */
 #define SEL_LDT      4                          /* local descriptor table */
 #define IDXSEL(s)    (((s) >> 3) & 0x1fff)      /* index of selector */
 #define LSEL(s, r)   (((s) << 3) | SEL_LDT | r) /* a local selector */

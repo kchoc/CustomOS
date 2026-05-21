@@ -23,10 +23,12 @@ vm_page_t* vm_page_lookup(vm_object_t* obj, size_t offset)
 
 vm_page_t* vm_page_get_cow_page(vm_object_t* obj, size_t offset)
 {
-    if (obj->shadow == NULL) return ERR_PTR(-EINVAL);
-    
+    if (obj->shadow == NULL)
+        return ERR_PTR(-EINVAL);
+
     vm_page_t* page = vm_page_lookup(obj->shadow, offset);
-    if (page) return page;
+    if (page)
+        return page;
 
     return vm_page_get_cow_page(obj->shadow, offset);
 }

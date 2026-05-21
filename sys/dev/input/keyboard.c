@@ -1,7 +1,7 @@
 #include "keyboard.h"
 
-#include <sys/tty.h>
 #include <sys/pcpu.h>
+#include <sys/tty.h>
 
 #include <kern/panic.h>
 #include <kern/process.h>
@@ -103,8 +103,8 @@ static const char keyboard_shift_map[128] = {
     0,    0,   0,   '+', 0,   0,   0,   0,   0};
 
 // Key state bitmask
-static uint8_t shift = 0;
-static uint8_t ctrl  = 0;
+static uint8_t  shift   = 0;
+static uint8_t  ctrl    = 0;
 static uint64_t keys[2] = {0};
 
 static tty_t* active_tty = NULL;
@@ -164,11 +164,11 @@ void handle_keypress(uint8_t scancode)
     char c = scancode_to_ascii(scancode);
 
     if (c == '!')
-        printf("Current thread: %d (%s)\n", PCPU_GET(current_thread)->tid, get_proc_from_thread(PCPU_GET(current_thread))->name);
+        printf("Current thread: %d (%s)\n", PCPU_GET(current_thread)->tid,
+               get_proc_from_thread(PCPU_GET(current_thread))->name);
 
     // Add to keyboard buffer
     if (c != 0 && active_tty) {
         tty_input(active_tty, c, 0);
     }
 }
-

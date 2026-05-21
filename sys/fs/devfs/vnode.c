@@ -1,6 +1,6 @@
 #include "vnode.h"
-#include "mount.h"
 #include "file.h"
+#include "mount.h"
 
 #include <fs/mount.h>
 #include <fs/vnode.h>
@@ -193,7 +193,8 @@ int devfs_vnode_readdir(vnode_t* dir, void* buf, size_t size, size_t offset)
     return bytes_written; // Return the total bytes written to the buffer
 }
 
-int devfs_vnode_open(vnode_t* vnode, file_t* file) {
+int devfs_vnode_open(vnode_t* vnode, file_t* file)
+{
     if (!vnode)
         return -EINVAL;
 
@@ -209,7 +210,8 @@ int devfs_vnode_open(vnode_t* vnode, file_t* file) {
     return dev->ops->open(dev);
 }
 
-int devfs_vnode_close(vnode_t* vnode) {
+int devfs_vnode_close(vnode_t* vnode)
+{
     if (!vnode)
         return -EINVAL;
 
@@ -223,7 +225,8 @@ int devfs_vnode_close(vnode_t* vnode) {
     return dev->ops->close(dev);
 }
 
-int devfs_vnode_read(vnode_t* vnode, void* buf, size_t size, size_t offset) {
+int devfs_vnode_read(vnode_t* vnode, void* buf, size_t size, size_t offset)
+{
     if (!vnode || !buf)
         return -EINVAL;
 
@@ -237,7 +240,8 @@ int devfs_vnode_read(vnode_t* vnode, void* buf, size_t size, size_t offset) {
     return dev->ops->read(dev, offset, size, buf);
 }
 
-int devfs_vnode_write(vnode_t* vnode, const void* buf, size_t size, size_t offset) {
+int devfs_vnode_write(vnode_t* vnode, const void* buf, size_t size, size_t offset)
+{
     if (!vnode || !buf)
         return -EINVAL;
 
@@ -251,11 +255,12 @@ int devfs_vnode_write(vnode_t* vnode, const void* buf, size_t size, size_t offse
     return dev->ops->write(dev, offset, size, buf);
 }
 
-int devfs_vnode_ioctl(vnode_t* vnode, int cmd, void* arg) {
+int devfs_vnode_ioctl(vnode_t* vnode, int cmd, void* arg)
+{
     if (!vnode)
         return -EINVAL;
 
-    device_t* dev = (device_t*)vnode->v_data; 
+    device_t* dev = (device_t*)vnode->v_data;
     if (!dev)
         return -EINVAL;
 

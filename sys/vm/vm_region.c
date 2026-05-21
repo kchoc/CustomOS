@@ -72,10 +72,12 @@ vm_region_t* vm_region_lookup_range(vm_space_t* space, uintptr_t addr, size_t si
 }
 
 vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_object_t* object,
-                              vm_ooffset_t offset, vm_prot_t prot, vm_region_flags_t flags, vm_map_flags_t map_flags)
+                              vm_ooffset_t offset, vm_prot_t prot, vm_region_flags_t flags,
+                              vm_map_flags_t map_flags)
 {
     vm_region_t* region = kmalloc(sizeof(vm_region_t));
-    if (!region) return ERR_PTR(-ENOMEM);
+    if (!region)
+        return ERR_PTR(-ENOMEM);
 
     if (object == NULL)
         object = vm_object_create_anon();
@@ -89,7 +91,7 @@ vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_
         region->base = *addr;
         if (vm_region_lookup_range(space, region->base, size)) {
             vm_region_destroy(region);
-            return ERR_PTR(-EEXIST);   // Overlap detected
+            return ERR_PTR(-EEXIST); // Overlap detected
         }
     }
     else {
@@ -125,7 +127,7 @@ vm_region_t* vm_region_fork(vm_region_t* parent)
     if (!child)
         return ERR_PTR(-ENOMEM);
 
-    *child           = *parent; // shallow copy
+    *child = *parent; // shallow copy
 
     bool private     = !(parent->flags & VM_REG_F_SHARED);
     bool writable    = parent->prot & VM_PROT_WRITE;
@@ -235,7 +237,7 @@ vm_region_t* vm_region_split(vm_region_t* region, uintptr_t addr)
     new_region->flags  = region->flags;
     new_region->object = region->object;
     region->object->ref_count++; // Increment ref count for the shared object
-    new_region->offset    = region->offset + (addr - region->base);
+    new_region->offset = region->offset + (addr - region->base);
 
     region->end = addr;
 
@@ -339,4 +341,3 @@ void vm_region_destroy(vm_region_t* region)
     list_remove(&region->node);
     kfree(region);
 }
-

@@ -10,10 +10,12 @@
 typedef struct vm_region vm_region_t;
 
 typedef struct vm_space {
-    list_t  regions;
-    pmap_t* arch; // Architecture-specific data (e.g. page directory)
-    uint32_t fault_count; // Number of active faults occurring in this vm_space (used to prevent destruction while faults are active) 
-    spinlock_t regions_lock; // Lock for synchronizing access to the regions list fault_count must be 0 before proceeding with alterations.
+    list_t   regions;
+    pmap_t*  arch;           // Architecture-specific data (e.g. page directory)
+    uint32_t fault_count;    // Number of active faults occurring in this vm_space (used to prevent
+                             // destruction while faults are active)
+    spinlock_t regions_lock; // Lock for synchronizing access to the regions list fault_count must
+                             // be 0 before proceeding with alterations.
 } vm_space_t;
 
 extern vm_space_t kernel_vm_space;

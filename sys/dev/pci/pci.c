@@ -84,14 +84,15 @@ device_t* pci_detect(device_t* parent)
 {
     // For simplicity, we assume PCI is always present
     device_t* pci_bus = kmalloc(sizeof(device_t));
-    if (!pci_bus)        return NULL;
+    if (!pci_bus)
+        return NULL;
     strncpy(pci_bus->name, "pci_bus", sizeof(pci_bus->name));
-    pci_bus->type      = DEV_TYPE_BUS;
-    pci_bus->bus_data  = NULL;
-    pci_bus->driver    = &__driver_pci;
+    pci_bus->type     = DEV_TYPE_BUS;
+    pci_bus->bus_data = NULL;
+    pci_bus->driver   = &__driver_pci;
     list_init(&pci_bus->children, 0);
     pci_bus->bus_data = NULL;
-    
+
     list_push_head(&parent->children, &pci_bus->child_node);
 
     return pci_bus;
@@ -111,7 +112,7 @@ int pci_enumerate(device_t* bus)
                 pdev->bus          = bus_num;
                 pdev->function     = func;
                 pdev->vendor_id    = vendor;
-                pdev->product_id    = pci_read_device_id(bus_num, dev, func);
+                pdev->product_id   = pci_read_device_id(bus_num, dev, func);
                 pdev->class_code   = pci_read_class(bus_num, dev, func);
                 pdev->subclass     = pci_read_subclass(bus_num, dev, func);
                 pdev->prog_if      = pci_read_prog_if(bus_num, dev, func);
@@ -207,4 +208,3 @@ int pci_shutdown(device_t* dev)
     // For simplicity, we won't implement shutdown in this example
     return 0;
 }
-

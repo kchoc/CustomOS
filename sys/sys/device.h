@@ -12,7 +12,7 @@
 struct device;
 struct partition;
 
-typedef enum { 
+typedef enum {
     DEV_TYPE_GENERIC = 0,
     DEV_TYPE_BLOCK,
     DEV_TYPE_CHAR,
@@ -39,7 +39,8 @@ typedef struct device {
     /* ----------------
      * Device hierarchy
      * ---------------- */
-    list_t children; // For devices that can have child devices (e.g., a PCI controller with child devices)
+    list_t children; // For devices that can have child devices (e.g., a PCI controller with child
+                     // devices)
     list_node_t child_node; // Node for the parent's children list
 
     /* -----------------
@@ -47,18 +48,18 @@ typedef struct device {
      * ----------------- */
     struct device_ops* ops;
 
-    /* ------------- 
+    /* -------------
      * Driver
      * ------------- */
     struct driver* driver;
 
     /* -------------
-     * Runtime state 
-     * ------------- */ 
+     * Runtime state
+     * ------------- */
 
     device_state_t state;
-    uint32_t ref_count;
-    uint32_t flags;
+    uint32_t       ref_count;
+    uint32_t       flags;
 
     /* --------------
      * Device numbers

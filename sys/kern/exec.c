@@ -16,14 +16,16 @@
 
 void arg_count(char* const* arr, int* count, size_t* total_size)
 {
-    int n = 0;
+    int    n    = 0;
     size_t size = 0;
     while (arr && arr[n]) {
         size += strlen(arr[n]) + 1; // +1 for null terminator
         n++;
     }
-    if (count) *count = n;
-    if (total_size) *total_size = size;
+    if (count)
+        *count = n;
+    if (total_size)
+        *total_size = size;
 }
 
 int execve(const char* path, char* const argv[], char* const envp[])
@@ -57,28 +59,30 @@ int execve(const char* path, char* const argv[], char* const envp[])
     uintptr_t stack_bottom;
     uintptr_t stack_top;
 success:
-    stack_top = 0xC0000000;
+    stack_top    = 0xC0000000;
     stack_bottom = stack_top - PAGE_SIZE;
-    vm_map_anon(get_proc_from_thread(thread)->vmspace, &stack_bottom, PAGE_SIZE, VM_PROT_READ | VM_PROT_USER | VM_PROT_WRITE,
-                VM_REG_F_PRIVATE, VM_MAP_F_FIXED);
+    vm_map_anon(get_proc_from_thread(thread)->vmspace, &stack_bottom, PAGE_SIZE,
+                VM_PROT_READ | VM_PROT_USER | VM_PROT_WRITE, VM_REG_F_PRIVATE, VM_MAP_F_FIXED);
 
-    int argc, envc;
+    int    argc, envc;
     size_t argv_size, envp_size;
     arg_count(argv, &argc, &argv_size);
     arg_count(envp, &envc, &envp_size);
 
     uintptr_t envp_strings_start = stack_top - envp_size - sizeof(ps_strings_t);
     uintptr_t argv_strings_start = envp_strings_start - argv_size;
-    uintptr_t envp_array_start = argv_strings_start - (envc + 1) * sizeof(char*); // +1 for null terminator
-    uintptr_t argv_array_start = envp_array_start - (argc + 1) * sizeof(char*); // +1 for null terminator
+    uintptr_t envp_array_start =
+        argv_strings_start - (envc + 1) * sizeof(char*); // +1 for null terminator
+    uintptr_t argv_array_start =
+        envp_array_start - (argc + 1) * sizeof(char*); // +1 for null terminator
 
     // Set up the user stack with metadata for the new process (argv, envp, etc.)
     stack_top -= sizeof(ps_strings_t);
     ps_strings_t* ps_strings = (ps_strings_t*)stack_top;
-    ps_strings->ps_nargvstr = argc;
-    ps_strings->ps_nenvstr  = envc;
-    ps_strings->ps_argvstr = (char**)argv_array_start;
-    ps_strings->ps_envstr  = (char**)envp_array_start;
+    ps_strings->ps_nargvstr  = argc;
+    ps_strings->ps_nenvstr   = envc;
+    ps_strings->ps_argvstr   = (char**)argv_array_start;
+    ps_strings->ps_envstr    = (char**)envp_array_start;
 
     stack_top = argv_array_start - sizeof(int);
 
@@ -98,7 +102,7 @@ success:
         envp_strings_start += env_len;
     }
 
-    // Set argc at the top of the stack for the new process 
+    // Set argc at the top of the stack for the new process
     *(int*)stack_top = argc;
 
     thread->trapframe->user_esp = stack_top;

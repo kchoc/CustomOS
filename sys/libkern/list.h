@@ -20,25 +20,25 @@ typedef struct list_node {
     list_t*      list;
 } list_node_t;
 
-#define LIST_INIT                                                 \
-    {                                                             \
-        .head = NULL, .tail = NULL, .size = 0, .circular = false  \
+#define LIST_INIT                                                                                  \
+    {                                                                                              \
+        .head = NULL, .tail = NULL, .size = 0, .circular = false                                   \
     }
 
-#define LIST_INIT_START(start_node)                               \
-    {                                                             \
-        .head = (start_node), .tail = NULL, .size = 1,            \
-        .circular = false                                         \
+#define LIST_INIT_START(start_node)                                                                \
+    {                                                                                              \
+        .head = (start_node), .tail = NULL, .size = 1, .circular = false                           \
     }
 
-#define LIST_INIT_CIRCULAR                                        \
-    {                                                             \
-        .head = NULL, .tail = NULL, .size = 0, .circular = true   \
+#define LIST_INIT_CIRCULAR                                                                         \
+    {                                                                                              \
+        .head = NULL, .tail = NULL, .size = 0, .circular = true                                    \
     }
 
-#define LIST_NODE_INIT(list_name) \
-    { .next = NULL, .prev = NULL, .list = (list_name) }
-
+#define LIST_NODE_INIT(list_name)                                                                  \
+    {                                                                                              \
+        .next = NULL, .prev = NULL, .list = (list_name)                                            \
+    }
 
 #define list_for_each(pos, list)                                                                   \
     for (pos = (list)->head; pos != NULL && (list)->size != 0; pos = pos->next)

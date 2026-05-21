@@ -25,9 +25,11 @@ void system_init()
 
     // Create a thread user stack region
     vaddr_t user_stack_addr = 0xC0000000 - PAGE_SIZE; // Start just below 3GB and grow downwards
-    vm_map_anon(proc->vmspace, &user_stack_addr, PAGE_SIZE, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER, 0, VM_MAP_F_FIXED);
+    vm_map_anon(proc->vmspace, &user_stack_addr, PAGE_SIZE,
+                VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER, 0, VM_MAP_F_FIXED);
 
-    thread_t* thread = create_user_thread((void*)load_addr, proc, 0, get_pcpu(), user_stack_addr + PAGE_SIZE);
+    thread_t* thread =
+        create_user_thread((void*)load_addr, proc, 0, get_pcpu(), user_stack_addr + PAGE_SIZE);
     if (!thread)
         PANIC("Failed to create init process task!");
 }

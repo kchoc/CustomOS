@@ -23,26 +23,26 @@
 vaddr_t user_stack_bottom = USER_STACK_BOTTOM;
 
 static list_t all_processes = LIST_INIT_START(&idle_process.node);
-proc_t idle_process  = {
-    .pid  = 0,
-    .ppid = 0,
-    .name = "idle",
-    .threads = LIST_INIT,
-    .vmspace = &kernel_vm_space,
-    .fd_table = NULL,
-    .node = LIST_NODE_INIT(&all_processes),
+proc_t        idle_process  = {
+            .pid      = 0,
+            .ppid     = 0,
+            .name     = "idle",
+            .threads  = LIST_INIT,
+            .vmspace  = &kernel_vm_space,
+            .fd_table = NULL,
+            .node     = LIST_NODE_INIT(&all_processes),
 };
 
 thread_t idle_thread = {
-    .tid = 0,
-    .state = TASK_RUNNING,
-    .priority = 0,
-    .kstack = NULL,
+    .tid         = 0,
+    .state       = TASK_RUNNING,
+    .priority    = 0,
+    .kstack      = NULL,
     .kstack_size = 0,
-    .context = NULL,
-    .trapframe = NULL,
-    .node = {0},
-    .proc_node = LIST_NODE_INIT(&idle_process.threads),
+    .context     = NULL,
+    .trapframe   = NULL,
+    .node        = {0},
+    .proc_node   = LIST_NODE_INIT(&idle_process.threads),
 };
 
 static uint32_t next_pid = 1;
@@ -74,7 +74,7 @@ thread_t* create_kernel_thread(void (*entry)(void), proc_t* p, uint32_t priority
     context_init(t, entry, stk, 0);
 
     list_push_tail(&p->threads, &t->proc_node);
-    
+
     if (!pcpu)
         pcpu = select_pcpu();
     list_push_tail(&pcpu->runqueue, &t->node);
@@ -82,9 +82,11 @@ thread_t* create_kernel_thread(void (*entry)(void), proc_t* p, uint32_t priority
     return t;
 }
 
-thread_t* create_user_thread(void (*entry)(void), proc_t* p, uint32_t priority, pcpu_t* pcpu, void* user_stack_top)
+thread_t* create_user_thread(void (*entry)(void), proc_t* p, uint32_t priority, pcpu_t* pcpu,
+                             void* user_stack_top)
 {
-    if (!p) return NULL;
+    if (!p)
+        return NULL;
 
     thread_t* t = kmalloc(sizeof(thread_t));
     if (!t)
@@ -115,7 +117,8 @@ thread_t* create_user_thread(void (*entry)(void), proc_t* p, uint32_t priority, 
     return t;
 }
 
-thread_t* fork_user_thread(thread_t* parent_thread, proc_t* child_proc, uint32_t priority, pcpu_t* pcpu)
+thread_t* fork_user_thread(thread_t* parent_thread, proc_t* child_proc, uint32_t priority,
+                           pcpu_t* pcpu)
 {
     if (!parent_thread || !child_proc)
         return NULL;
@@ -139,7 +142,9 @@ thread_t* fork_user_thread(thread_t* parent_thread, proc_t* child_proc, uint32_t
 
     uint32_t* stk = (uint32_t*)(t->kstack + STACK_SIZE);
 
-    context_fork(t, parent_thread, stk); // Set up context to start at start_fork with a copy of the parent's trapframe
+    context_fork(
+        t, parent_thread,
+        stk); // Set up context to start at start_fork with a copy of the parent's trapframe
 
     list_push_tail(&child_proc->threads, &t->proc_node);
     if (!pcpu)
@@ -184,12 +189,14 @@ proc_t* create_process(const char* name)
 
 int fork_process(thread_t* t, int flags, proc_t** child_out)
 {
-    if (!t) return -EINVAL;
+    if (!t)
+        return -EINVAL;
 
     proc_t* parent = get_proc_from_thread(t);
-    
-    proc_t* child  = kmalloc(sizeof(proc_t));
-    if (!child) return -ENOMEM;
+
+    proc_t* child = kmalloc(sizeof(proc_t));
+    if (!child)
+        return -ENOMEM;
     memset(child, 0, sizeof(*child));
 
     child->pid  = next_pid++;
@@ -286,7 +293,8 @@ thread_t* get_next_ready_thread(thread_t* prev)
             thread_t* to_free = next;
             next              = thread_from_runqueue_node(next->node.next);
             free_thread(to_free);
-        } else {
+        }
+        else {
             next = thread_from_runqueue_node(next->node.next);
         }
         if (!next || next == start)
@@ -316,7 +324,7 @@ void schedule_from_irq(registers_t* regs)
         return;
 
     thread_t* prev = pcpu->current_thread;
-    thread_t* next = get_next_ready_thread(prev); 
+    thread_t* next = get_next_ready_thread(prev);
 
     if (!next || next == prev) {
         spin_unlock(&pcpu->scheduler_lock);
@@ -340,7 +348,7 @@ void schedule_from_irq(registers_t* regs)
     // Load general purpose regs for next thread
     next->state = TASK_RUNNING;
 
-    terminal_display_scheduler_info(next);
+    // terminal_display_scheduler_info(next);
 
     context_switch(&prev->context, next->context);
     spin_unlock(&pcpu->scheduler_lock);
@@ -428,7 +436,7 @@ void list_tasks()
             }
             proc_t* p = get_proc_from_thread(t);
             printf("%5u %5u %5u %5u %s %s\n", get_pcpu_from_thread(t)->pc_cpu_id, p->pid, t->tid,
-                    p->ppid, state_str, p->name);
+                   p->ppid, state_str, p->name);
 
             t = thread_from_proc_node(t->proc_node.next);
         }

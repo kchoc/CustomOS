@@ -9,8 +9,8 @@
 
 #include <vm/kmalloc.h>
 
-#include <kern/terminal.h>
 #include <kern/errno.h>
+#include <kern/terminal.h>
 
 DECLARE_BUS_DRIVER(ata, any);
 driver_t* driver_ata = &__driver_ata;
@@ -51,7 +51,7 @@ void ata_wait(uint16_t control_base)
     inb(control_base);
 }
 
-int ata_enumerate(device_t* bus) 
+int ata_enumerate(device_t* bus)
 {
     ata_channel_t* channel = (ata_channel_t*)bus->softc;
 
@@ -69,17 +69,23 @@ int ata_enumerate(device_t* bus)
 
         // Check if the drive responded at all
         uint8_t status = inb(channel->io_base + ATA_REG_STATUS);
-        if (status == 0) continue; // No drive present, move on to the next one
+        if (status == 0)
+            continue; // No drive present, move on to the next one
 
         // Wait for the drive to respond
         while (status & ATA_SR_BSY) {
             status = inb(channel->io_base + ATA_REG_STATUS);
-            if (status & ATA_SR_ERR) return -EIO; // If an error occurs while waiting, treat it as no drive present TODO: This could also indicate a drive that is present but has an error condition, so we might want to handle this differently in the future
-            if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ)) break; // Drive is ready
+            if (status & ATA_SR_ERR)
+                return -EIO; // If an error occurs while waiting, treat it as no drive present TODO:
+                             // This could also indicate a drive that is present but has an error
+                             // condition, so we might want to handle this differently in the future
+            if (!(status & ATA_SR_BSY) && (status & ATA_SR_DRQ))
+                break; // Drive is ready
         }
 
-        ata_drive_t* drive  = kmalloc(sizeof(ata_drive_t));
-        if (!drive) return -ENOMEM;
+        ata_drive_t* drive = kmalloc(sizeof(ata_drive_t));
+        if (!drive)
+            return -ENOMEM;
         drive->channel.io_base      = channel->io_base;
         drive->channel.control_base = channel->control_base;
         drive->channel.slave        = slave;
@@ -98,9 +104,9 @@ int ata_enumerate(device_t* bus)
         uint16_t* total_sectors_addr =
             (uint16_t*)id_data + offsetof(ata_identify_data_t, total_sectors);
         if (id_data->capabilities & 0x200) {
-            id_data->total_sectors = ((uint64_t)total_sectors_addr[3] << 48) |
-                                 ((uint64_t)total_sectors_addr[2] << 32) |
-                                 ((uint64_t)total_sectors_addr[1] << 16) | total_sectors_addr[0];
+            id_data->total_sectors =
+                ((uint64_t)total_sectors_addr[3] << 48) | ((uint64_t)total_sectors_addr[2] << 32) |
+                ((uint64_t)total_sectors_addr[1] << 16) | total_sectors_addr[0];
         }
         else {
             id_data->total_sectors =
@@ -114,9 +120,9 @@ int ata_enumerate(device_t* bus)
         }
 
         snprintf(bdev->name, sizeof(bdev->name), "ata%d", slave);
-        bdev->type        = DEV_TYPE_BLOCK;
-        bdev->softc       = drive;
-        bdev->state       = DEV_STATE_PROBED;
+        bdev->type  = DEV_TYPE_BLOCK;
+        bdev->softc = drive;
+        bdev->state = DEV_STATE_PROBED;
 
         ata_add_child(bus, bdev);
 
@@ -131,7 +137,7 @@ int ata_enumerate(device_t* bus)
 int ata_add_child(device_t* bus, device_t* child)
 {
     child->ref_count = 1;
-    child->bus_data = NULL;
+    child->bus_data  = NULL;
     list_push_head(&bus->children, &child->child_node);
     return 0;
 }
@@ -163,7 +169,7 @@ int ata_teardown_irq(device_t* bus, device_t* dev, int irq)
 
 int ata_probe(device_t* dev)
 {
-    return 0; 
+    return 0;
 }
 
 int ata_attach(device_t* dev)
@@ -190,4 +196,3 @@ int ata_shutdown(device_t* dev)
 {
     return 0;
 }
-

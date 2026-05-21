@@ -33,7 +33,7 @@ void handle_isr(registers_t regs)
 {
     uint8_t      int_no = regs.interruptNumber & 0xFF;
     trapframe_t* old_tf = PCPU_GET(current_thread)->trapframe;
-    terminal_display_isr_info(int_no, &regs);
+    // terminal_display_isr_info(int_no, &regs);
     PCPU_GET(current_thread)->trapframe =
         (trapframe_t*)&regs; // Update current thread's trapframe pointer to the new regs for
                              // handlers to access
@@ -64,7 +64,7 @@ void isr_keyboard_handler(registers_t* regs)
     lapic_write(LAPIC_EOI, 0);
 
     // Send an EOI to the PIC
-    outb(0x20, 0x20); // Send EOI to PIC1 
+    outb(0x20, 0x20); // Send EOI to PIC1
     outb(0xA0, 0x20); // Send EOI to PIC2
 }
 
@@ -245,13 +245,13 @@ void isr_timer_handler(registers_t* regs)
     outb(0x20, 0x20); // Send EOI to PIC1
     outb(0xA0, 0x20); // Send EOI to PIC2
 
-    // printf("Thread %s (TID %d) - Timer tick\n", get_proc_from_thread(PCPU_GET(current_thread))->name,
-           // PCPU_GET(current_thread)->tid); 
+    // printf("Thread %s (TID %d) - Timer tick\n",
+    // get_proc_from_thread(PCPU_GET(current_thread))->name, PCPU_GET(current_thread)->tid);
     // Schedule next task
     schedule_from_irq(regs);
 
-    // printf("Thread %s (TID %d) - Resumed after timer tick\n", get_proc_from_thread(PCPU_GET(current_thread))->name,
-           // PCPU_GET(current_thread)->tid);
+    // printf("Thread %s (TID %d) - Resumed after timer tick\n",
+    // get_proc_from_thread(PCPU_GET(current_thread))->name, PCPU_GET(current_thread)->tid);
     // Send EOI to LAPIC
     lapic_write(LAPIC_EOI, 0);
 }

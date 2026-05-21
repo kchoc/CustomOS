@@ -4,7 +4,7 @@
 #include <vm/layout.h>
 #include <vm/vm_map.h>
 
-#include <i386/bios/bda.h>
+#include <x86/bios/bda.h>
 
 #include <kern/errno.h>
 

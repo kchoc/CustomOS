@@ -469,19 +469,20 @@ void delay(uint32_t ms)
     }
 }
 
-#include <vm/vm_space.h>
 #include <sys/pcpu.h>
+#include <vm/vm_space.h>
 
 void terminal_display_scheduler_info(thread_t* t)
 {
     proc_t* p = get_proc_from_thread(t);
 
     char message[80] = {0};
-    snprintf(message, sizeof(message), "Running thread: %s (TID %u) (CR3 %x) (addr %p)", p->name, t->tid, *(p->vmspace->arch), t);
+    snprintf(message, sizeof(message), "Running thread: %s (TID %u) (CR3 %x) (addr %p)", p->name,
+             t->tid, *(p->vmspace->arch), t);
 
     // Displayed at the bottom of the terminal with white text on blue background
     for (size_t i = 0; i < 80; i++) {
-        video_memory[i + 80 * 24] = (message[i] ? message[i] : ' ') | 0x1F00; // White on blue  
+        video_memory[i + 80 * 24] = (message[i] ? message[i] : ' ') | 0x1F00; // White on blue
     }
 }
 
@@ -492,7 +493,6 @@ void terminal_display_isr_info(uint8_t int_no, registers_t* regs)
 
     // Displayed at the bottom of the terminal with white text on red background
     for (size_t i = 0; i < 80; i++) {
-        video_memory[i + 80 * 23] = (message[i] ? message[i] : ' ') | 0x4F00; // White on red  
+        video_memory[i + 80 * 23] = (message[i] ? message[i] : ' ') | 0x4F00; // White on red
     }
 }
-

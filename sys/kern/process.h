@@ -21,8 +21,8 @@ typedef enum {
 struct process;
 
 typedef struct thread {
-    list_node_t     node;      // For linking threads in a list
-    list_node_t     proc_node; // For linking in process's thread list
+    list_node_t node;      // For linking threads in a list
+    list_node_t proc_node; // For linking in process's thread list
 
     context_t*   context;   // CPU context for this threads
     trapframe_t* trapframe; // Pointer to saved registers (used during scheduling and stored on the
@@ -35,9 +35,9 @@ typedef struct thread {
     uint32_t kstack_size; // Kernel stack size
 } thread_t;
 
-#define get_proc_from_thread(t) container_of((t)->proc_node.list, proc_t, threads)
-#define get_pcpu_from_thread(t) container_of((t)->node.list, pcpu_t, runqueue)
-#define thread_from_proc_node(node) container_of((node), thread_t, proc_node)
+#define get_proc_from_thread(t)      container_of((t)->proc_node.list, proc_t, threads)
+#define get_pcpu_from_thread(t)      container_of((t)->node.list, pcpu_t, runqueue)
+#define thread_from_proc_node(node)  container_of((node), thread_t, proc_node)
 #define thread_from_runqueue_node(n) container_of((n), thread_t, node)
 
 typedef struct vm_space vm_space_t;
@@ -65,11 +65,12 @@ typedef struct wait_node {
 
 typedef struct pcpu pcpu_t;
 
-extern proc_t idle_process;
+extern proc_t   idle_process;
 extern thread_t idle_thread;
 
 thread_t* create_kernel_thread(void (*entry)(void), proc_t* p, uint32_t priority, pcpu_t* pcpu);
-thread_t* create_user_thread(void (*entry)(void), proc_t* p, uint32_t priority, pcpu_t* pcpu, void* user_stack_top);
+thread_t* create_user_thread(void (*entry)(void), proc_t* p, uint32_t priority, pcpu_t* pcpu,
+                             void* user_stack_top);
 proc_t*   create_process(const char* name);
 int       fork_process(thread_t* t, int flags, proc_t** child_out);
 void      yield();

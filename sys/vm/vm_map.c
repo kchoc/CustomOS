@@ -13,7 +13,8 @@
 int vm_map(vm_space_t* space, vaddr_t* virt, size_t size, vm_prot_t prot, vm_region_flags_t flags,
            vm_object_t* object, vm_ooffset_t offset, vm_map_flags_t map_flags)
 {
-    vm_region_t* region = vm_region_create(space, virt, size, object, offset, prot, flags, map_flags);
+    vm_region_t* region =
+        vm_region_create(space, virt, size, object, offset, prot, flags, map_flags);
     if (IS_ERR(region))
         return (int)region;
 
@@ -116,8 +117,7 @@ void vm_unmap_device(void* virt, size_t size)
     vaddr_t end_virt     = PAGE_ALIGN_UP((vaddr_t)virt + size);
 
     for (vaddr_t offset = 0; offset < end_virt - aligned_virt; offset += PAGE_SIZE) {
-        pmap_remove(kernel_vm_space.arch, aligned_virt + offset,
-                    aligned_virt + offset + PAGE_SIZE);
+        pmap_remove(kernel_vm_space.arch, aligned_virt + offset, aligned_virt + offset + PAGE_SIZE);
     }
 
     kvm_free((void*)aligned_virt, end_virt - aligned_virt);
@@ -127,7 +127,8 @@ void* kvm_alloc(size_t size, vm_prot_t prot, vm_region_flags_t flags)
 {
     size_t  aligned_size = PAGE_ALIGN_UP(size);
     vaddr_t virt;
-    int ret = vm_map(&kernel_vm_space, &virt, aligned_size, prot, VM_REG_F_KERNEL | flags, NULL, 0, 0);
+    int     ret =
+        vm_map(&kernel_vm_space, &virt, aligned_size, prot, VM_REG_F_KERNEL | flags, NULL, 0, 0);
 
     if (IS_ERR(ret))
         return ERR_PTR(ret);
@@ -160,8 +161,7 @@ void* kvm_map(size_t size, vm_prot_t prot, vm_region_flags_t flags)
             kvm_unmap((void*)kva, offset);
             return page;
         }
-        int ret =
-            pmap_enter(kernel_vm_space.arch, kva + offset, page->phys_addr, prot, pmap_flags);
+        int ret = pmap_enter(kernel_vm_space.arch, kva + offset, page->phys_addr, prot, pmap_flags);
         if (IS_ERR(ret)) {
             kvm_unmap((void*)kva, offset);
             return ERR_PTR(ret);

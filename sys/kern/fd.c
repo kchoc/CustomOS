@@ -20,7 +20,9 @@ fd_table_t* fd_table_create(void)
 {
     fd_table_t* table = kmalloc(sizeof(fd_table_t));
     if (!table)
-        return NULL; 
+        return NULL;
+
+    memset(table, 0, sizeof(fd_table_t));
 
     table->next_fd = 0;
 
@@ -64,7 +66,6 @@ fd_table_t* fd_table_fork(fd_table_t* src)
 {
     if (!src)
         return NULL;
-
 
     fd_table_t* table = fd_table_create();
     if (!table)

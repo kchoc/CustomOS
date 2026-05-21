@@ -26,7 +26,7 @@ int kvm_space_init()
     }
 
     kernel_vm_space.arch->pd = *current_pd_addr; // Use the page directory set up by the bootloader
-    pcpus[0].vmspace          = &kernel_vm_space;
+    pcpus[0].vmspace         = &kernel_vm_space;
 
     // Since this is the first kvm call, the start is at 0xC0000000, so we can allocate that
     vaddr_t virt = KERNEL_BASE;
@@ -46,7 +46,7 @@ vm_space_t* vm_space_create()
         return ERR_PTR(-ENOMEM);
 
     list_init(&space->regions, 0);
-    space->arch      = pmap_create();
+    space->arch = pmap_create();
 
     return space;
 }
@@ -98,11 +98,12 @@ void vm_space_clean(vm_space_t* space)
     if (!space)
         return;
 
-    // Similar to destroy, but kernel regions should not be freed, and the vm_space itself should not be freed. Only user regions should be cleaned
+    // Similar to destroy, but kernel regions should not be freed, and the vm_space itself should
+    // not be freed. Only user regions should be cleaned
     list_node_t* node = space->regions.head;
     while (node) {
         vm_region_t* region = list_node_to_region(node);
-        node = node->next;
+        node                = node->next;
         if (!(region->flags & VM_REG_F_KERNEL)) {
             pmap_remove(space->arch, region->base, region->end);
             vm_region_destroy(region);

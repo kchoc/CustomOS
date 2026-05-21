@@ -23,7 +23,8 @@ void vm_object_dec_ref(vm_object_t* obj)
             vm_page_t* page = list_node_to_page(obj->pages.head);
             vm_page_free(page);
         }
-        if (obj->shadow) vm_object_dec_ref(obj->shadow);
+        if (obj->shadow)
+            vm_object_dec_ref(obj->shadow);
         kfree(obj);
     }
 }
@@ -41,7 +42,7 @@ vm_object_t* vm_object_create_anon(void)
     new_obj->pager         = vm_pager_create(&anon_pager_ops, NULL);
     if (IS_ERR(new_obj->pager)) {
         kfree(new_obj);
-        return ERR_PTR(-ENOMEM); 
+        return ERR_PTR(-ENOMEM);
     }
     list_init(&new_obj->pages, 0);
 

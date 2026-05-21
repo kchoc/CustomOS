@@ -45,7 +45,8 @@ void panic_dump_registers(registers_t* regs)
     printf("EDI: %x\n", regs->edi);
     printf("EBP: %x\n", regs->ebp);
     printf("ESP: %x\n", regs->esp);
-    printf("EIP: %x (phys %x)\n", regs->eip, pmap_extract(get_proc_from_thread(PCPU_GET(current_thread))->vmspace->arch, regs->eip));
+    printf("EIP: %x (phys %x)\n", regs->eip,
+           pmap_extract(get_proc_from_thread(PCPU_GET(current_thread))->vmspace->arch, regs->eip));
     printf("EFLAGS: %x\n", regs->eflags);
     halt_system();
 }

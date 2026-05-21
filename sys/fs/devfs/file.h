@@ -1,4 +1,4 @@
-#ifndef FS_DEVFS_FILE_H 
+#ifndef FS_DEVFS_FILE_H
 #define FS_DEVFS_FILE_H
 
 #include <fs/file.h>

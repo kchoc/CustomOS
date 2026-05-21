@@ -24,7 +24,7 @@ typedef struct vm_object {
     list_node_t      node;
     vm_object_type_t type;
     int              ref_count;
-    spinlock_t       lock;  // Protects the pages list
+    spinlock_t       lock; // Protects the pages list
 
     struct vm_object* shadow;        // Shadow object for copy-on-write
     vm_ooffset_t      shadow_offset; // Offset within the shadow object

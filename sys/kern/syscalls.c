@@ -29,10 +29,10 @@ void syscalls_init()
     g_syscalls[SYSCALL_PRINT] = syscall_print;
 
     // I/O syscalls
-    g_syscalls[SYSCALL_OPEN]  = syscall_open;
-    g_syscalls[SYSCALL_CLOSE] = syscall_close;
-    g_syscalls[SYSCALL_READ]  = syscall_read;
-    g_syscalls[SYSCALL_WRITE] = syscall_write;
+    g_syscalls[SYSCALL_OPEN]      = syscall_open;
+    g_syscalls[SYSCALL_CLOSE]     = syscall_close;
+    g_syscalls[SYSCALL_READ]      = syscall_read;
+    g_syscalls[SYSCALL_WRITE]     = syscall_write;
     g_syscalls[SYSCALL_GETDIRENT] = syscall_getdirent;
 
     // Process Syscalls
@@ -68,7 +68,8 @@ int syscall_open(const char* path, int flags, uint32_t mode, SYSCALL2)
     if (!proc)
         return -1;
 
-    printf("syscall_open: Opening file '%s' with flags 0x%x for process %s (PID %d)\n", path, flags, proc->name, proc->pid);
+    printf("syscall_open: Opening file '%s' with flags 0x%x for process %s (PID %d)\n", path, flags,
+           proc->name, proc->pid);
 
     // Open the file via VFS
     file_t* file = vfs_open(path, flags, mode);
@@ -358,7 +359,8 @@ int syscall_fork(SYSCALL1)
     printf("syscall_fork: Forking process %s (PID %d)\n", parent->name, parent->pid);
     int res = fork_process(PCPU_GET(current_thread), 0, &child);
     printf("syscall_fork: Forked process %s (PID %d)\n", child->name, child->pid);
-    if (res) return res;
+    if (res)
+        return res;
     return child->pid; // Return child's PID to parent, 0 to child
 }
 
@@ -367,7 +369,8 @@ int syscall_execve(const char* path, char* const argv[], char* const envp[], SYS
     if (!path)
         return -1;
 
-    printf("syscall_execve: Executing %s (PID=%d)\n", path, get_proc_from_thread(PCPU_GET(current_thread))->pid);
+    printf("syscall_execve: Executing %s (PID=%d)\n", path,
+           get_proc_from_thread(PCPU_GET(current_thread))->pid);
 
     return execve(path, argv, envp);
 }

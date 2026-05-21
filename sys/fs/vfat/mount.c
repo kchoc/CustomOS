@@ -116,8 +116,8 @@ int vfat_get_root(mount_t* mnt, vnode_t** vnode)
 {
     vnode_t* root;
     int      res = vnode_get(
-             mnt, 0,
-             &root); // The root directory is typically represented by file_id 0 in FAT filesystems
+        mnt, 0,
+        &root); // The root directory is typically represented by file_id 0 in FAT filesystems
     if (res)
         return res;
 

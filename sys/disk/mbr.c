@@ -46,10 +46,10 @@ int mbr_parse(device_t* bdev)
         part->sector_count = entry->sector_count;
 
         snprintf(part_bdev->name, sizeof(part_bdev->name), "%sp%d", bdev->name, i + 1);
-        part_bdev->softc   = part;
+        part_bdev->softc = part;
         list_push_head(&bdev->children, &part_bdev->child_node);
-        part_bdev->type     = DEV_TYPE_BLOCK;
-        part_bdev->ops      = &mbr_device_ops;
+        part_bdev->type = DEV_TYPE_BLOCK;
+        part_bdev->ops  = &mbr_device_ops;
 
         // Register the partition block device with the VFS
         vfs_register_device(part_bdev);

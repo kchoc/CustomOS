@@ -202,12 +202,12 @@ ssize_t vfs_read(file_t* file, void __user* buf, size_t count, size_t offset)
     loff_t pos = offset ? offset : file->f_pos;
 
     loff_t saved = file->f_pos;
-    file->f_pos = pos;
+    file->f_pos  = pos;
 
     int bytes = file->f_ops->read(file, buf, count);
 
     if (offset == 0 && bytes > 0)
-      ;
+        ;
     else
         file->f_pos = saved; // Restore original position if using offset or if read failed
 
@@ -244,7 +244,7 @@ int vfs_llseek(file_t* file, loff_t offset, int whence)
     if (!file->f_ops || !file->f_ops->seek)
         return -1;
 
-    return file->f_ops->seek(file, offset, whence); 
+    return file->f_ops->seek(file, offset, whence);
 }
 
 int vfs_getdirent(file_t* file, char* __user buf, size_t count, int offset)
@@ -256,4 +256,3 @@ int vfs_getdirent(file_t* file, char* __user buf, size_t count, int offset)
 
     return file->f_vnode->v_ops->readdir(file->f_vnode, buf, count, offset);
 }
-

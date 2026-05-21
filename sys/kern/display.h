@@ -6,4 +6,3 @@
 void display_init(void);
 
 #endif // DISPLAY_H
-

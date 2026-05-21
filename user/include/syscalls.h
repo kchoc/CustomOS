@@ -5,17 +5,17 @@
 #include <stdint.h>
 
 // Syscall numbers (must match kernel definitions)
-#define SYSCALL_EXIT        1
-#define SYSCALL_FORK        2
-#define SYSCALL_READ        3
-#define SYSCALL_WRITE       4
-#define SYSCALL_OPEN        5
-#define SYSCALL_CLOSE       6
+#define SYSCALL_EXIT  1
+#define SYSCALL_FORK  2
+#define SYSCALL_READ  3
+#define SYSCALL_WRITE 4
+#define SYSCALL_OPEN  5
+#define SYSCALL_CLOSE 6
 
-#define SYSCALL_GETDIRENT   554
+#define SYSCALL_GETDIRENT 554
 
-#define SYSCALL_PRINT       100
-#define SYSCALL_EXECVE       59
+#define SYSCALL_PRINT  100
+#define SYSCALL_EXECVE 59
 
 // Memory mapping flags
 #define MMAP_FRAMEBUFFER 0x1

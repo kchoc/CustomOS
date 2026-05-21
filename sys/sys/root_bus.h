@@ -6,4 +6,3 @@
 extern device_t root_bus;
 
 #endif // SYS_ROOT_BUS_H
-

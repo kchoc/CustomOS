@@ -22,5 +22,5 @@ ENTRY(load_init)
     int     $0x80           # make the syscall
 
 init_name:
-    .asciz "/sbin/init.elf"
+    .asciz "/bin/init.elf"
 END(load_init)

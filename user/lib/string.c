@@ -59,6 +59,29 @@ int strcat(char* dest, const char* src)
     return 0;
 }
 
+int strncat(char* dest, const char* src, size_t n)
+{
+    char* d = dest;
+    while (*d)
+        d++;
+    size_t i;
+    for (i = 0; i < n && src[i]; i++) {
+        d[i] = src[i];
+    }
+    d[i] = '\0';
+    return 0;
+}
+
+int strchr(const char* str, int c)
+{
+    while (*str) {
+        if (*str == (char)c)
+            return (int)(str - str); // Return index
+        str++;
+    }
+    return -1; // Not found
+}
+
 void* memset(void* s, int c, size_t n)
 {
     unsigned char* p = (unsigned char*)s;

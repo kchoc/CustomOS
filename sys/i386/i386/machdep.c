@@ -6,8 +6,8 @@
 #include <dev/pci/pci.h>
 #include <dev/vga/vga.h>
 
-#include <sys/root_bus.h>
 #include <sys/pcpu.h>
+#include <sys/root_bus.h>
 #include <sys/tty.h>
 
 #include <fs/sockfs.h>
@@ -19,7 +19,7 @@
 #include <vm/vm_phys.h>
 #include <vm/vm_space.h>
 
-#include <i386/bios/bda.h>
+#include <x86/bios/bda.h>
 
 #include <machine/bootinfo.h>
 #include <machine/segment_i386.h>
@@ -73,6 +73,8 @@ void init386(void)
 
     idt_init();
 
+    lapic_init();
+
     pcpu_init(0);
 
     asm volatile("sti"); // Enable interrupts
@@ -81,10 +83,8 @@ void init386(void)
         PANIC("BDA initialization: FAILED");
 
     if (is_errno(rsdt_init()))
-        PANIC("RSDT initialization: FAILED"); 
+        PANIC("RSDT initialization: FAILED");
 
-    lapic_init();
- 
     vfs_init();
 
     drivers_init();

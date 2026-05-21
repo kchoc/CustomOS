@@ -48,26 +48,26 @@ typedef enum {
 } c_lflag_t;
 
 typedef enum {
-    VEOF   = 0,  // End-of-file character 
-    VEOL   = 1,  // End-of-line character
-    VERASE = 2,  // Erase character
-    VINTR  = 3,  // Interrupt character
-    VIKILL = 4,  // Kill-line character
-    VMIN   = 5,  // Minimum number of characters for non-canonical read
-    VQUIT  = 6,  // Quit character
-    VSTART  = 7, // Start character
-    VSTOP   = 8, // Stop character
-    VSUSP   = 9, // Suspend character 
+    VEOF    = 0,  // End-of-file character
+    VEOL    = 1,  // End-of-line character
+    VERASE  = 2,  // Erase character
+    VINTR   = 3,  // Interrupt character
+    VIKILL  = 4,  // Kill-line character
+    VMIN    = 5,  // Minimum number of characters for non-canonical read
+    VQUIT   = 6,  // Quit character
+    VSTART  = 7,  // Start character
+    VSTOP   = 8,  // Stop character
+    VSUSP   = 9,  // Suspend character
     VTIME   = 10, // Timeout in deciseconds for non-canonical read
     VWERASE = 11, // Word erase character
     NCCS    = 32  // Size of c_cc array
 } cc_index_t;
 
 typedef struct termios {
-    c_iflag_t c_iflag;  // Input modes
-    c_oflag_t c_oflag;  // Output modes
-    c_cflag_t c_cflag;  // Control modes
-    c_lflag_t c_lflag;  // Local modes
+    c_iflag_t c_iflag;    // Input modes
+    c_oflag_t c_oflag;    // Output modes
+    c_cflag_t c_cflag;    // Control modes
+    c_lflag_t c_lflag;    // Local modes
     uint8_t   c_cc[NCCS]; // Control characters
 } termios_t;
 

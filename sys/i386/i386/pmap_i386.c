@@ -19,7 +19,7 @@ void pmap_destroy(pmap_t* pmap)
 {
     page_table_t* old_pd = *current_pd_addr;
     switch_page_directory(&pmap->pd); // Switch to the kernel page directory
-    
+
     WITH_SPINLOCK(pmap->lock)
 
     // Assumes that all user-space mappings have been removed, so we only need to free the page

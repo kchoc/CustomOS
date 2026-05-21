@@ -30,7 +30,7 @@ typedef struct devfs_vnode_data {
     list_t     device_block; // List of devfs_device entries representing devices in this directory
 } devfs_vnode_data_t;
 
-extern mount_t*    dev_mount; // The devfs mount structure
+extern mount_t* dev_mount; // The devfs mount structure
 
 CREATE_VNODE_OPS(devfs)
 

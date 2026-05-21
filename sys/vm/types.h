@@ -8,7 +8,7 @@
 #define PAGE_MASK               (PAGE_SIZE - 1)
 #define PAGE_ALIGN_DOWN(addr)   ((addr) & ~PAGE_MASK)
 #define PAGE_ALIGN_UP(addr)     (((addr) + PAGE_MASK) & ~PAGE_MASK)
-#define VM_REGION_ALLOCATE_ADDR ((uintptr_t)-1)
+#define VM_REGION_ALLOCATE_ADDR ((uintptr_t) - 1)
 
 typedef uintptr_t vaddr_t;
 typedef uintptr_t paddr_t;
@@ -16,7 +16,7 @@ typedef uintptr_t paddr_t;
 typedef uint64_t vm_ooffset_t; // Object Offset
 
 typedef enum vm_map_flags {
-    VM_MAP_F_NONE = 0x0,
+    VM_MAP_F_NONE  = 0x0,
     VM_MAP_F_FIXED = 0x1, // Must use the exact address provided (addr parameter is not a hint)
 } vm_map_flags_t;
 

@@ -51,11 +51,11 @@ $(USER_BUILD_DIR)/%.elf: $(USER_PROG_DIR)/%.c $(USER_LIB_OBJS) $(CRT0_OBJ)
 
 system_init: userland $(DISK)
 	@echo "Copying init.elf to disk image..."
-	mcopy -o -i "$(DISK)@@2048S" $(USER_BUILD_DIR)/init.elf ::/sbin
+	mcopy -o -i "$(DISK)@@2048S" $(USER_BUILD_DIR)/init.elf ::/bin
 
 install-userland: userland $(DISK)
 	for prog in $(USERLAND_ELFS); do \
-		mcopy -o -i "$(DISK)@@2048S" $$prog ::/sbin/$$(basename $$prog); \
+		mcopy -o -i "$(DISK)@@2048S" $$prog ::/bin/$$(basename $$prog); \
 	done
 	for file in $(USER_FILES); do \
 		mcopy -o -i "$(DISK)@@2048S" $$file ::$$(basename $$file); \

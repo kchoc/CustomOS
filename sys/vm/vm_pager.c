@@ -4,8 +4,8 @@
 #include "vm_page.h"
 #include "vm_phys.h"
 
-#include <kern/spinlock.h>
 #include <kern/errno.h>
+#include <kern/spinlock.h>
 
 #include <list.h>
 
@@ -26,19 +26,18 @@ void vm_pager_destroy(vm_pager_t* pager)
     if (!pager)
         return;
 
-    // If the pager has any resources to clean up, do it here (e.g. close file handles for vnode pager)
+    // If the pager has any resources to clean up, do it here (e.g. close file handles for vnode
+    // pager)
 
     kfree(pager);
 }
 
-vm_pager_ops_t anon_pager_ops = {
-    .get_page = anon_pager_get_page,
-    .alloc_page = anon_pager_alloc_page,
-    .put_page = anon_pager_put_page,
-    .has_page = anon_pager_has_page,
-    .lookup_page = anon_pager_lookup_page,
-    .destroy  = anon_pager_destroy
-};
+vm_pager_ops_t anon_pager_ops = {.get_page    = anon_pager_get_page,
+                                 .alloc_page  = anon_pager_alloc_page,
+                                 .put_page    = anon_pager_put_page,
+                                 .has_page    = anon_pager_has_page,
+                                 .lookup_page = anon_pager_lookup_page,
+                                 .destroy     = anon_pager_destroy};
 
 int anon_pager_get_page(vm_object_t* obj, vm_ooffset_t offset, vm_page_t** page)
 {
@@ -48,7 +47,7 @@ int anon_pager_get_page(vm_object_t* obj, vm_ooffset_t offset, vm_page_t** page)
         vm_page_t* p = list_node_to_page(node);
         if (p->offset != offset)
             continue;
-            
+
         *page = p;
         return 0; // Page found
     }
@@ -63,9 +62,9 @@ int anon_pager_alloc_page(vm_object_t* obj, vm_ooffset_t offset, vm_page_t** pag
     if (!new_page)
         return -ENOMEM;
 
-    new_page->offset = offset;
+    new_page->offset    = offset;
     new_page->phys_addr = vm_phys_alloc_page();
-    new_page->state = 0;
+    new_page->state     = 0;
 
     list_push_head(&obj->pages, &new_page->node);
 
@@ -92,7 +91,7 @@ bool anon_pager_has_page(vm_object_t* obj, vm_ooffset_t offset)
         }
     }
 
-    return false; // Page does not exist 
+    return false; // Page does not exist
 }
 
 int anon_pager_lookup_page(vm_object_t* obj, vm_ooffset_t offset, vm_page_t** page)
@@ -114,11 +113,10 @@ void anon_pager_destroy(vm_object_t* obj)
 {
     list_node_t* node;
     while (obj->pages.head) {
-        node = obj->pages.head;
+        node            = obj->pages.head;
         vm_page_t* page = list_node_to_page(node);
         vm_phys_free_page(page->phys_addr);
         list_remove(node);
         kfree(page);
     }
 }
-
