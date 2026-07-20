@@ -2,13 +2,18 @@
 #include "string.h"
 #include "syscalls.h"
 
-int main()
+int main(int argc, char* argv[])
 {
-    // List of files in the current directory
-    printf("Files in current directory:\n");
-    int fd = open("/", 0, 0);
+    char dirname[256] = "/";
+
+    if (argc == 2) {
+        strncpy(dirname, argv[1], sizeof(dirname) - 1);
+        dirname[sizeof(dirname) - 1] = '\0'; // Ensure null-termination
+    }
+
+    int fd = open(dirname, 0, 0);
     if (fd < 0) {
-        printf("Failed to open root directory\n");
+        printf("Failed to open directory: %s\n", dirname);
         exit(1);
     }
 
@@ -26,9 +31,10 @@ int main()
         size_t name_len = strlen(name);
         if (name_len == 0)
             break; // End of entries
-        printf("  %s\n", name);
+        printf("  %s", name);
         offset += name_len + 1; // Move to next entry (null-terminated)
     }
+    printf("\n");
 
     return 0;
 }

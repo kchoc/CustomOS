@@ -1,6 +1,8 @@
 #ifndef EXEC_H
 #define EXEC_H
 
+typedef struct thread thread_t;
+
 typedef struct ps_strings {
     char**       ps_argvstr;
     unsigned int ps_nargvstr;
@@ -8,6 +10,7 @@ typedef struct ps_strings {
     unsigned int ps_nenvstr;
 } ps_strings_t;
 
-int execve(const char* path, char* const argv[], char* const envp[]);
+int  execve(const char* path, char* const argv[], char* const envp[]);
+void setup_exec_stack(thread_t* thread, char* const argv[], char* const envp[]);
 
 #endif

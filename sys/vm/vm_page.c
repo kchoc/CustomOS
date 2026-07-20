@@ -2,67 +2,68 @@
 #include "kmalloc.h"
 #include "vm_object.h"
 #include "vm_phys.h"
-
 #include <kern/errno.h>
+#include <kern/spinlock.h>
+#include <radix.h>
 
-#define list_node_to_page(node) container_of(node, vm_page_t, node)
+/* Byte offset -> page index, consistent with vm_object.c's add/remove_page. */
+static inline unsigned long vm_page_index(size_t offset)
+{
+    return (unsigned long)(offset >> 12);
+}
 
 vm_page_t* vm_page_lookup(vm_object_t* obj, size_t offset)
 {
-    list_node_t* node;
-    list_for_each(node, &obj->pages)
-    {
-        vm_page_t* page = list_node_to_page(node);
-        if ((page->offset & ~(PAGE_SIZE - 1)) == (offset & ~(PAGE_SIZE - 1))) {
-            return page;
-        }
-    }
+    if (!obj)
+        return NULL;
 
-    return NULL;
-}
+    vm_page_t* page = NULL;
 
-vm_page_t* vm_page_get_cow_page(vm_object_t* obj, size_t offset)
-{
-    if (obj->shadow == NULL)
-        return ERR_PTR(-EINVAL);
-
-    vm_page_t* page = vm_page_lookup(obj->shadow, offset);
-    if (page)
-        return page;
-
-    return vm_page_get_cow_page(obj->shadow, offset);
-}
-
-vm_page_t* vm_page_bookmark(vm_object_t* obj, size_t offset, paddr_t phys_addr)
-{
-    struct vm_page* page = kmalloc(sizeof(*page));
-    page->phys_addr      = phys_addr;
-    page->offset         = offset;
-
-    list_push_head(&obj->pages, &page->node);
+    WITH_SPINLOCK(obj->lock)
+    page = (vm_page_t*)radix_tree_lookup(&obj->pages, vm_page_index(offset));
+    END_WITH_SPINLOCK
 
     return page;
 }
 
 vm_page_t* vm_page_allocate(vm_object_t* obj, size_t offset)
 {
-    uintptr_t phys = vm_phys_alloc_page(); // your bitmap allocator
+    if (!obj)
+        return ERR_PTR(-EINVAL);
 
+    uintptr_t phys = vm_phys_alloc_page();
     if (!phys)
-        return NULL;
+        return ERR_PTR(-ENOMEM);
 
-    struct vm_page* page = kmalloc(sizeof(*page));
-    page->phys_addr      = phys;
-    page->offset         = offset;
+    vm_page_t* page = kmalloc(sizeof(*page));
+    if (!page) {
+        vm_phys_free_page(phys);
+        return ERR_PTR(-ENOMEM);
+    }
+    page->phys_addr = phys;
+    page->offset    = offset;
 
-    list_push_head(&obj->pages, &page->node);
+    WITH_SPINLOCK(obj->lock)
+    int res = radix_tree_insert(&obj->pages, vm_page_index(offset), page);
+
+    if (res) {
+        // Someone else already inserted a page at this offset (race), or
+        // the tree failed to allocate an internal node. Either way, this
+        // page isn't the one that ended up in the object -- free it and
+        // let the caller re-lookup.
+        vm_phys_free_page(phys);
+        kfree(page);
+        return ERR_PTR(res);
+    }
+    END_WITH_SPINLOCK
 
     return page;
 }
 
 void vm_page_free(vm_page_t* page)
 {
-    vm_phys_free_page(page->phys_addr); // your bitmap allocator
-    list_remove(&page->node);
+    if (!page)
+        return;
+    vm_phys_free_page(page->phys_addr);
     kfree(page);
 }

@@ -11,42 +11,50 @@
 #include <kern/panic.h>
 #include <kern/terminal.h>
 
+/* ==============================
+ * Miscellaneous helper functions
+ * ============================== */
+
 static inline bool vm_region_overlaps(vm_region_t* region, uintptr_t start, uintptr_t end)
 {
     return !(start >= region->end || end <= region->base);
 }
 
-vm_region_t* vm_region_lookup(vm_space_t* space, uintptr_t addr)
+vm_region_t* vm_region_lookup(vm_space_t* space, uintptr_t addr, lock_func_t lock_func)
 {
+    WITH_READ_LOCK(space->regions_lock)
+
     list_node_t* node;
     list_for_each(node, &space->regions)
     {
         vm_region_t* region = list_node_to_region(node);
         if (addr >= region->base && addr < region->end) {
+            if (lock_func)
+                lock_func(&region->lock);
             return region;
         }
     }
+
+    END_WITH_READ_LOCK;
 
     return NULL;
 }
 
 vaddr_t vm_find_free_region(vm_space_t* space, size_t size, vm_region_flags_t flags)
 {
-    uintptr_t last_end;
+    uintptr_t last_end = 0;
     if (flags & VM_REG_F_DEVICE)
         last_end = DEVICE_BASE;
     else if (flags & VM_REG_F_KERNEL)
         last_end = KERNEL_BASE;
-    else
-        last_end = 0;
 
     list_node_t* node;
     list_for_each(node, &space->regions)
     {
         vm_region_t* region = list_node_to_region(node);
-        if (last_end < region->base && region->base - last_end >= size) {
+        if (last_end < region->base && region->base - last_end >= size)
             return last_end; // Found a gap large enough for the new region
-        }
+
         last_end = region->end;
     }
 
@@ -63,12 +71,99 @@ vm_region_t* vm_region_lookup_range(vm_space_t* space, uintptr_t addr, size_t si
     list_for_each(node, &space->regions)
     {
         vm_region_t* region = list_node_to_region(node);
-        if (addr < region->end && addr + size > region->base) {
+        if (addr < region->end && addr + size > region->base)
             return region;
-        }
     }
 
     return NULL;
+}
+
+void vm_region_free_range(vm_space_t* space, uintptr_t addr, size_t size)
+{
+    WITH_WRITE_LOCK(space->regions_lock)
+
+    list_node_t* node = space->regions.head;
+    while (node) {
+        vm_region_t* region = list_node_to_region(node);
+        node                = node->next;
+
+        if (region->end <= addr)
+            continue; // Region is completely before the range
+
+        if (region->base >= addr + size)
+            break; // Region is completely after the range
+
+        if (region->base < addr) {
+            if (region->end > addr + size) {
+                // The range is in the middle of the region, split it into two
+                vaddr_t      new_base = addr + size;
+                vm_region_t* new_region =
+                    vm_region_create(space, &new_base, region->end - (addr + size), region->object,
+                                     region->offset + (addr + size - region->base), region->prot,
+                                     region->flags, VM_MAP_F_NONE);
+                if (IS_ERR(new_region)) {
+                    // Handle error (e.g., log it, panic, etc.)
+                    PANIC("Failed to create new region during free range");
+                }
+
+                region->end = addr; // Adjust the end of the original region
+            }
+            else {
+                // The range overlaps with the end of the region, adjust the end
+                region->end = addr;
+            }
+        }
+        else {
+            if (region->end > addr + size) {
+                // The range overlaps with the start of the region, adjust the base and offset
+                region->offset += (addr + size - region->base);
+                region->base = addr + size;
+            }
+            else {
+                // The range completely covers the region, remove it
+                vm_region_destroy(region);
+            }
+        }
+    }
+    END_WITH_WRITE_LOCK;
+}
+
+void vm_region_protect_range(vm_space_t* space, uintptr_t addr, size_t size, vm_prot_t new_prot)
+{
+    WITH_WRITE_LOCK(space->regions_lock)
+
+    list_node_t* node = space->regions.head;
+    while (node) {
+        vm_region_t* region = list_node_to_region(node);
+        node                = node->next;
+
+        if (region->end <= addr)
+            continue; // Region is completely before the range
+
+        if (region->base >= addr + size)
+            break; // Region is completely after the range
+
+        // The region overlaps with the specified range
+        if (region->base < addr) {
+            // Split the region into two parts: before and after the specified range
+            vaddr_t      new_base   = addr;
+            vm_region_t* new_region = vm_region_create(
+                space, &new_base, region->end - addr, region->object,
+                region->offset + (addr - region->base), new_prot, region->flags, VM_MAP_F_NONE);
+            if (IS_ERR(new_region)) {
+                // Handle error (e.g., log it, panic, etc.)
+                PANIC("Failed to create new region during protect range");
+            }
+
+            region->end = addr; // Adjust the end of the original region
+        }
+        else {
+            // Adjust the protection of the overlapping part
+            region->prot = new_prot;
+        }
+    }
+
+    END_WITH_WRITE_LOCK;
 }
 
 vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_object_t* object,
@@ -82,22 +177,26 @@ vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_
     if (object == NULL)
         object = vm_object_create_anon();
     else
-        object->ref_count++;
+        vm_object_inc_ref(object);
 
     region->object = object;
+
+    WITH_WRITE_LOCK(space->regions_lock)
 
     // TODO: Allow 0 to be mapped
     if (addr && (map_flags & VM_MAP_F_FIXED)) {
         region->base = *addr;
         if (vm_region_lookup_range(space, region->base, size)) {
-            vm_region_destroy(region);
+            vm_object_dec_ref(object);
+            kfree(region);
             return ERR_PTR(-EEXIST); // Overlap detected
         }
     }
     else {
         region->base = vm_find_free_region(space, size, flags);
         if (IS_ERR(region->base)) {
-            vm_region_destroy(region);
+            vm_object_dec_ref(object);
+            kfree(region);
             return ERR_PTR(region->base); // No suitable free region found
         }
         if (addr)
@@ -108,14 +207,18 @@ vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_
     region->prot   = prot;
     region->flags  = flags;
     region->offset = offset;
+    region->lock   = RWLOCK_INITIALIZER;
 
     vm_region_t* new_region = vm_region_insert(space, region);
     if (IS_ERR(new_region)) {
-        vm_region_destroy(region);
+        vm_object_dec_ref(object);
+        kfree(region);
         return new_region; // error code
     }
 
     return new_region;
+
+    END_WITH_WRITE_LOCK;
 }
 
 vm_region_t* vm_region_fork(vm_region_t* parent)
@@ -157,7 +260,6 @@ vm_region_t* vm_region_fork(vm_region_t* parent)
     }
     else {
         vm_object_inc_ref(parent->object);
-        child->object = parent->object;
     }
 
     return child;
@@ -221,123 +323,13 @@ vm_region_t* vm_region_insert(vm_space_t* space, vm_region_t* new_region)
     return new_region;
 }
 
-vm_region_t* vm_region_split(vm_region_t* region, uintptr_t addr)
-{
-    if (addr <= region->base || addr >= region->end) {
-        return ERR_PTR(-EINVAL); // Address out of bounds
-    }
-
-    vm_region_t* new_region = kmalloc(sizeof(vm_region_t));
-    if (!new_region)
-        return ERR_PTR(-ENOMEM);
-
-    new_region->base   = addr;
-    new_region->end    = region->end;
-    new_region->prot   = region->prot;
-    new_region->flags  = region->flags;
-    new_region->object = region->object;
-    region->object->ref_count++; // Increment ref count for the shared object
-    new_region->offset = region->offset + (addr - region->base);
-
-    region->end = addr;
-
-    list_insert_after(&region->node, &new_region->node);
-
-    return new_region;
-}
-
-vm_region_t* vm_region_merge(vm_region_t* region, vm_region_t* other)
-{
-    if (!vm_region_overlaps(region, other->base, other->end) && region->prot == other->prot &&
-        region->flags == other->flags && region->object == other->object &&
-        region->offset + (region->end - region->base) == other->offset) {
-        if (region->base < other->base) {
-            region->end = other->end;
-        }
-        else {
-            region->base   = other->base;
-            region->offset = other->offset;
-        }
-
-        vm_region_destroy(other); // Free the other region since we're merging it into region
-        return region;
-    }
-
-    return ERR_PTR(-EINVAL); // Regions cannot be merged
-}
-
-void vm_region_protect(vm_region_t* region, vm_prot_t new_prot)
-{
-    region->prot = new_prot;
-    pmap_protect(vm_space_from_region(region)->arch, region->base, region->end, new_prot);
-}
-
-void vm_region_flag(vm_region_t* region, vm_region_flags_t flags)
-{
-    region->flags = flags;
-}
-
-int vm_region_rebase(vm_region_t* region, uintptr_t new_addr)
-{
-    if (new_addr > region->end)
-        return -EINVAL; // Invalid new base address
-
-    vm_region_t* prev = GET_PREV_REGION(region);
-    if (prev && vm_region_overlaps(prev, new_addr, region->end))
-        return -EEXIST; // Overlap with previous region
-
-    region->base = new_addr;
-
-    return 0; // Success
-}
-
-int vm_region_resize(vm_region_t* region, uintptr_t new_end)
-{
-    if (new_end <= region->base)
-        return -EINVAL; // Invalid new end address
-
-    vm_region_t* next = GET_NEXT_REGION(region);
-    if (next && vm_region_overlaps(next, region->base, new_end))
-        return -EEXIST; // Overlap with next region
-
-    region->end = new_end;
-
-    return 0; // Success
-}
-
-int vm_region_remap(vm_region_t* region, uintptr_t new_addr, size_t new_size)
-{
-    if (new_size == 0)
-        return -EINVAL; // Invalid new size
-
-    uintptr_t new_end = new_addr + new_size;
-    if (new_end <= new_addr)
-        return -EINVAL; // Invalid new end address
-
-    uintptr_t old_base = region->base;
-    uintptr_t old_end  = region->end;
-
-    list_remove(&region->node); // Temporarily remove the region from the list to avoid self-overlap
-                                // during checks
-
-    region->base = new_addr;
-    region->end  = new_end;
-
-    vm_region_t* new_region = vm_region_insert(vm_space_from_region(region), region);
-    if (IS_ERR(new_region)) {
-        // Revert changes if insertion failed
-        region->base = old_base;
-        region->end  = old_end;
-        vm_region_insert(vm_space_from_region(region), region); // Reinsert the original region
-        return (int)new_region;                                 // Return the error code
-    }
-
-    return 0; // Success
-}
-
 void vm_region_destroy(vm_region_t* region)
 {
+    WITH_WRITE_LOCK(region->lock)
+
     vm_object_dec_ref(region->object);
     list_remove(&region->node);
     kfree(region);
+
+    END_WITH_WRITE_LOCK;
 }

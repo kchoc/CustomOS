@@ -55,12 +55,12 @@ pmap_t* pmap_create()
 {
     pmap_t* pmap = kmalloc(sizeof(pmap_t));
     if (!pmap)
-        return NULL;
+        return ERR_PTR(-ENOMEM);
 
     pmap->pd = (page_table_t*)vm_phys_alloc_page();
     if (is_errno((paddr_t)pmap->pd)) {
         kfree(pmap);
-        return NULL;
+        return ERR_PTR(-ENOMEM);
     }
     pmap->lock = 0;
     pmap_enter(kernel_vm_space.arch, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pmap->pd,
@@ -81,5 +81,7 @@ pmap_t* pmap_create()
 
 void pmap_activate(pmap_t* pmap)
 {
+    if (pmap == NULL || pmap->pd == NULL)
+        PANIC("pmap_activate: Invalid page directory");
     asm volatile("mov %0, %%cr3" : : "r"(pmap->pd) : "memory");
 }

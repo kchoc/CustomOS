@@ -36,18 +36,7 @@ void panic_assert(const char* expression, const char* file, int line)
 
 void panic_dump_registers(registers_t* regs)
 {
-    printf("REGISTER DUMP:\n");
-    printf("EAX: %x\n", regs->eax);
-    printf("EBX: %x\n", regs->ebx);
-    printf("ECX: %x\n", regs->ecx);
-    printf("EDX: %x\n", regs->edx);
-    printf("ESI: %x\n", regs->esi);
-    printf("EDI: %x\n", regs->edi);
-    printf("EBP: %x\n", regs->ebp);
-    printf("ESP: %x\n", regs->esp);
-    printf("EIP: %x (phys %x)\n", regs->eip,
-           pmap_extract(get_proc_from_thread(PCPU_GET(current_thread))->vmspace->arch, regs->eip));
-    printf("EFLAGS: %x\n", regs->eflags);
+    terminal_print_registers(regs);
     halt_system();
 }
 

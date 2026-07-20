@@ -24,13 +24,13 @@ vaddr_t user_stack_bottom = USER_STACK_BOTTOM;
 
 static list_t all_processes = LIST_INIT_START(&idle_process.node);
 proc_t        idle_process  = {
-            .pid      = 0,
-            .ppid     = 0,
-            .name     = "idle",
-            .threads  = LIST_INIT,
-            .vmspace  = &kernel_vm_space,
-            .fd_table = NULL,
-            .node     = LIST_NODE_INIT(&all_processes),
+    .pid      = 0,
+    .ppid     = 0,
+    .name     = "idle",
+    .threads  = LIST_INIT,
+    .vmspace  = &kernel_vm_space,
+    .fd_table = NULL,
+    .node     = LIST_NODE_INIT(&all_processes),
 };
 
 thread_t idle_thread = {
@@ -205,8 +205,19 @@ int fork_process(thread_t* t, int flags, proc_t** child_out)
     strncpy(child->name, parent->name, sizeof(child->name) - 1);
     child->name[sizeof(child->name) - 1] = '\0';
 
-    child->vmspace  = vm_space_fork(parent->vmspace);
+    child->vmspace = vm_space_fork(parent->vmspace);
+    if (IS_ERR(child->vmspace)) {
+        kfree(child);
+        return (int)child->vmspace;
+    }
     child->fd_table = fd_table_fork(parent->fd_table);
+    if (IS_ERR(child->fd_table)) {
+        vm_space_destroy(child->vmspace);
+        kfree(child);
+        return (int)child->fd_table;
+    }
+
+    printf("Child process cr3: 0x%08x\n", child->vmspace->arch->pd);
 
     list_init(&child->threads, 0);
     list_push_tail(&all_processes, &child->node);
@@ -215,6 +226,8 @@ int fork_process(thread_t* t, int flags, proc_t** child_out)
     thread_t* child_thread = fork_user_thread(t, child, t->priority, NULL);
     if (!child_thread) {
         list_remove(&child->node);
+        vm_space_destroy(child->vmspace);
+        fd_table_destroy(child->fd_table);
         kfree(child);
         return -ENOMEM;
     }

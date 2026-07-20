@@ -1,6 +1,8 @@
 #ifndef VFS_VNODE_H
 #define VFS_VNODE_H
 
+#include <vm/types.h>
+
 #include "types.h"
 
 #include <inttypes.h>
@@ -112,6 +114,8 @@ typedef struct vnode {
     vnode_ops_t*  v_ops;
     vnode_flags_t v_flags;
 
+    vm_object_t* v_object; // The VM object associated with this vnode, if any
+
     mount_t* v_mount;     // The mount this vnode belongs to
     mount_t* v_mounthere; // If this vnode is a mount point, this points to the mounted filesystem's
                           // mount struct
@@ -129,5 +133,7 @@ void vnode_dec_ref(vnode_t* vnode);
 int  vnode_get(mount_t* mount, uint64_t file_id, vnode_t** result);
 void vnode_inactive(vnode_t* vnode);
 void vnode_reclaim(vnode_t* vnode);
+
+vm_object_t* vnode_get_object(vnode_t* vnode);
 
 #endif // VFS_VNODE_H

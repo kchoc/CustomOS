@@ -13,6 +13,8 @@
     while (0)                                                                                      \
         ;
 
+#define SPINLOCK_INITIALIZER 0
+
 typedef volatile uint32_t spinlock_t;
 
 void spin_lock(spinlock_t* l);

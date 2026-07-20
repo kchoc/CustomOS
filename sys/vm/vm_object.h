@@ -6,6 +6,7 @@
 #include <kern/spinlock.h>
 
 #include <list.h>
+#include <radix.h>
 #include <stddef.h>
 
 struct vm_page;
@@ -24,13 +25,14 @@ typedef struct vm_object {
     list_node_t      node;
     vm_object_type_t type;
     int              ref_count;
-    spinlock_t       lock; // Protects the pages list
+    spinlock_t       lock; // Protects the pages radix tree and other object metadata
 
     struct vm_object* shadow;        // Shadow object for copy-on-write
     vm_ooffset_t      shadow_offset; // Offset within the shadow object
 
-    struct vm_pager* pager; // Pager for handling page faults and backing storage
-    list_t           pages; // List of vm_page_t
+    struct vm_pager* pager;      // Pager for handling page faults and backing storage
+    void*            pager_data; // Pager-specific data
+    radix_tree_t     pages;      // Radix tree mapping offsets to vm_page_t*
 
 } vm_object_t;
 

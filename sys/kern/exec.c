@@ -14,18 +14,17 @@
 #include <inttypes.h>
 #include <string.h>
 
-void arg_count(char* const* arr, int* count, size_t* total_size)
+#define MAX_ENV_VARS 128
+
+int arg_copy(char* dest[], char* const src[])
 {
-    int    n    = 0;
-    size_t size = 0;
-    while (arr && arr[n]) {
-        size += strlen(arr[n]) + 1; // +1 for null terminator
-        n++;
+    int count = 0;
+    while (src && src[count] && count < MAX_ENV_VARS) {
+        dest[count] = strdup(src[count]);
+        count++;
     }
-    if (count)
-        *count = n;
-    if (total_size)
-        *total_size = size;
+    dest[count] = NULL; // Null-terminate the array
+    return count;
 }
 
 int execve(const char* path, char* const argv[], char* const envp[])
@@ -46,67 +45,85 @@ int execve(const char* path, char* const argv[], char* const envp[])
     if (!file)
         return -ENOENT;
 
+    // Because when the ELF is loaded the current process's stack is replaced, we need to copy
+    // arguments and environment variables into kernel space before loading the ELF. This way we can
+    // set up the new stack for the process after loading the ELF.
+    char* argv_copy[MAX_ENV_VARS + 1];
+    char* envp_copy[MAX_ENV_VARS + 1];
+    arg_copy(argv_copy, argv);
+    arg_copy(envp_copy, envp);
+
     if (strcmp(extension, ".elf") == 0) {
         if (load_elf(path, thread)) {
             vfs_close(file);
             return -ENOEXEC;
         }
-        goto success;
+
+        vfs_close(file);
+        setup_exec_stack(thread, argv_copy, envp_copy);
+        return 0;
     }
     vfs_close(file);
     return -ENOEXEC;
+}
 
-    uintptr_t stack_bottom;
-    uintptr_t stack_top;
-success:
-    stack_top    = 0xC0000000;
-    stack_bottom = stack_top - PAGE_SIZE;
+void setup_exec_stack(thread_t* thread, char* const argv[], char* const envp[])
+{
+    char*     argv_copy[MAX_ENV_VARS + 1];
+    char*     envp_copy[MAX_ENV_VARS + 1];
+    uintptr_t stack_top    = 0xC0000000;
+    uintptr_t stack_bottom = stack_top - PAGE_SIZE;
+
     vm_map_anon(get_proc_from_thread(thread)->vmspace, &stack_bottom, PAGE_SIZE,
                 VM_PROT_READ | VM_PROT_USER | VM_PROT_WRITE, VM_REG_F_PRIVATE, VM_MAP_F_FIXED);
 
-    int    argc, envc;
-    size_t argv_size, envp_size;
-    arg_count(argv, &argc, &argv_size);
-    arg_count(envp, &envc, &envp_size);
-
-    uintptr_t envp_strings_start = stack_top - envp_size - sizeof(ps_strings_t);
-    uintptr_t argv_strings_start = envp_strings_start - argv_size;
-    uintptr_t envp_array_start =
-        argv_strings_start - (envc + 1) * sizeof(char*); // +1 for null terminator
-    uintptr_t argv_array_start =
-        envp_array_start - (argc + 1) * sizeof(char*); // +1 for null terminator
-
-    // Set up the user stack with metadata for the new process (argv, envp, etc.)
+    // ps_strings at very top
     stack_top -= sizeof(ps_strings_t);
     ps_strings_t* ps_strings = (ps_strings_t*)stack_top;
-    ps_strings->ps_nargvstr  = argc;
-    ps_strings->ps_nenvstr   = envc;
-    ps_strings->ps_argvstr   = (char**)argv_array_start;
-    ps_strings->ps_envstr    = (char**)envp_array_start;
 
-    stack_top = argv_array_start - sizeof(int);
-
-    for (int i = 0; i < argc; i++) {
-        size_t arg_len = strlen(argv[i]) + 1;
-        argv_array_start += sizeof(char*);
-        *(char**)argv_array_start = argv_strings_start;
-        memcpy((void*)argv_strings_start, argv[i], arg_len);
-        argv_strings_start += arg_len;
+    // Push argument strings onto stack
+    int argc = 0;
+    while (argv && argv[argc] && argc < MAX_ENV_VARS) {
+        size_t len = strlen(argv[argc]) + 1;
+        stack_top -= len;
+        memcpy((void*)stack_top, argv[argc], len);
+        argv_copy[argc++] = (char*)stack_top;
     }
+    argv_copy[argc] = NULL;
 
-    for (int i = 0; i < envc; i++) {
-        size_t env_len = strlen(envp[i]) + 1;
-        envp_array_start += sizeof(char*);
-        *(char**)envp_array_start = envp_strings_start;
-        memcpy((void*)envp_strings_start, envp[i], env_len);
-        envp_strings_start += env_len;
+    // Push env strings onto stack
+    int envc = 0;
+    while (envp && envp[envc] && envc < MAX_ENV_VARS) {
+        size_t len = strlen(envp[envc]) + 1;
+        stack_top -= len;
+        memcpy((void*)stack_top, envp[envc], len);
+        envp_copy[envc++] = (char*)stack_top;
     }
+    envp_copy[envc] = NULL;
 
-    // Set argc at the top of the stack for the new process
+    // Align stack to 4 bytes before writing pointer arrays
+    stack_top &= ~3;
+
+    // Push envp[] pointer array (null-terminated)
+    stack_top -= (envc + 1) * sizeof(char*);
+    uintptr_t envp_array = stack_top;
+    for (int i = 0; i <= envc; i++) // includes NULL terminator
+        ((char**)envp_array)[i] = envp_copy[i];
+
+    // Push argv[] pointer array (null-terminated)
+    stack_top -= (argc + 1) * sizeof(char*);
+    uintptr_t argv_array = stack_top;
+    for (int i = 0; i <= argc; i++) // includes NULL terminator
+        ((char**)argv_array)[i] = argv_copy[i];
+
+    stack_top -= sizeof(int);
     *(int*)stack_top = argc;
 
-    thread->trapframe->user_esp = stack_top;
+    // Fill ps_strings
+    ps_strings->ps_nargvstr = argc;
+    ps_strings->ps_nenvstr  = envc;
+    ps_strings->ps_argvstr  = (char**)argv_array;
+    ps_strings->ps_envstr   = (char**)envp_array;
 
-    vfs_close(file);
-    return 0;
+    thread->trapframe->user_esp = stack_top;
 }

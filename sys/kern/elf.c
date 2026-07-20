@@ -56,6 +56,16 @@ int load_elf(const char* filepath, thread_t* thread)
         // Load file data into the mapped memory
         vfs_llseek(file, ph[i].p_offset, 0);
         vfs_read(file, (uint8_t*)ph[i].p_vaddr, ph[i].p_filesz, 0);
+
+        // vm_space_debug(p->vmspace);
+
+        // Debug print first few bytes of the loaded segment
+        // printf("Loaded segment %d at virtual address 0x%08x (filesz: %u, memsz: %u)\n", i,
+        // ph[i].p_vaddr, ph[i].p_filesz, ph[i].p_memsz);
+        // for (int j = 0; j < 16 && j < ph[i].p_filesz; j++) {
+        // printf("%02x ", *((uint8_t*)(ph[i].p_vaddr + j)));
+        // }
+        // printf("\n");
     }
 
     thread->trapframe->eip = eh.e_entry; // Set entry point for the new executable

@@ -25,15 +25,19 @@ int main()
         int   argc     = 0;
         char* read_buf = buf;
         while (argc < 15 && read_buf[0] != '\n') {
-            while (*read_buf && (*read_buf == ' ' || *read_buf == '\n'))
+            while (*read_buf == ' ' || *read_buf == '\t')
                 read_buf++;
-            if (*buf == '\0')
-                break;
+
+            if (read_buf[0] == '\n' || read_buf[0] == '\0')
+                break; // End of input
+
             argv[argc++] = read_buf;
-            while (*read_buf && *read_buf != ' ' && *read_buf != '\n')
-                read_buf++;
-            if (*read_buf)
-                *read_buf++ = '\0';
+
+            while (read_buf[0] != ' ' && read_buf[0] != '\t' && read_buf[0] != '\n' &&
+                   read_buf[0] != '\0')
+                read_buf++; // Move to end of token
+            if (read_buf[0])
+                *read_buf++ = '\0'; // Null-terminate token and move to next
         }
 
         strcpy(program_path, "/bin/");

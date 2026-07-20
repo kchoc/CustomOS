@@ -6,6 +6,7 @@
 
 #include <kern/errno.h>
 #include <kern/panic.h>
+#include <kern/spinlock.h>
 #include <kern/terminal.h>
 
 #include <string.h>
@@ -46,32 +47,16 @@ int vm_map_anon(vm_space_t* space, uintptr_t* virt, size_t size, vm_prot_t prot,
 
 int vm_unmap(vm_space_t* space, uintptr_t virt, size_t size)
 {
-    vm_region_t* region = vm_region_lookup(space, virt);
-    if (!region)
-        return -ENOENT;
-
-    // TODO: Handle unmapping of partial regions (split the region if necessary)
-    if (region->base != virt || region->end != virt + size) {
-        return -EINVAL;
-    }
+    vm_region_free_range(space, virt, size);
 
     pmap_remove(space->arch, virt, virt + size);
-    vm_region_destroy(region); // This will free the region if this was the last reference
 
     return 0;
 }
 
 int vm_protect(vm_space_t* space, uintptr_t virt, size_t size, vm_prot_t prot)
 {
-    vm_region_t* region = vm_region_lookup(space, virt);
-    if (!region)
-        return -ENOENT;
-
-    // TODO: Handle changing protection of partial regions (split the region if necessary)
-    if (region->base != virt || region->end != virt + size)
-        return -EINVAL;
-
-    region->prot = prot;
+    vm_region_protect_range(space, virt, size, prot);
 
     for (size_t offset = 0; offset < size; offset += PAGE_SIZE) {
         pmap_protect(space->arch, virt + offset, virt + offset + PAGE_SIZE, prot);
@@ -154,22 +139,28 @@ void* kvm_map(size_t size, vm_prot_t prot, vm_region_flags_t flags)
     if (flags & VM_REG_F_NOCACHE)
         pmap_flags |= PMAP_FLAG_NOCACHE;
 
-    vm_object_t* obj = vm_region_lookup(&kernel_vm_space, kva)->object;
+    vm_region_t* region = vm_region_lookup(&kernel_vm_space, kva, rwlock_read_lock);
+    vm_object_t* obj    = region->object;
+
     for (size_t offset = 0; offset < aligned_size; offset += PAGE_SIZE) {
         vm_page_t* page = vm_page_allocate(obj, offset);
         if (IS_ERR(page)) {
             kvm_unmap((void*)kva, offset);
+            rwlock_read_unlock(&region->lock);
             return page;
         }
         int ret = pmap_enter(kernel_vm_space.arch, kva + offset, page->phys_addr, prot, pmap_flags);
         if (IS_ERR(ret)) {
             kvm_unmap((void*)kva, offset);
+            rwlock_read_unlock(&region->lock);
             return ERR_PTR(ret);
         }
 
         void* page_virt = (void*)(kva + offset);
         memset(page_virt, 0, PAGE_SIZE);
     }
+
+    rwlock_read_unlock(&region->lock);
 
     return (void*)kva;
 }
