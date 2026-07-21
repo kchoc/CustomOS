@@ -1,16 +1,15 @@
 # CustomOSC - Custom Operating System Kernel
 
-**EXPERIMENTAL BRANCH**
+A custom operating system kernel built from scratch, designed to be lightweight and efficient. This project is intended for educational purposes and to provide a foundation for further development.
 
-This branch is an effort to reconstruct the original kernel project found on the stable branch to support multiple architectures. This branch is also designed to move away from the GRUB bootloader, convert all assembly to GAS and move from cmake to make
- 
+Current Capabilities include a userland environment with a shell, basic file system support, and simple process management but with minimal features and frequent crashes. The kernel is still in its early stages of development, and many features are yet to be implemented.
+
 ## Build & Run
-
+
 Run the built ISO using the included Makefile target:
    ```bash
+   make headers
+   make install-userland
    make run
    ```
 
-## Stable Single-Arch
-
-The original i386 kernel can be found on the stable branch.
