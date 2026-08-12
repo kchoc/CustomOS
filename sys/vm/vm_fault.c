@@ -26,14 +26,10 @@ int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
         return -1; // invalid access
     }
 
-    // Im kinda lazy and want to avoid missing unlocks so im going to replace the lock with a scope
-    // lock that unlocks when the function returns
-    WITH_READ_LOCK(region->lock)
-
-    rwlock_read_unlock(&region->lock);
-
-    if (!(region->prot & fault_type))
+    if (!(region->prot & fault_type)) {
+        rwlock_read_unlock(&region->lock);
         return -1; // protection fault
+    }
 
     printf("vm_fault: Handling fault for address 0x%08x (PID=%d)\n", addr,
            get_proc_from_thread(PCPU_GET(current_thread))->pid);
@@ -70,10 +66,15 @@ int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
 
     // Page not found in any object, allocate a new page
     new_page = vm_page_allocate(region->object, offset);
-    if (!new_page)
+    if (!new_page) {
+        rwlock_read_unlock(&region->lock);
         return -ENOMEM;
+    }
 
     pmap_enter(space->arch, page_addr, new_page->phys_addr, region->prot, 0);
+
+    rwlock_read_unlock(&region->lock);
+
     return 0;
 
 found_page:
@@ -82,6 +83,8 @@ found_page:
         if (!(fault_type & VM_PROT_WRITE)) {
             // Read fault on a COW page, just map it as read-only (dont allocate a new page)
             pmap_enter(space->arch, page_addr, page->phys_addr, region->prot & ~VM_PROT_WRITE, 0);
+
+            rwlock_read_unlock(&region->lock);
             return 0;
         }
 
@@ -91,16 +94,22 @@ found_page:
 
     pmap_enter(space->arch, page_addr, page->phys_addr, region->prot, 0);
 
+    rwlock_read_unlock(&region->lock);
+
     return 0;
 
 cow:
     new_page = vm_page_allocate(region->object, offset);
-    if (!new_page)
+    if (!new_page) {
+        rwlock_read_unlock(&region->lock);
         return -ENOMEM;
+    }
 
     vaddr_t temp_page = (vaddr_t)kvm_alloc(PAGE_SIZE, VM_PROT_READ | VM_PROT_WRITE, 0);
-    if (IS_ERR(temp_page))
+    if (IS_ERR(temp_page)) {
+        rwlock_read_unlock(&region->lock);
         return (int)temp_page;
+    }
 
     pmap_enter(space->arch, temp_page, shadow_addr, VM_PROT_READ, 0);
     pmap_enter(space->arch, page_addr, new_page->phys_addr, region->prot, 0);
@@ -108,7 +117,7 @@ cow:
     pmap_remove(space->arch, temp_page, temp_page + PAGE_SIZE);
     kvm_free((void*)temp_page, PAGE_SIZE);
 
-    END_WITH_READ_LOCK;
+    rwlock_read_unlock(&region->lock);
 
     return 0;
 }

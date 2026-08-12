@@ -49,7 +49,7 @@ extern mount_ops_t vfat_mount_ops;
 
 int vfat_mount(mount_t* mnt, const char* options);
 int vfat_unmount(mount_t* mnt);
-int vfat_get_root(mount_t* mnt, vnode_t** vnode);
+int vfat_get_root(mount_t* mnt, vnode_t** root_vnode);
 int vfat_sync(mount_t* mnt);
 
 #endif // FS_VFAT_MOUNT_H

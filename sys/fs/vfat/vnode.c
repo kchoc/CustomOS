@@ -233,28 +233,31 @@ static int lookup_cb(void* dev, uint64_t lba, void* ctx)
    ========================================================= */
 static int vfat_vnode_get(mount_t* mount, vfat_lookup_result_t* lr, vnode_t** out)
 {
-    int res = vnode_get(mount, lr->cluster, out);
-    if (res)
+    vnode_t* node;
+    int      res = vnode_get(mount, lr->cluster, &node);
+    if (IS_ERR(res))
         return res;
 
-    if (!(*out)->v_data) {
-        vfat_node_data_t* nd = kmalloc(sizeof(vfat_node_data_t));
-        if (!nd) {
-            vnode_dec_ref(*out);
-            return -ENOMEM;
-        }
-        nd->start_cluster  = lr->cluster;
-        nd->file_size      = lr->entry.file_size;
-        nd->attributes     = lr->entry.attributes;
-        nd->is_root        = false;
-        nd->cached_cluster = lr->cluster;
-        nd->cached_index   = 0;
-        (*out)->v_data     = nd;
-    }
+    *out = node;
 
-    (*out)->v_ops = &vfat_vnode_ops;
-    (*out)->v_type =
-        (lr->entry.attributes & VFAT_ATTR_DIR) ? VNODE_TYPE_DIRECTORY : VNODE_TYPE_FILE;
+    if (res == 0)
+        return 0; // vnode already exists, return it
+
+    vfat_node_data_t* nd = kmalloc(sizeof(vfat_node_data_t));
+    if (!nd) {
+        vnode_dec_ref(*out);
+        return -ENOMEM;
+    }
+    nd->start_cluster  = lr->cluster;
+    nd->file_size      = lr->entry.file_size;
+    nd->attributes     = lr->entry.attributes;
+    nd->is_root        = false;
+    nd->cached_cluster = lr->cluster;
+    nd->cached_index   = 0;
+    node->v_data       = nd;
+
+    node->v_ops  = &vfat_vnode_ops;
+    node->v_type = (lr->entry.attributes & VFAT_ATTR_DIR) ? VNODE_TYPE_DIRECTORY : VNODE_TYPE_FILE;
     return 0;
 }
 
@@ -279,7 +282,6 @@ int vfat_vnode_lookup(vnode_t* vp, const char* name, vnode_t** result)
 
     int res = vfat_walk_chain(vp->v_mount->mnt_dev_vnode->v_data, vp->v_mount->private,
                               ((vfat_node_data_t*)vp->v_data)->start_cluster, lookup_cb, &lc);
-
     if (res)
         return res;
     if (!lc.found)

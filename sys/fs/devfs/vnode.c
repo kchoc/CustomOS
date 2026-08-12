@@ -3,6 +3,7 @@
 #include "mount.h"
 
 #include <fs/mount.h>
+#include <fs/vfs.h>
 #include <fs/vnode.h>
 
 #include <vm/kmalloc.h>
@@ -17,6 +18,7 @@ mount_t* dev_mount = NULL;
 int devfs_init()
 {
     int res;
+
     res = mount_create(NULL, NULL, MOUNT_NONE, &dev_mount);
     if (res)
         return res;
@@ -38,25 +40,21 @@ int devfs_vnode_lookup(vnode_t* dir, const char* name, vnode_t** result)
     {
         devfs_device_block_t* block = (devfs_device_block_t*)node;
         for (int i = 0; i < 8; i++) {
-            devfs_device_t* dev = &block->devices[i];
+            vnode_t* dev_vnode = block->devices[i];
+            if (!dev_vnode)
+                continue; // Skip empty slots
+
+            device_t* dev = (device_t*)dev_vnode->v_data;
+
             if (strncmp(dev->name, name, MAX_DEVICE_NAME_LEN) == 0) {
-                if (dev->vnode) {
-                    *result = dev->vnode;
-                    vnode_inc_ref(*result); // Increment ref count for the caller
-                    return 0;
-                }
-                else {
-                    // TODO: Currently vnode cache is forced to be present for a device, but I might
-                    // want to allow it to be lazily created on demand in the future. For now, treat
-                    // missing vnode as not found.
-                    return -ENOENT; // Device exists but vnode is not currently cached, treat as not
-                                    // found
-                }
+                *result = dev_vnode;
+                vnode_inc_ref(dev_vnode); // Increment ref count for the returned vnode
+                return 0;                 // Found the device
             }
         }
     }
 
-    END_WITH_SPINLOCK
+    END_WITH_SPINLOCK;
 
     return -ENOENT; // Not found
 }
@@ -75,21 +73,24 @@ int devfs_vnode_create(vnode_t* dir, const char* name, enum vnode_type type, vno
     if (strlen(name) >= MAX_DEVICE_NAME_LEN)
         return -EINVAL; // Name too long for our fixed-size name field
 
-    WITH_SPINLOCK(((devfs_vnode_data_t*)dir->v_data)->lock)
+    devfs_vnode_data_t* dir_data = (devfs_vnode_data_t*)dir->v_data;
+
+    WITH_SPINLOCK(dir_data->lock)
 
     // Find an existing block with space for a new device
     devfs_device_block_t* block;
-    devfs_device_t*       dev;
     list_node_t*          node;
+    vnode_t*              dev_vnode;
     size_t                block_index = 0;
     size_t                index       = 0;
-    list_for_each(node, &((devfs_vnode_data_t*)dir->v_data)->device_block)
+    list_for_each(node, &dir_data->device_block)
     {
         block = (devfs_device_block_t*)node;
         for (index = 0; index < DEVICES_PER_BLOCK; index++) {
-            if (block->devices[index].name[0] == '\0') {
+            vnode_t* dev_vnode = block->devices[index];
+
+            if (!dev_vnode)
                 goto found_slot;
-            }
         }
         block_index++;
     }
@@ -98,32 +99,30 @@ int devfs_vnode_create(vnode_t* dir, const char* name, enum vnode_type type, vno
     block = kmalloc(sizeof(devfs_device_block_t));
     if (!block)
         return -ENOMEM;
+
     memset(block, 0, sizeof(devfs_device_block_t)); // Clear the block
-    list_push_tail(&((devfs_vnode_data_t*)dir->v_data)->device_block, &block->node);
+    list_push_tail(&dir_data->device_block, &block->node);
 
     block_index++;
     index = 0;
 
+    int res;
 found_slot:
-    dev = &block->devices[index];
-    strncpy(dev->name, name, MAX_DEVICE_NAME_LEN);
-    dev->type   = (type == VNODE_TYPE_BLOCK_DEVICE)  ? DEV_TYPE_BLOCK
-                  : (type == VNODE_TYPE_CHAR_DEVICE) ? DEV_TYPE_CHAR
-                                                     : DEV_TYPE_GENERIC;
-    dev->device = NULL; // The actual device pointer can be set later by the caller
-    int res     = vnode_get(dev_mount, (uint32_t)dev,
-                            &dev->vnode); // Use the devfs_device_t pointer as the file_id for quick
-                                          // reverse lookup in vnode_get
-    if (res) {
-        memset(dev, 0, sizeof(devfs_device_t)); // Clear the device entry on
+    res = vnode_get(dev_mount, block_index * DEVICES_PER_BLOCK + index + 1,
+                    &dev_vnode); // Unique vnode ID based on block and index
+    if (IS_ERR(res)) {
         return res;
     }
 
-    dev->vnode->v_ops  = &devfs_vnode_ops;
-    dev->vnode->v_data = dev;
-    dev->vnode->v_type = type;
+    block->devices[index] = dev_vnode; // Store the new device vnode in the block
 
-    *result = dev->vnode; // Return the vnode for the newly created device
+    *result = dev_vnode;
+    if (res == 0)
+        return 0; // Vnode already exists, return it
+
+    // Initialize the new device vnode
+    dev_vnode->v_type = type;
+    dev_vnode->v_ops  = &devfs_vnode_ops;
 
     END_WITH_SPINLOCK
 
@@ -135,26 +134,33 @@ int devfs_vnode_unlink(vnode_t* dir, const char* name)
     if (!dir || !name)
         return -EINVAL;
 
-    WITH_SPINLOCK(((devfs_vnode_data_t*)dir->v_data)->lock)
+    devfs_vnode_data_t* dir_data = (devfs_vnode_data_t*)dir->v_data;
+
+    WITH_SPINLOCK(dir_data->lock)
 
     list_node_t* node;
-    list_for_each(node, &((devfs_vnode_data_t*)dir->v_data)->device_block)
+    list_for_each(node, &dir_data->device_block)
     {
         devfs_device_block_t* block = (devfs_device_block_t*)node;
         for (int i = 0; i < DEVICES_PER_BLOCK; i++) {
-            devfs_device_t* dev = &block->devices[i];
+            vnode_t* dev_vnode = block->devices[i];
+            if (!dev_vnode)
+                continue; // Skip empty slots
+
+            device_t* dev = (device_t*)dev_vnode->v_data;
+            if (!dev)
+                continue; // Skip if device data is NULL
+
             if (strncmp(dev->name, name, MAX_DEVICE_NAME_LEN) == 0) {
-                if (dev->vnode) {
-                    vnode_dec_ref(dev->vnode); // Decrement ref count for the vnode
-                    dev->vnode = NULL;         // Clear the vnode cache reference
-                }
-                memset(dev, 0, sizeof(devfs_device_t)); // Clear the device entry
+                // Found the device to unlink
+                block->devices[i] = NULL; // Remove the device from the block
+                vnode_dec_ref(dev_vnode); // Decrement the reference count of the vnode
                 return 0;
             }
         }
     }
 
-    END_WITH_SPINLOCK
+    END_WITH_SPINLOCK;
 
     return -ENOENT; // Not found
 }
@@ -174,7 +180,14 @@ int devfs_vnode_readdir(vnode_t* dir, void* buf, size_t size, size_t offset)
     {
         devfs_device_block_t* block = (devfs_device_block_t*)node;
         for (int i = 0; i < DEVICES_PER_BLOCK; i++) {
-            devfs_device_t* dev = &block->devices[i];
+            vnode_t* dev_vnode = block->devices[i];
+            if (!dev_vnode)
+                continue; // Skip empty slots
+
+            device_t* dev = (device_t*)dev_vnode->v_data;
+            if (!dev)
+                continue; // Skip if device data is NULL
+
             if (dev->name[0] != '\0') {
                 size_t name_len = strnlen(dev->name, MAX_DEVICE_NAME_LEN);
                 if (current_offset >= offset && bytes_written + name_len + 1 <= size) {

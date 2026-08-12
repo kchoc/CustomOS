@@ -1,10 +1,10 @@
 #include "vm_object.h"
 #include "kmalloc.h"
 #include "vm_page.h"
+#include "vm_pager.h"
+#include "vm_vnode_pager.h"
 
 #include <fs/vfs.h>
-
-#include <vm/vm_pager.h>
 
 #include <kern/errno.h>
 
@@ -93,20 +93,18 @@ vm_object_t* vm_object_create_shadow(vm_object_t* shadow, vm_ooffset_t offset)
 
 vm_object_t* vm_object_create_vnode(vnode_t* vnode)
 {
-    vm_pager_t* pager = kmalloc(sizeof(vm_pager_t));
-    if (!pager)
-        return ERR_PTR(-ENOMEM);
-
-    pager->ops = NULL; // TODO: Implement vnode pager ops
-
-    pager->data = vnode;
-
     vm_object_t* obj = kmalloc(sizeof(vm_object_t));
     if (!obj) {
-        kfree(pager);
         return ERR_PTR(-ENOMEM);
     }
 
+    vm_pager_t* pager = vm_pager_create(&vnode_pager_ops, vnode);
+    if (IS_ERR(pager)) {
+        kfree(obj);
+        return ERR_PTR(-ENOMEM);
+    }
+
+    obj->pager_data    = vnode;
     obj->type          = VM_OBJECT_VNODE;
     obj->ref_count     = 1;
     obj->shadow        = NULL;

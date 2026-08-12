@@ -10,29 +10,18 @@
 mount_ops_t devfs_mount_ops = {
     .mount    = devfs_mount,
     .unmount  = devfs_unmount,
-    .get_root = devfs_get_root,
     .sync     = DISALLOWED_OP,
+    .get_root = devfs_get_root,
 };
 
 int devfs_mount(mount_t* mnt, const char* options)
 {
-    // Create the root vnode for devfs if it doesn't already exist
-    devfs_vnode_data_t* root_data = kmalloc(sizeof(devfs_vnode_data_t));
-    if (!root_data)
-        return -ENOMEM;
-
-    root_data->lock = 0; // Initialize the spinlock
-    list_init(&root_data->device_block, 0);
-
-    int res = vnode_get(mnt, 0, &mnt->mnt_point);
-    if (res) {
-        kfree(root_data);
+    // DEVFS root vnode needs to be created and initialized here. The root vnode will represent the
+    // /dev directory.
+    vnode_t* root_vnode;
+    int      res = devfs_get_root(mnt, &root_vnode);
+    if (res)
         return res;
-    }
-
-    mnt->mnt_point->v_ops  = &devfs_vnode_ops;
-    mnt->mnt_point->v_data = root_data;
-    mnt->mnt_point->v_type = VNODE_TYPE_DIRECTORY; // The root of devfs is a directory
 
     return 0; // Success
 }
@@ -48,13 +37,28 @@ int devfs_get_root(mount_t* mnt, vnode_t** vnode)
     if (!mnt || !vnode)
         return -EINVAL;
 
-    if (mnt->mnt_point) {
-        *vnode = mnt->mnt_point;
-        vnode_inc_ref(*vnode); // Increment ref count for the caller
-        return 0;              // Success
+    int res = vnode_get(mnt, 0, vnode); // The root directory is typically represented by file_id 0
+    if (IS_ERR(res))
+        return res;
+
+    if (res == 0) {
+        // The root vnode was found in the cache, return it
+        return 0;
     }
 
-    PANIC("devfs_get_root: mount point is NULL, devfs should always have a root vnode after "
-          "successful mount\n");
-    return -ENOENT; // Root vnode not found (shouldn't happen if mount was successful)
+    (*vnode)->v_type = VNODE_TYPE_DIRECTORY; // Set the vnode type to directory
+    (*vnode)->v_ops  = &devfs_vnode_ops;     // Assign the devfs vnode operations to the root vnode
+
+    devfs_vnode_data_t* root_data = kmalloc(sizeof(devfs_vnode_data_t));
+    if (!root_data) {
+        vnode_dec_ref(*vnode); // Decrement ref count since we won't use it
+        return -ENOMEM;
+    }
+
+    root_data->lock = 0; // Initialize the spinlock
+    list_init(&root_data->device_block, 0);
+
+    (*vnode)->v_data = root_data; // Link the root vnode to its devfs data
+
+    return 0; // Success
 }

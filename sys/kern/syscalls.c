@@ -7,7 +7,6 @@
 #include <dev/input/keyboard.h>
 
 #include <fs/file.h>
-#include <fs/sockfs.h>
 #include <fs/vfs.h>
 
 #include <vm/kmalloc.h>

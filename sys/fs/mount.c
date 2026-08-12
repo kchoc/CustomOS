@@ -8,9 +8,9 @@
 #include <kern/panic.h>
 #include <kern/spinlock.h>
 
-mount_t* mount_table[MAX_MOUNTS];
-int      mount_count = 0;
-mount_t* root_mnt    = NULL;
+mount_t*   mount_table[MAX_MOUNTS];
+int        mount_count      = 0;
+spinlock_t mount_table_lock = 0;
 
 void mount_inc_ref(mount_t* mnt)
 {
@@ -31,10 +31,10 @@ int mount_create(vnode_t* mnt_point, vnode_t* mnt_dev_vnode, mount_flags_t flags
     if (mnt_dev_vnode && mnt_dev_vnode->v_type != VNODE_TYPE_BLOCK_DEVICE)
         return -ENOTBLK;
 
-    if (__sync_fetch_and_add(&mount_count, 1) >= MAX_MOUNTS) {
-        __sync_fetch_and_sub(&mount_count, 1);
-        return -EMFILE; // Too many mounts
-    }
+    WITH_SPINLOCK(mount_table_lock)
+
+    if (mount_count >= MAX_MOUNTS)
+        return -ENOSPC; // No space left in the mount table
 
     mount_t* mnt = kmalloc(sizeof(mount_t));
     if (!mnt)
@@ -42,8 +42,9 @@ int mount_create(vnode_t* mnt_point, vnode_t* mnt_dev_vnode, mount_flags_t flags
 
     if (mnt_point)
         vnode_inc_ref(mnt_point);
-    if (mnt_point)
+    if (mnt_dev_vnode)
         vnode_inc_ref(mnt_dev_vnode);
+
     mnt->mnt_point     = mnt_point;
     mnt->mnt_dev_vnode = mnt_dev_vnode;
     mnt->private       = NULL;
@@ -58,8 +59,11 @@ int mount_create(vnode_t* mnt_point, vnode_t* mnt_dev_vnode, mount_flags_t flags
     mnt->lazy_vnode_list      = NULL;
     mnt->lazy_vnode_list_lock = 0;
 
-    mount_table[mount_count - 1] = mnt;
-    *result                      = mnt;
+    mount_table[mount_count] = mnt;
+    mount_count++;
+    *result = mnt;
+
+    END_WITH_SPINLOCK;
 
     return 0; // Success
 }
@@ -96,6 +100,19 @@ int mount_destroy(mount_t* mnt)
 
     kfree(mnt->mnt_point);
     kfree(mnt);
+
+    // TODO: Remove the mount from the mount table. This is a bit tricky since we need to find it
+    // and shift the rest of the mounts down. For now, just mark it as NULL and let the mount_count
+    // stay the same. In a real implementation, we would want to compact the mount table or use a
+    // more dynamic data structure.
+    WITH_SPINLOCK(mount_table_lock)
+    for (int i = 0; i < mount_count; i++) {
+        if (mount_table[i] == mnt) {
+            mount_table[i] = NULL;
+            break;
+        }
+    }
+    END_WITH_SPINLOCK
 
     return 0; // Success
 }

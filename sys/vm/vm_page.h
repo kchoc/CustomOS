@@ -8,19 +8,20 @@
 
 #include <list.h>
 
+typedef struct vm_page vm_page_t;
+
 typedef enum vm_page_flags {
-    VM_PAGE_FLAG_FREE  = 0x0,
-    VM_PAGE_FLAG_WIRED = 0x1,
-    VM_PAGE_FLAG_COW   = 0x2,
-    VM_PAGE_FLAG_TO_BE_ZEROED =
-        0x4, // Page is allocated but not yet zeroed out (used for optimization)
+    VM_PAGE_FLAG_FREE      = 0x0,
+    VM_PAGE_FLAG_ALLOCATED = 0x1,
+    VM_PAGE_FLAG_COW       = 0x2, // Copy-on-write page
 } vm_page_flags_t;
 
+typedef int (*vm_page_fault_handler_t)(vm_page_t* page, vm_prot_t fault_type);
+
 typedef struct vm_page {
-    list_node_t     node;
-    paddr_t         phys_addr; // Physical address of the page
-    vm_ooffset_t    offset;    // Offset within the object
-    struct vm_page* cow_source;
+    list_node_t  node;
+    paddr_t      phys_addr; // Physical address of the page
+    vm_ooffset_t offset;    // Offset within the object
 
     vm_page_flags_t state;
 
@@ -41,8 +42,6 @@ inline vm_object_t* vm_page_get_object(vm_page_t* page)
 }
 
 vm_page_t* vm_page_lookup(vm_object_t* obj, size_t offset);
-vm_page_t* vm_page_get_cow_page(vm_object_t* obj, size_t offset);
-vm_page_t* vm_page_bookmark(vm_object_t* obj, size_t offset, paddr_t phys_addr);
 vm_page_t* vm_page_allocate(vm_object_t* obj, size_t offset);
 void       vm_page_free(vm_page_t* page);
 

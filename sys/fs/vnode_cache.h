@@ -15,7 +15,6 @@ typedef struct vnode_cache_bucket {
 } vnode_cache_bucket_t;
 
 int vnode_cache_init(void);
-int vnode_cache_insert(vnode_t* vnode);
 int vnode_cache_remove(vnode_t* vnode);
 int vnode_cache_lookup(mount_t* mnt, uint64_t file_id, vnode_t** result);
 

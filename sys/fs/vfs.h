@@ -72,6 +72,7 @@ typedef struct dir_context {
 /* Socket */
 #define UMODE_IFSOCK 0xC000
 
+extern mount_t* root_mnt;
 extern vnode_t* root_vnode;
 
 /* Block Device Register */

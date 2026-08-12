@@ -10,7 +10,6 @@
 #include <sys/root_bus.h>
 #include <sys/tty.h>
 
-#include <fs/sockfs.h>
 #include <fs/vfs.h>
 
 #include <vm/kmalloc.h>

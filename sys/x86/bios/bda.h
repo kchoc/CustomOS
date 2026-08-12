@@ -3,6 +3,8 @@
 
 #include <inttypes.h>
 
+#define BDA_PHYSICAL_ADDRESS 0x00000400
+
 typedef struct bios_data_area {
     uint16_t com_ports[4];         // 0x400, COM1..COM4
     uint16_t lpt_ports[3];         // 0x408, LPT1..LPT3

@@ -46,7 +46,6 @@ typedef struct mount {
 
 #define MAX_MOUNTS 128
 
-extern mount_t* root_mnt;
 extern mount_t* mount_table[];
 extern int      mount_count;
 

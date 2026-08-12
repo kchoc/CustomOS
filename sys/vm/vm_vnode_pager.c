@@ -1,5 +1,6 @@
 #include "vm_vnode_pager.h"
 #include "vm_object.h"
+#include "vm_page.h"
 
 #include <fs/vnode.h>
 
@@ -7,6 +8,14 @@
 
 int vnode_pager_get_page(vm_object_t* obj, vm_ooffset_t offset, vm_page_t** page)
 {
+    vnode_t* vnode = (vnode_t*)obj->pager_data;
+    if (!vnode)
+        return -ENOSYS; // Not implemented
+
+    vm_page_t* new_page = vm_page_allocate(obj, offset);
+    if (!new_page)
+        return -ENOMEM;
+
     return -ENOSYS; // Not implemented
 }
 

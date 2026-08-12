@@ -13,8 +13,8 @@
 mount_ops_t vfat_mount_ops = {
     .mount    = vfat_mount,
     .unmount  = vfat_unmount,
-    .get_root = vfat_get_root,
     .sync     = vfat_sync,
+    .get_root = vfat_get_root,
 };
 
 int vfat_mount(mount_t* mnt, const char* options)
@@ -118,8 +118,14 @@ int vfat_get_root(mount_t* mnt, vnode_t** vnode)
     int      res = vnode_get(
         mnt, 0,
         &root); // The root directory is typically represented by file_id 0 in FAT filesystems
-    if (res)
+    if (IS_ERR(res))
         return res;
+
+    if (res == 0) {
+        // The root vnode was found in the cache, return it
+        *vnode = root;
+        return 0;
+    }
 
     root->v_type = VNODE_TYPE_DIRECTORY; // Set the vnode type to directory
     root->v_ops  = &vfat_vnode_ops;      // Assign the VFAT vnode operations to the root vnode
@@ -130,11 +136,10 @@ int vfat_get_root(mount_t* mnt, vnode_t** vnode)
         return -ENOMEM;
     }
 
-    vfat_mount_data_t* mount_info = (vfat_mount_data_t*)mnt->private;
-    root_info->start_cluster      = 0; // The root directory starts at cluster 0
-    root_info->file_size          = 0;
-    root_info->attributes         = 0x10; // Set the directory attribute
-    root_info->is_root            = true; // Mark this node as the root directory
+    root_info->start_cluster = 0; // The root directory starts at cluster 0
+    root_info->file_size     = 0;
+    root_info->attributes    = 0x10; // Set the directory attribute
+    root_info->is_root       = true; // Mark this node as the root directory
 
     root->v_data = root_info; // Store the root directory info in the vnode's private data
 

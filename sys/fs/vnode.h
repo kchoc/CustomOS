@@ -19,8 +19,7 @@ typedef enum vnode_type {
 } vnode_type_t;
 
 typedef enum vnode_flags {
-    VNODE_FLAG_NONE        = 0x0,
-    VNODE_FLAG_MOUNT_POINT = 0x1, // Indicates this vnode is a mount point
+    VNODE_FLAG_NONE = 0x0,
 } vnode_flags_t;
 
 typedef enum access_mode {
@@ -110,7 +109,7 @@ typedef struct vnode_ops {
 
 typedef struct vnode {
     vnode_type_t  v_type;
-    int           ref_count; // TODO: Active and cached reference counts?
+    uint32_t      v_refcount;
     vnode_ops_t*  v_ops;
     vnode_flags_t v_flags;
 
