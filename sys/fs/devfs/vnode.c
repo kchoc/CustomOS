@@ -34,27 +34,26 @@ int devfs_vnode_lookup(vnode_t* dir, const char* name, vnode_t** result)
         return -EINVAL;
 
     WITH_SPINLOCK(((devfs_vnode_data_t*)dir->v_data)->lock)
-
-    list_node_t* node;
-    list_for_each(node, &((devfs_vnode_data_t*)dir->v_data)->device_block)
     {
-        devfs_device_block_t* block = (devfs_device_block_t*)node;
-        for (int i = 0; i < 8; i++) {
-            vnode_t* dev_vnode = block->devices[i];
-            if (!dev_vnode)
-                continue; // Skip empty slots
+        list_node_t* node;
+        list_for_each(node, &((devfs_vnode_data_t*)dir->v_data)->device_block)
+        {
+            devfs_device_block_t* block = (devfs_device_block_t*)node;
+            for (int i = 0; i < 8; i++) {
+                vnode_t* dev_vnode = block->devices[i];
+                if (!dev_vnode)
+                    continue; // Skip empty slots
 
-            device_t* dev = (device_t*)dev_vnode->v_data;
+                device_t* dev = (device_t*)dev_vnode->v_data;
 
-            if (strncmp(dev->name, name, MAX_DEVICE_NAME_LEN) == 0) {
-                *result = dev_vnode;
-                vnode_inc_ref(dev_vnode); // Increment ref count for the returned vnode
-                return 0;                 // Found the device
+                if (strncmp(dev->name, name, MAX_DEVICE_NAME_LEN) == 0) {
+                    *result = dev_vnode;
+                    vnode_inc_ref(dev_vnode); // Increment ref count for the returned vnode
+                    return 0;                 // Found the device
+                }
             }
         }
     }
-
-    END_WITH_SPINLOCK;
 
     return -ENOENT; // Not found
 }
@@ -76,55 +75,54 @@ int devfs_vnode_create(vnode_t* dir, const char* name, enum vnode_type type, vno
     devfs_vnode_data_t* dir_data = (devfs_vnode_data_t*)dir->v_data;
 
     WITH_SPINLOCK(dir_data->lock)
-
-    // Find an existing block with space for a new device
-    devfs_device_block_t* block;
-    list_node_t*          node;
-    vnode_t*              dev_vnode;
-    size_t                block_index = 0;
-    size_t                index       = 0;
-    list_for_each(node, &dir_data->device_block)
     {
-        block = (devfs_device_block_t*)node;
-        for (index = 0; index < DEVICES_PER_BLOCK; index++) {
-            vnode_t* dev_vnode = block->devices[index];
+        // Find an existing block with space for a new device
+        devfs_device_block_t* block;
+        list_node_t*          node;
+        vnode_t*              dev_vnode;
+        size_t                block_index = 0;
+        size_t                index       = 0;
+        list_for_each(node, &dir_data->device_block)
+        {
+            block = (devfs_device_block_t*)node;
+            for (index = 0; index < DEVICES_PER_BLOCK; index++) {
+                vnode_t* dev_vnode = block->devices[index];
 
-            if (!dev_vnode)
-                goto found_slot;
+                if (!dev_vnode)
+                    goto found_slot;
+            }
+            block_index++;
         }
+
+        // No existing block has space, create a new block
+        block = kmalloc(sizeof(devfs_device_block_t));
+        if (!block)
+            return -ENOMEM;
+
+        memset(block, 0, sizeof(devfs_device_block_t)); // Clear the block
+        list_push_tail(&dir_data->device_block, &block->node);
+
         block_index++;
+        index = 0;
+
+        int res;
+    found_slot:
+        res = vnode_get(dev_mount, block_index * DEVICES_PER_BLOCK + index + 1,
+                        &dev_vnode); // Unique vnode ID based on block and index
+        if (IS_ERR(res)) {
+            return res;
+        }
+
+        block->devices[index] = dev_vnode; // Store the new device vnode in the block
+
+        *result = dev_vnode;
+        if (res == 0)
+            return 0; // Vnode already exists, return it
+
+        // Initialize the new device vnode
+        dev_vnode->v_type = type;
+        dev_vnode->v_ops  = &devfs_vnode_ops;
     }
-
-    // No existing block has space, create a new block
-    block = kmalloc(sizeof(devfs_device_block_t));
-    if (!block)
-        return -ENOMEM;
-
-    memset(block, 0, sizeof(devfs_device_block_t)); // Clear the block
-    list_push_tail(&dir_data->device_block, &block->node);
-
-    block_index++;
-    index = 0;
-
-    int res;
-found_slot:
-    res = vnode_get(dev_mount, block_index * DEVICES_PER_BLOCK + index + 1,
-                    &dev_vnode); // Unique vnode ID based on block and index
-    if (IS_ERR(res)) {
-        return res;
-    }
-
-    block->devices[index] = dev_vnode; // Store the new device vnode in the block
-
-    *result = dev_vnode;
-    if (res == 0)
-        return 0; // Vnode already exists, return it
-
-    // Initialize the new device vnode
-    dev_vnode->v_type = type;
-    dev_vnode->v_ops  = &devfs_vnode_ops;
-
-    END_WITH_SPINLOCK
 
     return 0;
 }
@@ -137,30 +135,29 @@ int devfs_vnode_unlink(vnode_t* dir, const char* name)
     devfs_vnode_data_t* dir_data = (devfs_vnode_data_t*)dir->v_data;
 
     WITH_SPINLOCK(dir_data->lock)
-
-    list_node_t* node;
-    list_for_each(node, &dir_data->device_block)
     {
-        devfs_device_block_t* block = (devfs_device_block_t*)node;
-        for (int i = 0; i < DEVICES_PER_BLOCK; i++) {
-            vnode_t* dev_vnode = block->devices[i];
-            if (!dev_vnode)
-                continue; // Skip empty slots
+        list_node_t* node;
+        list_for_each(node, &dir_data->device_block)
+        {
+            devfs_device_block_t* block = (devfs_device_block_t*)node;
+            for (int i = 0; i < DEVICES_PER_BLOCK; i++) {
+                vnode_t* dev_vnode = block->devices[i];
+                if (!dev_vnode)
+                    continue; // Skip empty slots
 
-            device_t* dev = (device_t*)dev_vnode->v_data;
-            if (!dev)
-                continue; // Skip if device data is NULL
+                device_t* dev = (device_t*)dev_vnode->v_data;
+                if (!dev)
+                    continue; // Skip if device data is NULL
 
-            if (strncmp(dev->name, name, MAX_DEVICE_NAME_LEN) == 0) {
-                // Found the device to unlink
-                block->devices[i] = NULL; // Remove the device from the block
-                vnode_dec_ref(dev_vnode); // Decrement the reference count of the vnode
-                return 0;
+                if (strncmp(dev->name, name, MAX_DEVICE_NAME_LEN) == 0) {
+                    // Found the device to unlink
+                    block->devices[i] = NULL; // Remove the device from the block
+                    vnode_dec_ref(dev_vnode); // Decrement the reference count of the vnode
+                    return 0;
+                }
             }
         }
     }
-
-    END_WITH_SPINLOCK;
 
     return -ENOENT; // Not found
 }
@@ -174,34 +171,33 @@ int devfs_vnode_readdir(vnode_t* dir, void* buf, size_t size, size_t offset)
     size_t current_offset = 0;
 
     WITH_SPINLOCK(((devfs_vnode_data_t*)dir->v_data)->lock)
-
-    list_node_t* node;
-    list_for_each(node, &((devfs_vnode_data_t*)dir->v_data)->device_block)
     {
-        devfs_device_block_t* block = (devfs_device_block_t*)node;
-        for (int i = 0; i < DEVICES_PER_BLOCK; i++) {
-            vnode_t* dev_vnode = block->devices[i];
-            if (!dev_vnode)
-                continue; // Skip empty slots
+        list_node_t* node;
+        list_for_each(node, &((devfs_vnode_data_t*)dir->v_data)->device_block)
+        {
+            devfs_device_block_t* block = (devfs_device_block_t*)node;
+            for (int i = 0; i < DEVICES_PER_BLOCK; i++) {
+                vnode_t* dev_vnode = block->devices[i];
+                if (!dev_vnode)
+                    continue; // Skip empty slots
 
-            device_t* dev = (device_t*)dev_vnode->v_data;
-            if (!dev)
-                continue; // Skip if device data is NULL
+                device_t* dev = (device_t*)dev_vnode->v_data;
+                if (!dev)
+                    continue; // Skip if device data is NULL
 
-            if (dev->name[0] != '\0') {
-                size_t name_len = strnlen(dev->name, MAX_DEVICE_NAME_LEN);
-                if (current_offset >= offset && bytes_written + name_len + 1 <= size) {
-                    memcpy((char*)buf + bytes_written, dev->name, name_len);
-                    bytes_written += name_len;
-                    ((char*)buf)[bytes_written] = '\0'; // Null terminator for the entry
-                    bytes_written++;
+                if (dev->name[0] != '\0') {
+                    size_t name_len = strnlen(dev->name, MAX_DEVICE_NAME_LEN);
+                    if (current_offset >= offset && bytes_written + name_len + 1 <= size) {
+                        memcpy((char*)buf + bytes_written, dev->name, name_len);
+                        bytes_written += name_len;
+                        ((char*)buf)[bytes_written] = '\0'; // Null terminator for the entry
+                        bytes_written++;
+                    }
+                    current_offset++;
                 }
-                current_offset++;
             }
         }
     }
-
-    END_WITH_SPINLOCK
 
     return bytes_written; // Return the total bytes written to the buffer
 }

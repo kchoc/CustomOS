@@ -23,19 +23,18 @@ static inline bool vm_region_overlaps(vm_region_t* region, uintptr_t start, uint
 vm_region_t* vm_region_lookup(vm_space_t* space, uintptr_t addr, lock_func_t lock_func)
 {
     WITH_READ_LOCK(space->regions_lock)
-
-    list_node_t* node;
-    list_for_each(node, &space->regions)
     {
-        vm_region_t* region = list_node_to_region(node);
-        if (addr >= region->base && addr < region->end) {
-            if (lock_func)
-                lock_func(&region->lock);
-            return region;
+        list_node_t* node;
+        list_for_each(node, &space->regions)
+        {
+            vm_region_t* region = list_node_to_region(node);
+            if (addr >= region->base && addr < region->end) {
+                if (lock_func)
+                    lock_func(&region->lock);
+                return region;
+            }
         }
     }
-
-    END_WITH_READ_LOCK;
 
     return NULL;
 }
@@ -81,89 +80,88 @@ vm_region_t* vm_region_lookup_range(vm_space_t* space, uintptr_t addr, size_t si
 void vm_region_free_range(vm_space_t* space, uintptr_t addr, size_t size)
 {
     WITH_WRITE_LOCK(space->regions_lock)
+    {
+        list_node_t* node = space->regions.head;
+        while (node) {
+            vm_region_t* region = list_node_to_region(node);
+            node                = node->next;
 
-    list_node_t* node = space->regions.head;
-    while (node) {
-        vm_region_t* region = list_node_to_region(node);
-        node                = node->next;
+            if (region->end <= addr)
+                continue; // Region is completely before the range
 
-        if (region->end <= addr)
-            continue; // Region is completely before the range
+            if (region->base >= addr + size)
+                break; // Region is completely after the range
 
-        if (region->base >= addr + size)
-            break; // Region is completely after the range
+            if (region->base < addr) {
+                if (region->end > addr + size) {
+                    // The range is in the middle of the region, split it into two
+                    vaddr_t      new_base   = addr + size;
+                    vm_region_t* new_region = vm_region_create(
+                        space, &new_base, region->end - (addr + size), region->object,
+                        region->offset + (addr + size - region->base), region->prot, region->flags,
+                        VM_MAP_F_NONE);
+                    if (IS_ERR(new_region)) {
+                        // Handle error (e.g., log it, panic, etc.)
+                        PANIC("Failed to create new region during free range");
+                    }
 
-        if (region->base < addr) {
-            if (region->end > addr + size) {
-                // The range is in the middle of the region, split it into two
-                vaddr_t      new_base = addr + size;
-                vm_region_t* new_region =
-                    vm_region_create(space, &new_base, region->end - (addr + size), region->object,
-                                     region->offset + (addr + size - region->base), region->prot,
-                                     region->flags, VM_MAP_F_NONE);
-                if (IS_ERR(new_region)) {
-                    // Handle error (e.g., log it, panic, etc.)
-                    PANIC("Failed to create new region during free range");
+                    region->end = addr; // Adjust the end of the original region
                 }
-
-                region->end = addr; // Adjust the end of the original region
+                else {
+                    // The range overlaps with the end of the region, adjust the end
+                    region->end = addr;
+                }
             }
             else {
-                // The range overlaps with the end of the region, adjust the end
-                region->end = addr;
-            }
-        }
-        else {
-            if (region->end > addr + size) {
-                // The range overlaps with the start of the region, adjust the base and offset
-                region->offset += (addr + size - region->base);
-                region->base = addr + size;
-            }
-            else {
-                // The range completely covers the region, remove it
-                vm_region_destroy(region);
+                if (region->end > addr + size) {
+                    // The range overlaps with the start of the region, adjust the base and offset
+                    region->offset += (addr + size - region->base);
+                    region->base = addr + size;
+                }
+                else {
+                    // The range completely covers the region, remove it
+                    vm_region_destroy(region);
+                }
             }
         }
     }
-    END_WITH_WRITE_LOCK;
 }
 
 void vm_region_protect_range(vm_space_t* space, uintptr_t addr, size_t size, vm_prot_t new_prot)
 {
     WITH_WRITE_LOCK(space->regions_lock)
+    {
+        list_node_t* node = space->regions.head;
+        while (node) {
+            vm_region_t* region = list_node_to_region(node);
+            node                = node->next;
 
-    list_node_t* node = space->regions.head;
-    while (node) {
-        vm_region_t* region = list_node_to_region(node);
-        node                = node->next;
+            if (region->end <= addr)
+                continue; // Region is completely before the range
 
-        if (region->end <= addr)
-            continue; // Region is completely before the range
+            if (region->base >= addr + size)
+                break; // Region is completely after the range
 
-        if (region->base >= addr + size)
-            break; // Region is completely after the range
+            // The region overlaps with the specified range
+            if (region->base < addr) {
+                // Split the region into two parts: before and after the specified range
+                vaddr_t      new_base   = addr;
+                vm_region_t* new_region = vm_region_create(
+                    space, &new_base, region->end - addr, region->object,
+                    region->offset + (addr - region->base), new_prot, region->flags, VM_MAP_F_NONE);
+                if (IS_ERR(new_region)) {
+                    // Handle error (e.g., log it, panic, etc.)
+                    PANIC("Failed to create new region during protect range");
+                }
 
-        // The region overlaps with the specified range
-        if (region->base < addr) {
-            // Split the region into two parts: before and after the specified range
-            vaddr_t      new_base   = addr;
-            vm_region_t* new_region = vm_region_create(
-                space, &new_base, region->end - addr, region->object,
-                region->offset + (addr - region->base), new_prot, region->flags, VM_MAP_F_NONE);
-            if (IS_ERR(new_region)) {
-                // Handle error (e.g., log it, panic, etc.)
-                PANIC("Failed to create new region during protect range");
+                region->end = addr; // Adjust the end of the original region
             }
-
-            region->end = addr; // Adjust the end of the original region
-        }
-        else {
-            // Adjust the protection of the overlapping part
-            region->prot = new_prot;
+            else {
+                // Adjust the protection of the overlapping part
+                region->prot = new_prot;
+            }
         }
     }
-
-    END_WITH_WRITE_LOCK;
 }
 
 vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_object_t* object,
@@ -182,43 +180,43 @@ vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_
     region->object = object;
 
     WITH_WRITE_LOCK(space->regions_lock)
+    {
+        // TODO: Allow 0 to be mapped
+        if (addr && (map_flags & VM_MAP_F_FIXED)) {
+            region->base = *addr;
+            if (vm_region_lookup_range(space, region->base, size)) {
+                vm_object_dec_ref(object);
+                kfree(region);
+                return ERR_PTR(-EEXIST); // Overlap detected
+            }
+        }
+        else {
+            region->base = vm_find_free_region(space, size, flags);
+            if (IS_ERR(region->base)) {
+                vm_object_dec_ref(object);
+                kfree(region);
+                return ERR_PTR(region->base); // No suitable free region found
+            }
+            if (addr)
+                *addr = region->base;
+        }
 
-    // TODO: Allow 0 to be mapped
-    if (addr && (map_flags & VM_MAP_F_FIXED)) {
-        region->base = *addr;
-        if (vm_region_lookup_range(space, region->base, size)) {
+        region->end    = region->base + size;
+        region->prot   = prot;
+        region->flags  = flags;
+        region->offset = offset;
+        region->lock   = RWLOCK_INITIALIZER;
+
+        vm_region_t* new_region = vm_region_insert(space, region);
+        if (IS_ERR(new_region)) {
             vm_object_dec_ref(object);
             kfree(region);
-            return ERR_PTR(-EEXIST); // Overlap detected
+            return new_region; // error code
         }
+
+        return new_region;
     }
-    else {
-        region->base = vm_find_free_region(space, size, flags);
-        if (IS_ERR(region->base)) {
-            vm_object_dec_ref(object);
-            kfree(region);
-            return ERR_PTR(region->base); // No suitable free region found
-        }
-        if (addr)
-            *addr = region->base;
-    }
-
-    region->end    = region->base + size;
-    region->prot   = prot;
-    region->flags  = flags;
-    region->offset = offset;
-    region->lock   = RWLOCK_INITIALIZER;
-
-    vm_region_t* new_region = vm_region_insert(space, region);
-    if (IS_ERR(new_region)) {
-        vm_object_dec_ref(object);
-        kfree(region);
-        return new_region; // error code
-    }
-
-    return new_region;
-
-    END_WITH_WRITE_LOCK;
+    return NULL; // Should never reach here
 }
 
 vm_region_t* vm_region_fork(vm_region_t* parent)
@@ -326,10 +324,9 @@ vm_region_t* vm_region_insert(vm_space_t* space, vm_region_t* new_region)
 void vm_region_destroy(vm_region_t* region)
 {
     WITH_WRITE_LOCK(region->lock)
-
-    vm_object_dec_ref(region->object);
-    list_remove(&region->node);
-    kfree(region);
-
-    END_WITH_WRITE_LOCK;
+    {
+        vm_object_dec_ref(region->object);
+        list_remove(&region->node);
+        kfree(region);
+    }
 }

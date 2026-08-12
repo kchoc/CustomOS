@@ -64,20 +64,19 @@ vm_space_t* vm_space_fork(vm_space_t* parent)
         return ERR_PTR(-ENOMEM);
 
     WITH_READ_LOCK(parent->regions_lock)
-
-    // Copy the regions list (shallow copy)
-    for (list_node_t* node = parent->regions.head; node; node = node->next) {
-        vm_region_t* reference_region = list_node_to_region(node);
-        vm_region_t* child_region     = vm_region_fork(reference_region);
-        if (IS_ERR(child_region)) {
-            vm_space_destroy(child); // Clean up the child space and all regions created so far
-            return ERR_PTR(child_region);
+    {
+        // Copy the regions list (shallow copy)
+        for (list_node_t* node = parent->regions.head; node; node = node->next) {
+            vm_region_t* reference_region = list_node_to_region(node);
+            vm_region_t* child_region     = vm_region_fork(reference_region);
+            if (IS_ERR(child_region)) {
+                vm_space_destroy(child); // Clean up the child space and all regions created so far
+                return ERR_PTR(child_region);
+            }
+            // Insert the child region into the child's region list
+            list_push_tail(&child->regions, &child_region->node);
         }
-        // Insert the child region into the child's region list
-        list_push_tail(&child->regions, &child_region->node);
     }
-
-    END_WITH_READ_LOCK;
 
     return child;
 }
@@ -88,15 +87,14 @@ void vm_space_destroy(vm_space_t* space)
         return;
 
     WITH_WRITE_LOCK(space->regions_lock)
-
-    // Decrement reference counts for all regions and their objects (this will free them if this was
-    // the last reference)
-    while (space->regions.head) {
-        vm_region_t* region = list_node_to_region(space->regions.head);
-        vm_region_destroy(region);
+    {
+        // Decrement reference counts for all regions and their objects (this will free them if this
+        // was the last reference)
+        while (space->regions.head) {
+            vm_region_t* region = list_node_to_region(space->regions.head);
+            vm_region_destroy(region);
+        }
     }
-
-    END_WITH_WRITE_LOCK;
 
     // Free architecture-specific data
     pmap_destroy(space->arch);
@@ -110,20 +108,19 @@ void vm_space_clean(vm_space_t* space)
         return;
 
     WITH_WRITE_LOCK(space->regions_lock)
-
-    // Similar to destroy, but kernel regions should not be freed, and the vm_space itself should
-    // not be freed. Only user regions should be cleaned
-    list_node_t* node = space->regions.head;
-    while (node) {
-        vm_region_t* region = list_node_to_region(node);
-        node                = node->next;
-        if (!(region->flags & VM_REG_F_KERNEL)) {
-            pmap_remove(space->arch, region->base, region->end);
-            vm_region_destroy(region);
+    {
+        // Similar to destroy, but kernel regions should not be freed, and the vm_space itself
+        // should not be freed. Only user regions should be cleaned
+        list_node_t* node = space->regions.head;
+        while (node) {
+            vm_region_t* region = list_node_to_region(node);
+            node                = node->next;
+            if (!(region->flags & VM_REG_F_KERNEL)) {
+                pmap_remove(space->arch, region->base, region->end);
+                vm_region_destroy(region);
+            }
         }
     }
-
-    END_WITH_WRITE_LOCK;
 }
 
 void vm_space_activate(vm_space_t* space)
@@ -139,17 +136,16 @@ void vm_space_debug(vm_space_t* space)
         return;
 
     WITH_READ_LOCK(space->regions_lock)
-
-    printf("VM Space at %p\n", space);
-    printf("  Regions:\n");
-    list_node_t* node;
-    list_for_each(node, &space->regions)
     {
-        vm_region_t* region = list_node_to_region(node);
-        printf("    Region at %p: base=0x%08x, end=0x%08x, prot=%d, flags=%d\n", region,
-               region->base, region->end, region->prot, region->flags);
+        printf("VM Space at %p\n", space);
+        printf("  Regions:\n");
+        list_node_t* node;
+        list_for_each(node, &space->regions)
+        {
+            vm_region_t* region = list_node_to_region(node);
+            printf("    Region at %p: base=0x%08x, end=0x%08x, prot=%d, flags=%d\n", region,
+                   region->base, region->end, region->prot, region->flags);
+        }
     }
-
-    END_WITH_READ_LOCK;
     // pmap_debug(space->arch);
 }

@@ -27,21 +27,21 @@ void vm_object_dec_ref(vm_object_t* obj)
         // Free the object and its pages if this was the last reference
 
         WITH_SPINLOCK(obj->lock)
+        {
 
-        if (obj->pager) {
-            if (obj->pager->ops && obj->pager->ops->destroy) {
-                obj->pager->ops->destroy(obj);
+            if (obj->pager) {
+                if (obj->pager->ops && obj->pager->ops->destroy) {
+                    obj->pager->ops->destroy(obj);
+                }
+                kfree(obj->pager);
+                obj->pager = NULL;
             }
-            kfree(obj->pager);
-            obj->pager = NULL;
+
+            radix_tree_destroy(&obj->pages, vm_object_free_page_cb);
+
+            if (obj->shadow)
+                vm_object_dec_ref(obj->shadow);
         }
-
-        radix_tree_destroy(&obj->pages, vm_object_free_page_cb);
-
-        if (obj->shadow)
-            vm_object_dec_ref(obj->shadow);
-
-        END_WITH_SPINLOCK
 
         kfree(obj);
     }

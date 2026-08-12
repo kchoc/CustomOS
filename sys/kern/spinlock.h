@@ -4,14 +4,10 @@
 #include <inttypes.h>
 
 #define WITH_SPINLOCK(lock)                                                                        \
-    do {                                                                                           \
-        spin_lock(&lock);                                                                          \
-        __attribute__((cleanup(_spinlock_cleanup))) spinlock_t* _spinlock_cleanup_var = &lock;
-
-#define END_WITH_SPINLOCK                                                                          \
-    }                                                                                              \
-    while (0)                                                                                      \
-        ;
+    for (spinlock_t * _spinlock_cleanup_var                                                        \
+             __attribute__((cleanup(_spinlock_cleanup))) = (spin_lock(&(lock)), &(lock)),          \
+             *_spinlock_once                             = _spinlock_cleanup_var;                  \
+         _spinlock_once; _spinlock_once                  = NULL)
 
 #define SPINLOCK_INITIALIZER 0
 

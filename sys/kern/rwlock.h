@@ -38,24 +38,16 @@ typedef void (*lock_func_t)(rwlock_t*);
     }
 
 #define WITH_READ_LOCK(lock)                                                                       \
-    do {                                                                                           \
-        rwlock_read_lock(&lock);                                                                   \
-        __attribute__((cleanup(_rwlock_read_cleanup))) rwlock_t* _rwlock_cleanup_var = &lock;
-
-#define END_WITH_READ_LOCK                                                                         \
-    }                                                                                              \
-    while (0)                                                                                      \
-        ;
+    for (rwlock_t * _rwlock_read_cleanup_var __attribute__((cleanup(_rwlock_read_cleanup))) =      \
+             (rwlock_read_lock(&(lock)), &(lock)),                                                 \
+                                             *_rwlock_read_once = _rwlock_read_cleanup_var;        \
+         _rwlock_read_once; _rwlock_read_once                   = NULL)
 
 #define WITH_WRITE_LOCK(lock)                                                                      \
-    do {                                                                                           \
-        rwlock_write_lock(&lock);                                                                  \
-        __attribute__((cleanup(_rwlock_write_cleanup))) rwlock_t* _rwlock_cleanup_var = &lock;
-
-#define END_WITH_WRITE_LOCK                                                                        \
-    }                                                                                              \
-    while (0)                                                                                      \
-        ;
+    for (rwlock_t * _rwlock_write_cleanup_var __attribute__((cleanup(_rwlock_write_cleanup))) =    \
+             (rwlock_write_lock(&(lock)), &(lock)),                                                \
+                                              *_rwlock_write_once = _rwlock_write_cleanup_var;     \
+         _rwlock_write_once; _rwlock_write_once                   = NULL)
 
 void rwlock_read_lock(rwlock_t* lock);
 void rwlock_read_unlock(rwlock_t* lock);

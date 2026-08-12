@@ -32,45 +32,47 @@ void vnode_inactive(vnode_t* vnode)
 {
     vnode->v_ops->inactive(vnode);
     WITH_SPINLOCK(vnode->v_mount->vnode_list_lock)
-    vnode_t** current = &vnode->v_mount->vnode_list;
-    while (*current) {
-        if (*current == vnode) {
-            *current = vnode->mnt_next; // Remove from mount's vnode list
-            vnode->v_mount->vnode_count--;
-            goto found; // Exit loop after removing
+    {
+        vnode_t** current = &vnode->v_mount->vnode_list;
+        while (*current) {
+            if (*current == vnode) {
+                *current = vnode->mnt_next; // Remove from mount's vnode list
+                vnode->v_mount->vnode_count--;
+                goto found; // Exit loop after removing
+            }
+            current = &(*current)->mnt_next;
         }
-        current = &(*current)->mnt_next;
+
+        PANIC("Failed to remove vnode from mount's vnode list during inactivation\n");
+
+    found:
+        WITH_SPINLOCK(vnode->v_mount->lazy_vnode_list_lock)
+        {
+
+            vnode->mnt_next                 = vnode->v_mount->lazy_vnode_list;
+            vnode->v_mount->lazy_vnode_list = vnode;
+            vnode->v_mount->lazy_vnode_count++;
+        }
     }
-
-    PANIC("Failed to remove vnode from mount's vnode list during inactivation\n");
-
-found:
-    WITH_SPINLOCK(vnode->v_mount->lazy_vnode_list_lock)
-
-    vnode->mnt_next                 = vnode->v_mount->lazy_vnode_list;
-    vnode->v_mount->lazy_vnode_list = vnode;
-    vnode->v_mount->lazy_vnode_count++;
-
-    END_WITH_SPINLOCK
-    END_WITH_SPINLOCK
 }
 
 void vnode_reclaim(vnode_t* vnode)
 {
     vnode->v_ops->reclaim(vnode);
     WITH_SPINLOCK(vnode->v_mount->lazy_vnode_list_lock)
-    while (vnode->v_mount->lazy_vnode_list) {
-        if (vnode->v_mount->lazy_vnode_list == vnode) {
-            vnode->v_mount->lazy_vnode_list =
-                vnode->v_mount->lazy_vnode_list->mnt_next; // Remove from lazy vnode list
-            vnode->v_mount->lazy_vnode_count--;
-            vnode_cache_remove(vnode); // Remove from vnode cache
-            kfree(vnode);              // Free the vnode memory
-            return;                    // Exit after removing
+    {
+        while (vnode->v_mount->lazy_vnode_list) {
+            if (vnode->v_mount->lazy_vnode_list == vnode) {
+                vnode->v_mount->lazy_vnode_list =
+                    vnode->v_mount->lazy_vnode_list->mnt_next; // Remove from lazy vnode list
+                vnode->v_mount->lazy_vnode_count--;
+                vnode_cache_remove(vnode); // Remove from vnode cache
+                kfree(vnode);              // Free the vnode memory
+                return;                    // Exit after removing
+            }
+            vnode->v_mount->lazy_vnode_list = vnode->v_mount->lazy_vnode_list->mnt_next;
         }
-        vnode->v_mount->lazy_vnode_list = vnode->v_mount->lazy_vnode_list->mnt_next;
     }
-    END_WITH_SPINLOCK
 
     PANIC("Failed to remove vnode from mount's lazy vnode list during reclamation\n");
 }

@@ -20,8 +20,9 @@ vm_page_t* vm_page_lookup(vm_object_t* obj, size_t offset)
     vm_page_t* page = NULL;
 
     WITH_SPINLOCK(obj->lock)
-    page = (vm_page_t*)radix_tree_lookup(&obj->pages, vm_page_index(offset));
-    END_WITH_SPINLOCK
+    {
+        page = (vm_page_t*)radix_tree_lookup(&obj->pages, vm_page_index(offset));
+    }
 
     return page;
 }
@@ -44,18 +45,19 @@ vm_page_t* vm_page_allocate(vm_object_t* obj, size_t offset)
     page->offset    = offset;
 
     WITH_SPINLOCK(obj->lock)
-    int res = radix_tree_insert(&obj->pages, vm_page_index(offset), page);
+    {
+        int res = radix_tree_insert(&obj->pages, vm_page_index(offset), page);
 
-    if (res) {
-        // Someone else already inserted a page at this offset (race), or
-        // the tree failed to allocate an internal node. Either way, this
-        // page isn't the one that ended up in the object -- free it and
-        // let the caller re-lookup.
-        vm_phys_free_page(phys);
-        kfree(page);
-        return ERR_PTR(res);
+        if (res) {
+            // Someone else already inserted a page at this offset (race), or
+            // the tree failed to allocate an internal node. Either way, this
+            // page isn't the one that ended up in the object -- free it and
+            // let the caller re-lookup.
+            vm_phys_free_page(phys);
+            kfree(page);
+            return ERR_PTR(res);
+        }
     }
-    END_WITH_SPINLOCK
 
     return page;
 }
