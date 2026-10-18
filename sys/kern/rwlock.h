@@ -8,8 +8,13 @@
 
 /* LAYOUT:
  * 0-15:   Reader count
- * 16-30:  Writer waiting count
- * 31:     Writer active flag
+* 16-30:  Writer waiting count
+ * 31:     Writer active flag#define WITH_READ_LOCK(lock) \
+    for (rwlock_t * _rwlock_read_cleanup_var __attribute__((cleanup(_rwlock_read_cleanup))) =      \
+             (rwlock_read_lock(&(lock)), &(lock)),                                                 \
+                                             *_rwlock_read_once = _rwlock_read_cleanup_var;        \
+         _rwlock_read_once; _rwlock_read_once                   = NULL)
+
  */
 
 #define RWLOCK_READER_MASK   0x0000FFFF

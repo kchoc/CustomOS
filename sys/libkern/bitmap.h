@@ -9,6 +9,14 @@ typedef struct bitmap {
     uint32_t  free_blocks;
 } bitmap_t;
 
+#define CREATE_STATIC_BITMAP(name, blocks)                                                         \
+    static uint32_t name##_memory_map[(blocks) >> 5];                                              \
+    static bitmap_t name = {                                                                       \
+        .memory_map   = name##_memory_map,                                                         \
+        .total_blocks = (blocks),                                                                  \
+        .free_blocks  = (blocks),                                                                  \
+    }
+
 bitmap_t* create_bitmap(uint32_t blocks);
 
 int allocate_block(bitmap_t* bm);

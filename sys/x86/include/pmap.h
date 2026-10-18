@@ -20,7 +20,6 @@
 extern page_table_t** current_pd_addr;
 extern page_table_t*  current_pd;
 extern page_table_t*  current_pts;
-extern page_table_t*  edit_pd;
 
 void tlb_invlpg(void* addr);
 void tlb_flush();
@@ -35,23 +34,5 @@ typedef struct pmap {
     page_table_t* pd; // Page directory
     spinlock_t    lock;
 } pmap_t;
-
-typedef enum pmap_flags {
-    PMAP_FLAG_NONE    = 0x0,
-    PMAP_FLAG_WIRED   = 0x1, // Prevent the page from being swapped out
-    PMAP_FLAG_NOCACHE = 0x2, // Disable caching for this page
-    PMAP_FLAG_ZERO    = 0x4, // Zero out the page after mapping
-} pmap_flags_t;
-
-int     pmap_init();
-pmap_t* pmap_create();
-void    pmap_debug(pmap_t* pmap);
-void    pmap_destroy(pmap_t* pmap);
-void    pmap_activate(pmap_t* pmap);
-
-int     pmap_enter(pmap_t* pmap, vaddr_t virt, paddr_t phys, vm_prot_t prot, pmap_flags_t flags);
-void    pmap_remove(pmap_t* pmap, vaddr_t sva, vaddr_t eva);
-void    pmap_protect(pmap_t* pmap, vaddr_t sva, vaddr_t eva, vm_prot_t prot);
-paddr_t pmap_extract(pmap_t* pmap, vaddr_t virt);
 
 #endif // X86_PMAP_H

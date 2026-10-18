@@ -30,7 +30,7 @@ int vm_map(vm_space_t* space, vaddr_t* virt, size_t size, vm_prot_t prot, vm_reg
             vm_region_destroy(region);
             return (int)page;
         }
-        int ret = pmap_enter(space->arch, offset, page->phys_addr, prot, pmap_flags);
+        int ret = pmap_enter(space->pmap, offset, page->phys_addr, prot, pmap_flags);
         if (IS_ERR(ret)) {
             vm_region_destroy(region);
             return ret;
@@ -49,7 +49,7 @@ int vm_unmap(vm_space_t* space, uintptr_t virt, size_t size)
 {
     vm_region_free_range(space, virt, size);
 
-    pmap_remove(space->arch, virt, virt + size);
+    pmap_remove(space->pmap, virt, virt + size);
 
     return 0;
 }
@@ -59,7 +59,7 @@ int vm_protect(vm_space_t* space, uintptr_t virt, size_t size, vm_prot_t prot)
     vm_region_protect_range(space, virt, size, prot);
 
     for (size_t offset = 0; offset < size; offset += PAGE_SIZE) {
-        pmap_protect(space->arch, virt + offset, virt + offset + PAGE_SIZE, prot);
+        pmap_protect(space->pmap, virt + offset, virt + offset + PAGE_SIZE, prot);
     }
 
     return 0;
@@ -86,7 +86,7 @@ void* vm_map_device(paddr_t addr, size_t size, vm_prot_t prot, vm_region_flags_t
         // TODO: Consider bookkeeping in object for device mappings to allow for proper unmapping
         // and cleanup
         int ret =
-            pmap_enter(kernel_vm_space.arch, virt + (phys - aligned_phys), phys, prot, pmap_flags);
+            pmap_enter(kernel_vm_space.pmap, virt + (phys - aligned_phys), phys, prot, pmap_flags);
         if (IS_ERR(ret)) {
             kvm_unmap((void*)virt, phys - aligned_phys);
             return ERR_PTR(ret);
@@ -102,7 +102,7 @@ void vm_unmap_device(void* virt, size_t size)
     vaddr_t end_virt     = PAGE_ALIGN_UP((vaddr_t)virt + size);
 
     for (vaddr_t offset = 0; offset < end_virt - aligned_virt; offset += PAGE_SIZE) {
-        pmap_remove(kernel_vm_space.arch, aligned_virt + offset, aligned_virt + offset + PAGE_SIZE);
+        pmap_remove(kernel_vm_space.pmap, aligned_virt + offset, aligned_virt + offset + PAGE_SIZE);
     }
 
     kvm_free((void*)aligned_virt, end_virt - aligned_virt);
@@ -149,7 +149,7 @@ void* kvm_map(size_t size, vm_prot_t prot, vm_region_flags_t flags)
             rwlock_read_unlock(&region->lock);
             return page;
         }
-        int ret = pmap_enter(kernel_vm_space.arch, kva + offset, page->phys_addr, prot, pmap_flags);
+        int ret = pmap_enter(kernel_vm_space.pmap, kva + offset, page->phys_addr, prot, pmap_flags);
         if (IS_ERR(ret)) {
             kvm_unmap((void*)kva, offset);
             rwlock_read_unlock(&region->lock);

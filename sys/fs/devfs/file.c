@@ -25,13 +25,18 @@ int devfs_file_seek(file_t* file, size_t offset, int whence)
     if (!file)
         return -EINVAL;
 
-    // For simplicity, only support SEEK_SET for now since most devices don't really need
-    // arbitrary seeking and it simplifies the implementation. We can add more seek modes in the
-    // future if needed.
-    if (whence != SEEK_SET)
+    switch (whence) {
+    case SEEK_SET:
+        file->f_pos = offset;
+        break;
+    case SEEK_CUR:
+        file->f_pos += offset;
+        break;
+    case SEEK_END:
+    default:
         return -EINVAL;
+    }
 
-    file->f_pos = offset;
     return 0;
 }
 

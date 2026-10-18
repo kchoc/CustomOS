@@ -2,9 +2,9 @@
 #include "vm/vm_map.h"
 #include "vqueue.h"
 #include <dev/pci/pci.h>
-#include <machine/pmap.h>
 #include <string.h>
 #include <vm/kmalloc.h>
+#include <vm/pmap.h>
 #include <vm/types.h>
 
 void virtio_pci_set_status(pci_device_t* dev, uint8_t status)
@@ -70,7 +70,7 @@ int virtio_pci_setup_queue(pci_device_t* dev, vqueue_t* queue, uint16_t queue_in
     }
 
     // Get PFN (address >> 12)
-    paddr_t pfn = pmap_extract(kernel_vm_space.arch, (vaddr_t)queue->vqueue_memory) >> 12;
+    paddr_t pfn = pmap_extract(kernel_pmap, (vaddr_t)queue->vqueue_memory) >> 12;
     pci_dev_config_write32(dev, VIRTIO_PCI_QUEUE_PFN & ~3, pfn);
 
     return 0;

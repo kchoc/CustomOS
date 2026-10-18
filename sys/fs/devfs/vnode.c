@@ -49,7 +49,7 @@ int devfs_vnode_lookup(vnode_t* dir, const char* name, vnode_t** result)
                 if (strncmp(dev->name, name, MAX_DEVICE_NAME_LEN) == 0) {
                     *result = dev_vnode;
                     vnode_inc_ref(dev_vnode); // Increment ref count for the returned vnode
-                    return 0;                 // Found the device
+                    return 0;
                 }
             }
         }
@@ -58,11 +58,6 @@ int devfs_vnode_lookup(vnode_t* dir, const char* name, vnode_t** result)
     return -ENOENT; // Not found
 }
 
-/* Creats a new device vnode under the specified directory vnode.
- * The caller is responsible for setting the actual device pointer.
- * For faster access the vnode data is temporarily set to the devfs_device_t structure, but this
- * should be updated by the caller to point to the actual device structure (e.g., block_device_t or
- * char_device_t) after creation. */
 int devfs_vnode_create(vnode_t* dir, const char* name, enum vnode_type type, vnode_t** result)
 {
     if (!dir || !name || !result)
@@ -70,18 +65,18 @@ int devfs_vnode_create(vnode_t* dir, const char* name, enum vnode_type type, vno
     if (type != VNODE_TYPE_BLOCK_DEVICE && type != VNODE_TYPE_CHAR_DEVICE)
         return -EINVAL;
     if (strlen(name) >= MAX_DEVICE_NAME_LEN)
-        return -EINVAL; // Name too long for our fixed-size name field
+        return -EINVAL;
 
     devfs_vnode_data_t* dir_data = (devfs_vnode_data_t*)dir->v_data;
 
+    devfs_device_block_t* block;
+    list_node_t*          node;
+    vnode_t*              dev_vnode;
+    size_t                block_index = 0;
+    size_t                index       = 0;
+
     WITH_SPINLOCK(dir_data->lock)
     {
-        // Find an existing block with space for a new device
-        devfs_device_block_t* block;
-        list_node_t*          node;
-        vnode_t*              dev_vnode;
-        size_t                block_index = 0;
-        size_t                index       = 0;
         list_for_each(node, &dir_data->device_block)
         {
             block = (devfs_device_block_t*)node;
@@ -113,9 +108,9 @@ int devfs_vnode_create(vnode_t* dir, const char* name, enum vnode_type type, vno
             return res;
         }
 
+        *result               = dev_vnode;
         block->devices[index] = dev_vnode; // Store the new device vnode in the block
 
-        *result = dev_vnode;
         if (res == 0)
             return 0; // Vnode already exists, return it
 

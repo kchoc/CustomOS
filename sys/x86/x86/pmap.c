@@ -1,6 +1,7 @@
 #include <machine/page_table.h>
 #include <machine/pmap.h>
 #include <vm/vm_space.h>
+#include <vm/vm_temp.h>
 
 #include "vm/types.h"
 #include <kern/errno.h>
@@ -11,12 +12,14 @@
 #include <kern/panic.h>
 #include <kern/terminal.h>
 
-#include "string.h"
-
 page_table_t** current_pd_addr = (page_table_t**)0xFFFFFFFC;
 page_table_t*  current_pd      = (page_table_t*)PAGE_DIRECTORY_ADDRESS;
 page_table_t*  current_pts     = (page_table_t*)PAGE_TABLES_ADDRESS;
-page_table_t*  edit_pd         = (page_table_t*)PAGE_TABLE_EDIT_ADDRESS;
+
+pmap_t kernel_pmap_store = {
+    .pd   = 0,
+    .lock = SPINLOCK_INITIALIZER,
+};
 
 void tlb_invlpg(void* addr)
 {
@@ -31,8 +34,7 @@ void tlb_flush()
 
 void switch_page_directory(page_table_t** pd_ptr)
 {
-    if (((uint32_t)*pd_ptr & ~PAGE_MASK) == ((uint32_t)*current_pd_addr & ~PAGE_MASK) ||
-        *pd_ptr == NULL)
+    if (PAGE_ALIGN_DOWN(*pd_ptr) == PAGE_ALIGN_DOWN(*current_pd_addr) || *pd_ptr == NULL)
         return;
     asm volatile("mov %0, %%cr3" : : "r"(*pd_ptr) : "memory");
 }
@@ -40,15 +42,22 @@ void switch_page_directory(page_table_t** pd_ptr)
 void pmap_debug(pmap_t* pmap)
 {
     printf("Page Directory at: %p\n", *current_pd_addr);
-    pmap_enter(kernel_vm_space.arch, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pmap->pd,
-               VM_PROT_READ | VM_PROT_WRITE, PMAP_FLAG_NONE);
+
+    VM_TEMP_GUARD page_table_t* edit_pd =
+        vm_temp_map_page((paddr_t)pmap->pd, VM_PROT_READ | VM_PROT_WRITE);
     for (int i = 767; i < 768; i++) {
         if (edit_pd->entries[i] & 0x1) {
             printf("PD Entry %d: %p\n", i, edit_pd->entries[i] & 0xFFFFF000);
             i += 15;
         }
     }
-    pmap_remove(kernel_vm_space.arch, PAGE_TABLE_EDIT_ADDRESS, PAGE_TABLE_EDIT_ADDRESS + PAGE_SIZE);
+}
+
+int pmap_init()
+{
+    kernel_pmap->pd = *current_pd_addr;
+
+    return 0;
 }
 
 pmap_t* pmap_create()
@@ -62,19 +71,20 @@ pmap_t* pmap_create()
         kfree(pmap);
         return ERR_PTR(-ENOMEM);
     }
-    pmap->lock = 0;
-    pmap_enter(kernel_vm_space.arch, PAGE_TABLE_EDIT_ADDRESS, (paddr_t)pmap->pd,
-               VM_PROT_READ | VM_PROT_WRITE, PMAP_FLAG_NONE);
+    pmap->lock = SPINLOCK_INITIALIZER;
+
+    VM_TEMP_GUARD page_table_t* edit_pd =
+        vm_temp_map_page((paddr_t)pmap->pd, VM_PROT_READ | VM_PROT_WRITE);
 
     // Copy kernel mappings from the current page directory, leaving user-space entries as not
-    // present
+    // present and setting the last entry to point to the new page directory itself for recursive
+    // mapping.
     for (int i = KERNEL_PAGE_ENTRY_START; i < PAGE_ENTRIES_PER_TABLE - 1; i++) {
         edit_pd->entries[i] = current_pd->entries[i];
     }
+
     edit_pd->entries[PAGE_ENTRIES_PER_TABLE - 1] =
-        ((uint32_t)pmap->pd) | VM_PROT_READ |
-        VM_PROT_WRITE; // Recursive mapping for the page directory
-    pmap_remove(kernel_vm_space.arch, PAGE_TABLE_EDIT_ADDRESS, PAGE_TABLE_EDIT_ADDRESS + PAGE_SIZE);
+        ((uint32_t)pmap->pd) | VM_PROT_READ | VM_PROT_WRITE;
 
     return pmap;
 }

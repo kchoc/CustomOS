@@ -1,25 +1,24 @@
 #include "vm_fault.h"
+#include "pmap.h"
 #include "types.h"
 #include "vm_map.h"
 #include "vm_page.h"
 #include "vm_pager.h"
 #include "vm_region.h"
+#include "vm_temp.h"
 #include <kern/errno.h>
 #include <kern/panic.h>
 #include <kern/rwlock.h>
 #include <kern/terminal.h>
-#include <machine/pmap.h>
 #include <string.h>
 #include <sys/pcpu.h>
 
 int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
 {
-    vm_region_t* region;
-
-    region = vm_region_lookup(space, addr, rwlock_read_lock);
+    VM_REGION_READ_GUARD vm_region_t* region = vm_region_lookup(space, addr, rwlock_read_lock);
 
     if (!region) {
-        vm_space_debug(space);
+        // vm_space_debug(space);
         printf("vm_fault: No region found for address 0x%08x (PID=%d)\n", addr,
                get_proc_from_thread(PCPU_GET(current_thread))->pid);
         PANIC_DUMP_REGISTERS(PCPU_GET(current_thread)->trapframe);
@@ -27,7 +26,6 @@ int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
     }
 
     if (!(region->prot & fault_type)) {
-        rwlock_read_unlock(&region->lock);
         return -1; // protection fault
     }
 
@@ -44,7 +42,7 @@ int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
 
     // If the page is already present but read-only, we need to check for copy-on-write (COW)
     // conditions.
-    shadow_addr = pmap_extract(space->arch, page_addr);
+    shadow_addr = pmap_extract(space->pmap, page_addr);
     if (!IS_ERR(shadow_addr) && (fault_type & VM_PROT_WRITE))
         goto cow;
 
@@ -67,24 +65,22 @@ int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
     // Page not found in any object, allocate a new page
     new_page = vm_page_allocate(region->object, offset);
     if (!new_page) {
-        rwlock_read_unlock(&region->lock);
         return -ENOMEM;
     }
 
-    pmap_enter(space->arch, page_addr, new_page->phys_addr, region->prot, 0);
-
-    rwlock_read_unlock(&region->lock);
+    pmap_enter(space->pmap, page_addr, new_page->phys_addr, region->prot, 0);
 
     return 0;
 
 found_page:
     // Check for COW
     if (page->state & VM_PAGE_FLAG_COW) {
+        printf("vm_fault: COW page fault for address 0x%08x (PID=%d)\n", addr,
+               get_proc_from_thread(PCPU_GET(current_thread))->pid);
         if (!(fault_type & VM_PROT_WRITE)) {
             // Read fault on a COW page, just map it as read-only (dont allocate a new page)
-            pmap_enter(space->arch, page_addr, page->phys_addr, region->prot & ~VM_PROT_WRITE, 0);
+            pmap_enter(space->pmap, page_addr, page->phys_addr, region->prot & ~VM_PROT_WRITE, 0);
 
-            rwlock_read_unlock(&region->lock);
             return 0;
         }
 
@@ -92,32 +88,27 @@ found_page:
         goto cow; // Write fault: need to allocate a new page and copy the contents
     }
 
-    pmap_enter(space->arch, page_addr, page->phys_addr, region->prot, 0);
-
-    rwlock_read_unlock(&region->lock);
+    pmap_enter(space->pmap, page_addr, page->phys_addr, region->prot, 0);
 
     return 0;
 
 cow:
     new_page = vm_page_allocate(region->object, offset);
     if (!new_page) {
-        rwlock_read_unlock(&region->lock);
         return -ENOMEM;
     }
 
-    vaddr_t temp_page = (vaddr_t)kvm_alloc(PAGE_SIZE, VM_PROT_READ | VM_PROT_WRITE, 0);
-    if (IS_ERR(temp_page)) {
-        rwlock_read_unlock(&region->lock);
-        return (int)temp_page;
+    {
+        VM_TEMP_GUARD void* temp_page = vm_temp_map_page(shadow_addr, VM_PROT_READ);
+        if (!temp_page) {
+            return -ENOMEM;
+        }
+        printf("vm_fault: Allocated new page for COW at 0x%08x (PID=%d)\n", new_page->phys_addr,
+               get_proc_from_thread(PCPU_GET(current_thread))->pid);
+
+        pmap_enter(space->pmap, page_addr, new_page->phys_addr, region->prot, 0);
+        memcpy((void*)page_addr, (void*)temp_page, PAGE_SIZE);
     }
-
-    pmap_enter(space->arch, temp_page, shadow_addr, VM_PROT_READ, 0);
-    pmap_enter(space->arch, page_addr, new_page->phys_addr, region->prot, 0);
-    memcpy((void*)page_addr, (void*)temp_page, PAGE_SIZE);
-    pmap_remove(space->arch, temp_page, temp_page + PAGE_SIZE);
-    kvm_free((void*)temp_page, PAGE_SIZE);
-
-    rwlock_read_unlock(&region->lock);
 
     return 0;
 }

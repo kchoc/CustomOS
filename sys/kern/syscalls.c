@@ -67,9 +67,6 @@ int syscall_open(const char* path, int flags, uint32_t mode, SYSCALL2)
     if (!proc)
         return -1;
 
-    printf("syscall_open: Opening file '%s' with flags 0x%x for process %s (PID %d)\n", path, flags,
-           proc->name, proc->pid);
-
     // Open the file via VFS
     file_t* file = vfs_open(path, flags, mode);
     if (!file)
@@ -356,6 +353,8 @@ int syscall_fork(SYSCALL1)
     proc_t* parent = get_proc_from_thread(PCPU_GET(current_thread));
     proc_t* child;
     printf("syscall_fork: Forking process %s (PID %d)\n", parent->name, parent->pid);
+    printf("syscall_fork: Current thread: EIP=0x%08x, ESP=0x%08x\n",
+           PCPU_GET(current_thread)->trapframe->eip, PCPU_GET(current_thread)->trapframe->user_esp);
     int res = fork_process(PCPU_GET(current_thread), 0, &child);
     printf("syscall_fork: Forked process %s (PID %d)\n", child->name, child->pid);
     if (res)

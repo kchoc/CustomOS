@@ -478,7 +478,7 @@ void terminal_display_scheduler_info(thread_t* t)
 
     char message[80] = {0};
     snprintf(message, sizeof(message), "Running thread: %s (TID %u) (CR3 %x) (addr %p)", p->name,
-             t->tid, *(p->vmspace->arch), t);
+             t->tid, *(p->vmspace->pmap->pd), t);
 
     // Displayed at the bottom of the terminal with white text on blue background
     for (size_t i = 0; i < 80; i++) {

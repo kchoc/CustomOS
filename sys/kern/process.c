@@ -217,8 +217,6 @@ int fork_process(thread_t* t, int flags, proc_t** child_out)
         return (int)child->fd_table;
     }
 
-    printf("Child process cr3: 0x%08x\n", child->vmspace->arch->pd);
-
     list_init(&child->threads, 0);
     list_push_tail(&all_processes, &child->node);
 

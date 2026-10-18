@@ -5,9 +5,8 @@
 
 #include <sys/pcpu.h>
 
+#include <vm/pmap.h>
 #include <vm/vm_map.h>
-
-#include <machine/pmap.h>
 
 #include <string.h>
 

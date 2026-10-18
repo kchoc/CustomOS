@@ -1,11 +1,10 @@
 #include "vm_region.h"
 #include "kmalloc.h"
 #include "layout.h"
+#include "pmap.h"
 #include "types.h"
 #include "vm_object.h"
 #include "vm_space.h"
-
-#include <machine/pmap.h>
 
 #include <kern/errno.h>
 #include <kern/panic.h>
@@ -253,7 +252,7 @@ vm_region_t* vm_region_fork(vm_region_t* parent)
         parent->object = parent_shadow;
         child->object  = child_shadow;
 
-        pmap_protect(vm_space_from_region(parent)->arch, parent->base, parent->end,
+        pmap_protect(vm_space_from_region(parent)->pmap, parent->base, parent->end,
                      parent->prot & ~VM_PROT_WRITE);
     }
     else {

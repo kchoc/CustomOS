@@ -1,0 +1,186 @@
+  400010:	e8 fd 00 00 00       	call   400112 <main>
+  400015:	50                   	push   %eax
+  400016:	b8 01 00 00 00       	mov    $0x1,%eax
+  40001b:	50                   	push   %eax
+  40001c:	cd 80                	int    $0x80
+
+0040001e <syscall>:
+  40001e:	55                   	push   %ebp
+  40001f:	89 e5                	mov    %esp,%ebp
+  400021:	57                   	push   %edi
+  400022:	56                   	push   %esi
+  400023:	53                   	push   %ebx
+  400024:	83 ec 10             	sub    $0x10,%esp
+  400027:	e8 61 03 00 00       	call   40038d <__x86.get_pc_thunk.ax>
+  40002c:	05 c8 2f 00 00       	add    $0x2fc8,%eax
+  400031:	8b 45 08             	mov    0x8(%ebp),%eax
+  400034:	8b 5d 0c             	mov    0xc(%ebp),%ebx
+  400037:	8b 4d 10             	mov    0x10(%ebp),%ecx
+  40003a:	8b 55 14             	mov    0x14(%ebp),%edx
+  40003d:	8b 75 18             	mov    0x18(%ebp),%esi
+  400040:	8b 7d 1c             	mov    0x1c(%ebp),%edi
+--
+00400112 <main>:
+  400112:	8d 4c 24 04          	lea    0x4(%esp),%ecx
+  400116:	83 e4 f0             	and    $0xfffffff0,%esp
+  400119:	ff 71 fc             	push   -0x4(%ecx)
+  40011c:	55                   	push   %ebp
+  40011d:	89 e5                	mov    %esp,%ebp
+  40011f:	53                   	push   %ebx
+  400120:	51                   	push   %ecx
+  400121:	81 ec 10 01 00 00    	sub    $0x110,%esp
+  400127:	e8 65 02 00 00       	call   400391 <__x86.get_pc_thunk.bx>
+  40012c:	81 c3 c8 2e 00 00    	add    $0x2ec8,%ebx
+  400132:	83 ec 0c             	sub    $0xc,%esp
+  400135:	8d 83 0c e0 ff ff    	lea    -0x1ff4(%ebx),%eax
+  40013b:	50                   	push   %eax
+  40013c:	e8 4d 04 00 00       	call   40058e <printf>
+  400141:	83 c4 10             	add    $0x10,%esp
+  400144:	83 ec 0c             	sub    $0xc,%esp
+  400147:	8d 83 24 e0 ff ff    	lea    -0x1fdc(%ebx),%eax
+  40014d:	50                   	push   %eax
+  40014e:	e8 3b 04 00 00       	call   40058e <printf>
+  400153:	83 c4 10             	add    $0x10,%esp
+--
+  4001db:	e9 83 00 00 00       	jmp    400263 <main+0x151>
+  4001e0:	83 45 f0 01          	addl   $0x1,-0x10(%ebp)
+  4001e4:	8b 45 f0             	mov    -0x10(%ebp),%eax
+  4001e7:	0f b6 00             	movzbl (%eax),%eax
+  4001ea:	3c 20                	cmp    $0x20,%al
+  4001ec:	74 f2                	je     4001e0 <main+0xce>
+  4001ee:	8b 45 f0             	mov    -0x10(%ebp),%eax
+  4001f1:	0f b6 00             	movzbl (%eax),%eax
+  4001f4:	3c 09                	cmp    $0x9,%al
+  4001f6:	74 e8                	je     4001e0 <main+0xce>
+  4001f8:	8b 45 f0             	mov    -0x10(%ebp),%eax
+  4001fb:	0f b6 00             	movzbl (%eax),%eax
+  4001fe:	3c 0a                	cmp    $0xa,%al
+  400200:	74 75                	je     400277 <main+0x165>
+  400202:	8b 45 f0             	mov    -0x10(%ebp),%eax
+  400205:	0f b6 00             	movzbl (%eax),%eax
+  400208:	84 c0                	test   %al,%al
+  40020a:	74 6b                	je     400277 <main+0x165>
+  40020c:	8b 45 f4             	mov    -0xc(%ebp),%eax
+  40020f:	8d 50 01             	lea    0x1(%eax),%edx
+  400212:	89 55 f4             	mov    %edx,-0xc(%ebp)
+  400215:	8b 55 f0             	mov    -0x10(%ebp),%edx
+  400218:	89 94 85 ec fe ff ff 	mov    %edx,-0x114(%ebp,%eax,4)
+  40021f:	eb 04                	jmp    400225 <main+0x113>
+  400221:	83 45 f0 01          	addl   $0x1,-0x10(%ebp)
+  400225:	8b 45 f0             	mov    -0x10(%ebp),%eax
+  400228:	0f b6 00             	movzbl (%eax),%eax
+  40022b:	3c 20                	cmp    $0x20,%al
+  40022d:	74 1e                	je     40024d <main+0x13b>
+  40022f:	8b 45 f0             	mov    -0x10(%ebp),%eax
+  400232:	0f b6 00             	movzbl (%eax),%eax
+  400235:	3c 09                	cmp    $0x9,%al
+  400237:	74 14                	je     40024d <main+0x13b>
+  400239:	8b 45 f0             	mov    -0x10(%ebp),%eax
+  40023c:	0f b6 00             	movzbl (%eax),%eax
+  40023f:	3c 0a                	cmp    $0xa,%al
+  400241:	74 0a                	je     40024d <main+0x13b>
+  400243:	8b 45 f0             	mov    -0x10(%ebp),%eax
+  400246:	0f b6 00             	movzbl (%eax),%eax
+  400249:	84 c0                	test   %al,%al
+  40024b:	75 d4                	jne    400221 <main+0x10f>
+  40024d:	8b 45 f0             	mov    -0x10(%ebp),%eax
+  400250:	0f b6 00             	movzbl (%eax),%eax
+  400253:	84 c0                	test   %al,%al
+  400255:	74 0c                	je     400263 <main+0x151>
+  400257:	8b 45 f0             	mov    -0x10(%ebp),%eax
+  40025a:	8d 50 01             	lea    0x1(%eax),%edx
+  40025d:	89 55 f0             	mov    %edx,-0x10(%ebp)
+  400260:	c6 00 00             	movb   $0x0,(%eax)
+  400263:	83 7d f4 0e          	cmpl   $0xe,-0xc(%ebp)
+  400267:	7f 0e                	jg     400277 <main+0x165>
+  400269:	8b 45 f0             	mov    -0x10(%ebp),%eax
+  40026c:	0f b6 00             	movzbl (%eax),%eax
+  40026f:	3c 0a                	cmp    $0xa,%al
+  400271:	0f 85 6d ff ff ff    	jne    4001e4 <main+0xd2>
+  400277:	83 ec 08             	sub    $0x8,%esp
+  40027a:	8d 83 65 e0 ff ff    	lea    -0x1f9b(%ebx),%eax
+  400280:	50                   	push   %eax
+  400281:	8d 85 2c ff ff ff    	lea    -0xd4(%ebp),%eax
+  400287:	50                   	push   %eax
+  400288:	e8 07 09 00 00       	call   400b94 <strcpy>
+  40028d:	83 c4 10             	add    $0x10,%esp
+  400290:	8b 85 ec fe ff ff    	mov    -0x114(%ebp),%eax
+  400296:	83 ec 08             	sub    $0x8,%esp
+  400299:	50                   	push   %eax
+  40029a:	8d 85 2c ff ff ff    	lea    -0xd4(%ebp),%eax
+  4002a0:	50                   	push   %eax
+  4002a1:	e8 38 0a 00 00       	call   400cde <strcat>
+  4002a6:	83 c4 10             	add    $0x10,%esp
+  4002a9:	83 ec 08             	sub    $0x8,%esp
+  4002ac:	8d 83 6b e0 ff ff    	lea    -0x1f95(%ebx),%eax
+  4002b2:	50                   	push   %eax
+  4002b3:	8d 85 2c ff ff ff    	lea    -0xd4(%ebp),%eax
+  4002b9:	50                   	push   %eax
+  4002ba:	e8 1f 0a 00 00       	call   400cde <strcat>
+--
+  4002df:	78 32                	js     400313 <main+0x201>
+  4002e1:	83 ec 08             	sub    $0x8,%esp
+  4002e4:	8d 85 2c ff ff ff    	lea    -0xd4(%ebp),%eax
+  4002ea:	50                   	push   %eax
+  4002eb:	8d 83 70 e0 ff ff    	lea    -0x1f90(%ebx),%eax
+  4002f1:	50                   	push   %eax
+  4002f2:	e8 97 02 00 00       	call   40058e <printf>
+  4002f7:	83 c4 10             	add    $0x10,%esp
+  4002fa:	83 ec 0c             	sub    $0xc,%esp
+  4002fd:	ff 75 ec             	push   -0x14(%ebp)
+  400300:	e8 9c fd ff ff       	call   4000a1 <close>
+  400305:	83 c4 10             	add    $0x10,%esp
+  400308:	e8 b9 fd ff ff       	call   4000c6 <fork>
+  40030d:	85 c0                	test   %eax,%eax
+  40030f:	75 5e                	jne    40036f <main+0x25d>
+  400311:	eb 1b                	jmp    40032e <main+0x21c>
+  400313:	83 ec 08             	sub    $0x8,%esp
+  400316:	8d 85 6c ff ff ff    	lea    -0x94(%ebp),%eax
+  40031c:	50                   	push   %eax
+  40031d:	8d 83 81 e0 ff ff    	lea    -0x1f7f(%ebx),%eax
+  400323:	50                   	push   %eax
+  400324:	e8 65 02 00 00       	call   40058e <printf>
+  400329:	83 c4 10             	add    $0x10,%esp
+  40032c:	eb 5a                	jmp    400388 <main+0x276>
+  40032e:	83 ec 04             	sub    $0x4,%esp
+  400331:	6a 00                	push   $0x0
+  400333:	8d 85 ec fe ff ff    	lea    -0x114(%ebp),%eax
+  400339:	50                   	push   %eax
+  40033a:	8d 85 2c ff ff ff    	lea    -0xd4(%ebp),%eax
+  400340:	50                   	push   %eax
+  400341:	e8 a3 fd ff ff       	call   4000e9 <execve>
+  400346:	83 c4 10             	add    $0x10,%esp
+  400349:	83 ec 08             	sub    $0x8,%esp
+  40034c:	8d 85 2c ff ff ff    	lea    -0xd4(%ebp),%eax
+  400352:	50                   	push   %eax
+  400353:	8d 83 98 e0 ff ff    	lea    -0x1f68(%ebx),%eax
+  400359:	50                   	push   %eax
+  40035a:	e8 2f 02 00 00       	call   40058e <printf>
+  40035f:	83 c4 10             	add    $0x10,%esp
+  400362:	83 ec 0c             	sub    $0xc,%esp
+  400365:	6a 01                	push   $0x1
+  400367:	e8 e7 fc ff ff       	call   400053 <exit>
+  40036c:	83 c4 10             	add    $0x10,%esp
+  40036f:	83 ec 08             	sub    $0x8,%esp
+--
+  400388:	e9 c9 fd ff ff       	jmp    400156 <main+0x44>
+
+0040038d <__x86.get_pc_thunk.ax>:
+  40038d:	8b 04 24             	mov    (%esp),%eax
+  400390:	c3                   	ret
+
+00400391 <__x86.get_pc_thunk.bx>:
+  400391:	8b 1c 24             	mov    (%esp),%ebx
+  400394:	c3                   	ret
+
+00400395 <syscall>:
+  400395:	55                   	push   %ebp
+  400396:	89 e5                	mov    %esp,%ebp
+  400398:	57                   	push   %edi
+  400399:	56                   	push   %esi
+  40039a:	53                   	push   %ebx
+  40039b:	83 ec 10             	sub    $0x10,%esp
+  40039e:	e8 ea ff ff ff       	call   40038d <__x86.get_pc_thunk.ax>
+  4003a3:	05 51 2c 00 00       	add    $0x2c51,%eax
+  4003a8:	8b 45 08             	mov    0x8(%ebp),%eax
+  4003ab:	8b 5d 0c             	mov    0xc(%ebp),%ebx

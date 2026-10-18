@@ -13,18 +13,17 @@
 
 typedef struct devfs_device_block {
     list_node_t node;                       // For linking in the device_block list
-    vnode_t*    devices[DEVICES_PER_BLOCK]; // Array of 8 devices per block to reduce overhead of
-                                            // many small allocations
+    vnode_t*    devices[DEVICES_PER_BLOCK]; // Array of pointers to device vnodes
 } devfs_device_block_t;
 
 typedef struct devfs_vnode_data {
-    spinlock_t lock;         // Lock to protect access to the device list
-    list_t     device_block; // List of devfs_device entries representing devices in this directory
+    spinlock_t lock;
+    list_t     device_block;
 } devfs_vnode_data_t;
 
-extern mount_t* dev_mount; // The devfs mount structure
+extern mount_t* dev_mount;
 
-CREATE_VNODE_OPS(devfs)
+CREATE_VNODE_OPS(devfs);
 
 int devfs_init();
 

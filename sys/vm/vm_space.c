@@ -1,6 +1,6 @@
 #include "vm_space.h"
 #include "kmalloc.h"
-#include "machine/pmap.h"
+#include "pmap.h"
 #include "types.h"
 #include "vm_map.h"
 #include "vm_region.h"
@@ -14,21 +14,25 @@
 #include <list.h>
 
 vm_space_t kernel_vm_space = {
-    .regions = LIST_INIT, .arch = NULL, .regions_lock = RWLOCK_INITIALIZER};
+    .regions = LIST_INIT, .pmap = kernel_pmap, .regions_lock = RWLOCK_INITIALIZER};
 
 int kvm_space_init()
 {
-    kernel_vm_space.arch = kmalloc(sizeof(pmap_t));
-    if (IS_ERR(kernel_vm_space.arch))
-        return (int)kernel_vm_space.arch;
+    pmap_init();
 
-    kernel_vm_space.arch->pd = *current_pd_addr; // Use the page directory set up by the bootloader
-    pcpus[0].vmspace         = &kernel_vm_space;
+    pcpus[0].vmspace = &kernel_vm_space;
 
     // Since this is the first kvm call, the start is at 0xC0000000, so we can allocate that
     vaddr_t virt = KERNEL_BASE;
     int     ret  = vm_map_anon(&kernel_vm_space, &virt, 0x00400000, VM_PROT_READ | VM_PROT_WRITE,
                                VM_REG_F_KERNEL, VM_MAP_F_FIXED);
+    if (IS_ERR(ret))
+        return ret;
+
+    // Allocate temporary pages for the kernel to use for temporary mappings
+    virt = VM_TEMP_START;
+    ret  = vm_map_anon(&kernel_vm_space, &virt, VM_TEMP_PAGES * PAGE_SIZE,
+                       VM_PROT_READ | VM_PROT_WRITE, VM_REG_F_KERNEL, VM_MAP_F_FIXED);
     if (IS_ERR(ret))
         return ret;
 
@@ -45,8 +49,8 @@ vm_space_t* vm_space_create()
     space->regions_lock = RWLOCK_INITIALIZER;
     list_init(&space->regions, 0);
 
-    space->arch = pmap_create();
-    if (IS_ERR(space->arch)) {
+    space->pmap = pmap_create();
+    if (IS_ERR(space->pmap)) {
         kfree(space);
         return ERR_PTR(-ENOMEM);
     }
@@ -71,7 +75,7 @@ vm_space_t* vm_space_fork(vm_space_t* parent)
             vm_region_t* child_region     = vm_region_fork(reference_region);
             if (IS_ERR(child_region)) {
                 vm_space_destroy(child); // Clean up the child space and all regions created so far
-                return ERR_PTR(child_region);
+                return ERR_PTR(-ENOMEM);
             }
             // Insert the child region into the child's region list
             list_push_tail(&child->regions, &child_region->node);
@@ -97,7 +101,7 @@ void vm_space_destroy(vm_space_t* space)
     }
 
     // Free architecture-specific data
-    pmap_destroy(space->arch);
+    pmap_destroy(space->pmap);
 
     kfree(space);
 }
@@ -116,7 +120,7 @@ void vm_space_clean(vm_space_t* space)
             vm_region_t* region = list_node_to_region(node);
             node                = node->next;
             if (!(region->flags & VM_REG_F_KERNEL)) {
-                pmap_remove(space->arch, region->base, region->end);
+                pmap_remove(space->pmap, region->base, region->end);
                 vm_region_destroy(region);
             }
         }
@@ -127,7 +131,7 @@ void vm_space_activate(vm_space_t* space)
 {
     if (!space)
         return;
-    pmap_activate(space->arch);
+    pmap_activate(space->pmap);
 }
 
 void vm_space_debug(vm_space_t* space)
@@ -147,5 +151,5 @@ void vm_space_debug(vm_space_t* space)
                    region->base, region->end, region->prot, region->flags);
         }
     }
-    // pmap_debug(space->arch);
+    // pmap_debug(space->pmap);
 }

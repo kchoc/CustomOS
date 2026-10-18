@@ -6,7 +6,7 @@
 
 #define PAGE_SIZE               4096
 #define PAGE_MASK               (PAGE_SIZE - 1)
-#define PAGE_ALIGN_DOWN(addr)   ((addr) & ~PAGE_MASK)
+#define PAGE_ALIGN_DOWN(addr)   ((uintptr_t)(addr) & ~PAGE_MASK)
 #define PAGE_ALIGN_UP(addr)     (((addr) + PAGE_MASK) & ~PAGE_MASK)
 #define VM_REGION_ALLOCATE_ADDR ((uintptr_t)-1)
 
@@ -60,6 +60,13 @@ typedef enum vm_obj_flags {
     VM_OBJ_F_SHADOWED = 0x10, // This object is shadowed by another object (used for copy-on-write)
     VM_OBJ_F_WIRED    = 0x20, // Pages backing this object should be wired (i.e. not pageable)
 } vm_obj_flags_t;
+
+typedef enum pmap_flags {
+    PMAP_FLAG_NONE    = 0x0,
+    PMAP_FLAG_WIRED   = 0x1, // Prevent the page from being swapped out
+    PMAP_FLAG_NOCACHE = 0x2, // Disable caching for this page
+    PMAP_FLAG_ZERO    = 0x4, // Zero out the page after mapping
+} pmap_flags_t;
 
 typedef enum vm_dev_flags {
     VM_DEV_READ    = 0x1, // Device memory should be readable

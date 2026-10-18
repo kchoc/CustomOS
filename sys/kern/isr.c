@@ -10,13 +10,12 @@
 
 #include <sys/pcpu.h>
 
+#include <vm/pmap.h>
 #include <vm/types.h>
 #include <vm/vm_fault.h>
 #include <vm/vm_map.h>
 
 #include <libkern/common.h>
-
-#include <machine/pmap.h>
 
 #include <stdint.h>
 #include <string.h>
@@ -73,25 +72,6 @@ void isr_page_fault_handler(registers_t* regs)
 {
     paddr_t faulting_address;
     asm volatile("movl %%cr2, %0" : "=r"(faulting_address));
-
-    // printf("===== Page Fault =====\n");
-    // printf("CPU ID: %d\n", get_current_cpu()->apic_id);
-    // printf("Current process name: %s\n", PCPU_GET(current_thread)->proc->name);
-    // printf("Current process PID: %d\n", PCPU_GET(current_thread)->proc->pid);
-    // printf("Return Address: %x\n", regs->eip);
-    // printf("Current ESP: %x\n",PCPU_GET(current_thread)->trapframe->user_esp);
-    // printf("Fault Address: %x\n", faulting_address);
-    // delay(10);
-    // printf("Error Code (raw): %x\n", regs->errorCode);
-    // uint32_t cr3;
-    // asm volatile("mov %%cr3, %0" : "=r"(cr3));
-    // printf("CR3 = %x\n", cr3);
-    // delay(600);
-
-    // printf("Faulting address: %x\n", faulting_address);
-    // printf("Return Address: %x\n", regs->eip);
-    // printf("Page fault at address: %x\n", faulting_address);
-    // delay(5000);
 
     // Map the page
     vm_fault(get_proc_from_thread(PCPU_GET(current_thread))->vmspace, faulting_address,

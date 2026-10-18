@@ -31,6 +31,23 @@ typedef struct vm_region {
 #define GET_NEXT_REGION(region)      list_node_to_region((region)->node.next)
 #define GET_PREV_REGION(region)      list_node_to_region((region)->node.prev)
 
+#define VM_REGION_READ_GUARD  __attribute__((cleanup(vm_region_read_unlock)))
+#define VM_REGION_WRITE_GUARD __attribute__((cleanup(vm_region_write_unlock)))
+
+static void vm_region_read_unlock(vm_region_t** region)
+{
+    if (*region) {
+        rwlock_read_unlock(&(*region)->lock);
+    }
+}
+
+static void vm_region_write_unlock(vm_region_t** region)
+{
+    if (*region) {
+        rwlock_write_unlock(&(*region)->lock);
+    }
+}
+
 /* Returns the region that contains the address addr, or NULL if no such region exists */
 vm_region_t* vm_region_lookup(vm_space_t* space, uintptr_t addr, lock_func_t lock_func);
 /* Returns the first region that overlaps with the range [addr, addr + size) */
