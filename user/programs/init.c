@@ -46,7 +46,6 @@ int main()
 
         int fd = open(program_path, 0, 0);
         if (fd >= 0) {
-            printf("Executing %s...\n", program_path);
             close(fd); // In a real shell, we would execve instead of just opening
         }
         else {
@@ -60,7 +59,6 @@ int main()
             printf("Failed to execute %s\n", program_path);
             exit(1);
         }
-        printf("Started process for %s\n", program_path);
     }
 
     return 0;

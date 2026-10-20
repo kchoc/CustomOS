@@ -9,19 +9,11 @@
 #include <stdbool.h>
 #include <string.h>
 
-// Global terminal variables
-static size_t    terminal_row    = 0;
-static size_t    terminal_column = 0;
-static uint16_t* video_memory    = (uint16_t*)VGA_ADDRESS;
-static uint8_t   command_mode    = 0;
-
 #define COM1 0x3F8 // COM1 port address
 
 // Initialize the terminal
 int terminal_init()
 {
-    terminal_clear();
-
     // Enable the serial port (COM1) for output
     outb(COM1 + 1, 0x00); // Disable all interrupts
     outb(COM1 + 3, 0x80); // Enable DLAB (set baud rate divisor)
@@ -39,50 +31,6 @@ void serial_putchar(char c)
     while (!(inb(COM1 + 5) & 0x20))
         ; // Wait for the transmit buffer to be empty
     outb(COM1, c);
-}
-
-// Set the cursor position
-void set_cursor_position(size_t row, size_t column)
-{
-    uint16_t position = (row * 80) + column;
-
-    // Send the high byte
-    outb(0x3D4, 0x0E);
-    outb(0x3D5, (position >> 8) & 0xFF);
-
-    // Send the low byte
-    outb(0x3D4, 0x0F);
-    outb(0x3D5, position & 0xFF);
-}
-
-// Put a character on the terminal
-void terminal_putchar(char c)
-{
-    return serial_putchar(c); // Output to serial port
-    if (c == '\n') {
-        for (size_t i = terminal_column + terminal_row * 80; i < terminal_row * 80 + 80; i++) {
-            video_memory[i] = ' ' | 0x0700;
-        }
-        terminal_row++;
-        terminal_column = 0;
-    }
-    else {
-        const size_t index = terminal_row * 80 + terminal_column;
-        if (index >= 1920) {
-            return;
-        }
-        video_memory[index] = (uint16_t)c | 0x0700; // White on black
-        terminal_column++;
-    }
-
-    if (terminal_column >= 80) {
-        terminal_column = 0;
-        terminal_row++;
-    }
-
-    if (terminal_row >= 23) {
-        terminal_row = 0;
-    }
 }
 
 // Test in terminal for assembly
@@ -157,7 +105,7 @@ static void output_char(output_ctx_t* ctx, char c)
     }
     else {
         // Write to terminal
-        terminal_putchar(c);
+        serial_putchar(c);
     }
     ctx->written++;
 }
@@ -343,8 +291,6 @@ void printf(const char* fmt, ...)
     va_start(args, fmt);
     vformat(&ctx, fmt, args);
     va_end(args);
-
-    set_cursor_position(terminal_row, terminal_column);
 }
 
 // sprintf - write formatted string to buffer (no size limit)
@@ -384,85 +330,13 @@ int snprintf(char* buffer, size_t size, const char* fmt, ...)
 
     return ret;
 }
-// Input handler for the terminal
-void terminal_input(uint8_t scancode, char c)
-{
-    if (!command_mode) {
-        if (c == '\n') {
-            command_mode = 1;
-            terminal_clear();
-            terminal_putchar('>');
-        }
-        return;
-    }
-    if (c == '\b')
-        terminal_backspace();
-    else if (c == 0) {
-        if (scancode == 0x48) { // Up Arrow
-            if (terminal_row > 0) {
-                terminal_row--;
-            }
-        }
-        else if (scancode == 0x50) { // Down Arrow
-            if (terminal_row < 24) {
-                terminal_row++;
-            }
-        }
-        else if (scancode == 0x4B) { // Left Arrow
-            if (terminal_column > 0) {
-                terminal_column--;
-            }
-        }
-        else if (scancode == 0x4D) { // Right Arrow
-            if (terminal_column < 79) {
-                terminal_column++;
-            }
-        }
-    }
-    else if (c == '\n') {
-        char command_buffer[160] = {0};
-        for (int i = 0; i < 160; i++) {
-            command_buffer[i] = (char)(video_memory[i + 1] & 0x00FF);
-        }
-        command_mode = 0;
-        terminal_clear();
-    }
-    else {
-        terminal_putchar(c);
-    }
-    set_cursor_position(terminal_row, terminal_column);
-}
 
 // Put a string on the terminal
 void terminal_print(const char* str)
 {
     while (*str) {
-        terminal_putchar(*str++);
+        serial_putchar(*str++);
     }
-}
-
-// Clear the terminal screen
-void terminal_clear(void)
-{
-    for (size_t i = 0; i < 2000; i++) {
-        video_memory[i] = ' ' | 0x0700;
-    }
-    terminal_row    = 0;
-    terminal_column = 0;
-}
-
-// Handle backspace
-void terminal_backspace(void)
-{
-    if (terminal_column > 0) {
-        terminal_column--;
-    }
-    else if (terminal_row > 0) {
-        terminal_row--;
-        terminal_column = 79;
-    }
-    size_t index        = terminal_row * 80 + terminal_column;
-    video_memory[index] = ' ' | 0x0700;
 }
 
 void terminal_print_register_value(uint32_t value)
@@ -486,33 +360,5 @@ void delay(uint32_t ms)
         for (uint32_t j = 0; j < 1000000; j++) {
             __asm__ __volatile__("nop");
         }
-    }
-}
-
-#include <sys/pcpu.h>
-#include <vm/vm_space.h>
-
-void terminal_display_scheduler_info(thread_t* t)
-{
-    proc_t* p = get_proc_from_thread(t);
-
-    char message[80] = {0};
-    snprintf(message, sizeof(message), "Running thread: %s (TID %u) (CR3 %x) (addr %p)", p->name,
-             t->tid, *(p->vmspace->pmap->pd), t);
-
-    // Displayed at the bottom of the terminal with white text on blue background
-    for (size_t i = 0; i < 80; i++) {
-        video_memory[i + 80 * 24] = (message[i] ? message[i] : ' ') | 0x1F00; // White on blue
-    }
-}
-
-void terminal_display_isr_info(uint8_t int_no, registers_t* regs)
-{
-    char message[80] = {0};
-    snprintf(message, sizeof(message), "ISR: Interrupt %u (EIP %x)", int_no, regs->eip);
-
-    // Displayed at the bottom of the terminal with white text on red background
-    for (size_t i = 0; i < 80; i++) {
-        video_memory[i + 80 * 23] = (message[i] ? message[i] : ' ') | 0x4F00; // White on red
     }
 }
