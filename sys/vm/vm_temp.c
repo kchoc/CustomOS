@@ -1,12 +1,26 @@
 #include "vm_temp.h"
 #include "layout.h"
 #include "pmap.h"
+#include "vm_map.h"
 #include "vm_space.h"
-
+#include <kern/errno.h>
+#include <kern/terminal.h>
 #include <string.h>
 
 uint32_t   vm_temp_bitmap = 0; // Bitmap to track temporary page usage (up to 32 pages)
 spinlock_t vm_temp_lock   = SPINLOCK_INITIALIZER;
+
+int vm_temp_init()
+{
+    // Ensure the temporary mapping region is allocated in the kernel's virtual address space
+    vaddr_t virt = VM_TEMP_START;
+    int ret = vm_map_anon(kvm_space, &virt, VM_TEMP_PAGES * PAGE_SIZE, VM_PROT_READ | VM_PROT_WRITE,
+                          VM_REG_F_KERNEL, VM_MAP_F_FIXED);
+    if (IS_ERR(ret))
+        return ret;
+
+    return 0;
+}
 
 void* vm_temp_map_page(paddr_t phys_addr, vm_prot_t prot)
 {

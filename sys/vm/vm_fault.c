@@ -15,6 +15,9 @@
 
 int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
 {
+    if (addr >= KERNEL_BASE)
+        space = kvm_space; // Kernel space fault
+
     VM_REGION_READ_GUARD vm_region_t* region = vm_region_lookup(space, addr, rwlock_read_lock);
 
     if (!region) {
@@ -32,8 +35,8 @@ int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
     printf("vm_fault: Handling fault for address 0x%08x (PID=%d)\n", addr,
            get_proc_from_thread(PCPU_GET(current_thread))->pid);
 
-    uintptr_t page_addr = addr & ~(PAGE_SIZE - 1);
-    size_t    offset    = (page_addr - region->base) + region->offset;
+    uintptr_t    page_addr = addr & ~(PAGE_SIZE - 1);
+    vm_ooffset_t offset    = (page_addr - region->base) + region->offset;
 
     vm_object_t* obj = region->object;
     vm_page_t*   page;
@@ -51,9 +54,20 @@ int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
         if (page)
             goto found_page;
 
-        int res = obj->pager->ops->get_page(obj, offset, &page);
-        if (res == 0 && page)
-            goto found_page;
+        if (obj->pager->ops->has_page(obj, offset)) {
+            page = vm_page_allocate(obj, offset);
+            if (IS_ERR(page)) {
+                return PTR_ERR(page); // Failed to allocate a new page
+            }
+
+            int res = obj->pager->ops->get_page(obj, offset, page);
+            if (res == 0 && page)
+                goto found_page;
+
+            if (res != 0) {
+                return res; // Pager failed to get the page
+            }
+        }
 
         if (!obj->shadow)
             break; // no more shadow objects to check
@@ -74,7 +88,7 @@ int vm_fault(vm_space_t* space, uintptr_t addr, vm_prot_t fault_type)
 
 found_page:
     // Check for COW
-    if (page->state & VM_PAGE_FLAG_COW) {
+    if (page->state & 0x00) {
         printf("vm_fault: COW page fault for address 0x%08x (PID=%d)\n", addr,
                get_proc_from_thread(PCPU_GET(current_thread))->pid);
         if (!(fault_type & VM_PROT_WRITE)) {

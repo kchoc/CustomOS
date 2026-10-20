@@ -5,6 +5,7 @@
 #include "vnode_cache.h"
 
 #include <vm/kmalloc.h>
+#include <vm/vm_object.h>
 
 #include <kern/errno.h>
 #include <kern/panic.h>
@@ -26,6 +27,22 @@ void vnode_dec_ref(vnode_t* vnode)
 int vnode_get(mount_t* mount, uint64_t file_id, vnode_t** result)
 {
     return vnode_cache_lookup(mount, file_id, result);
+}
+
+// TODO: ADD LOCK
+vm_object_t* vnode_get_object(vnode_t* vnode)
+{
+    if (!vnode)
+        return ERR_PTR(-EINVAL);
+
+    if (!vnode->v_object) {
+        vnode->v_object = vm_object_create_vnode(vnode);
+        if (IS_ERR(vnode->v_object)) {
+            return vnode->v_object; // Return the error pointer
+        }
+    }
+
+    return vnode->v_object;
 }
 
 void vnode_inactive(vnode_t* vnode)

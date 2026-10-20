@@ -31,7 +31,7 @@ void switch_page_directory(page_table_t** pd_ptr);
         switch_page_directory((void*)&pmap->pd);
 
 typedef struct pmap {
-    page_table_t* pd; // Page directory
+    page_table_t* pd;
     spinlock_t    lock;
 } pmap_t;
 

@@ -2,9 +2,8 @@
 #define VM_OBJECT_H
 
 #include "types.h"
-
-#include <kern/spinlock.h>
-
+#include <fs/types.h>
+#include <kern/rwlock.h>
 #include <list.h>
 #include <radix.h>
 #include <stddef.h>
@@ -25,14 +24,13 @@ typedef struct vm_object {
     list_node_t      node;
     vm_object_type_t type;
     int              ref_count;
-    spinlock_t       lock; // Protects the pages radix tree and other object metadata
+    radix_tree_t     pages;
+    rwlock_t         lock;
 
     struct vm_object* shadow;        // Shadow object for copy-on-write
     vm_ooffset_t      shadow_offset; // Offset within the shadow object
 
-    struct vm_pager* pager;      // Pager for handling page faults and backing storage
-    void*            pager_data; // Pager-specific data
-    radix_tree_t     pages;      // Radix tree mapping offsets to vm_page_t*
+    struct vm_pager* pager; // Pager for handling page faults and backing storage
 
 } vm_object_t;
 
@@ -47,7 +45,9 @@ void vm_object_dec_ref(vm_object_t* obj);
 
 vm_object_t* vm_object_create_anon();
 vm_object_t* vm_object_create_shadow(vm_object_t* parent, vm_ooffset_t offset);
-void         vm_object_add_page(vm_object_t* obj, size_t offset, vm_prot_t prot);
-void         vm_object_remove_page(vm_object_t* obj, size_t offset);
+vm_object_t* vm_object_create_vnode(vnode_t* vnode);
+
+void vm_object_add_page(vm_object_t* obj, size_t offset, vm_prot_t prot);
+void vm_object_remove_page(vm_object_t* obj, size_t offset);
 
 #endif // VM_OBJECT_H

@@ -26,12 +26,16 @@ void system_init()
         PANIC("Failed to create init process task!");
 
     vm_space_activate(proc->vmspace);
+    thread_t* old_thread = PCPU_GET(current_thread);
+    PCPU_SET(current_thread, thread);
 
-    vm_map_anon(proc->vmspace, &load_addr, 0x1000, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER,
-                VM_REG_F_EARLYENTER, VM_MAP_F_FIXED);
+    vm_map_anon(proc->vmspace, &load_addr, 0x1000, VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER, 0,
+                VM_MAP_F_FIXED);
     memcpy((void*)load_addr, (void*)load_init, 0x1000);
 
     // Create a thread user stack region
     vm_map_anon(proc->vmspace, &user_stack_addr, PAGE_SIZE,
                 VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER, 0, VM_MAP_F_FIXED);
+
+    PCPU_SET(current_thread, old_thread);
 }

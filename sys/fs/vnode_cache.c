@@ -80,6 +80,8 @@ int vnode_cache_lookup(mount_t* mnt, uint64_t file_id, vnode_t** result)
         new_vnode->v_data = NULL;
         new_vnode->v_type = 0;
 
+        new_vnode->v_object = NULL;
+
         new_vnode->file_id    = file_id;
         new_vnode->v_refcount = 1;
 

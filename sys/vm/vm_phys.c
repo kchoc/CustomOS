@@ -15,11 +15,13 @@ size_t total_free_memory = 0;
 
 int vm_phys_init(memory_map_entry_t* mem_map, size_t mem_map_length)
 {
+    // Calculate total memory and total free memory
     for (size_t i = 0; i < mem_map_length; i++) {
+        total_memory += mem_map[i].length;
+
         if (mem_map[i].type == MEM_MAP_TYPE_AVAILABLE) {
             total_free_memory += mem_map[i].length;
         }
-        total_memory += mem_map[i].length;
     }
 
     if (total_memory == 0)
@@ -38,7 +40,7 @@ int vm_phys_init(memory_map_entry_t* mem_map, size_t mem_map_length)
         }
     }
 
-    // Mark pages used by the kernel as allocated (for simplicity, we assume the kernel occupies the
+    // Mark pages used by the kernel as allocated (for simplicity, assume the kernel occupies the
     // first 16MB)
     size_t kernel_pages = (16 * 1024 * 1024) / PAGE_SIZE;
     set_blocks(page_bitmap, 0, kernel_pages, 1);

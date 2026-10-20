@@ -54,6 +54,7 @@
 #define MAX_ERRNO    4095
 #define ERR_PTR(err) ((void*)(intptr_t)(err))
 #define IS_ERR(ptr)  ((uintptr_t)(ptr) > (uintptr_t)-MAX_ERRNO)
+#define PTR_ERR(ptr) ((intptr_t)(ptr))
 
 int is_errno(int code);
 

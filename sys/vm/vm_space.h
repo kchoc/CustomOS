@@ -17,7 +17,8 @@ typedef struct vm_space {
     spinlock_t lifecycle_lock;
 } vm_space_t;
 
-extern vm_space_t kernel_vm_space;
+extern vm_space_t kvm_space_store;
+#define kvm_space (&kvm_space_store)
 
 int         kvm_space_init();
 vm_space_t* vm_space_create();

@@ -5,6 +5,7 @@
 
 #define VM_TEMP_GUARD __attribute__((cleanup(vm_temp_cleanup)))
 
+int   vm_temp_init();
 void* vm_temp_map_page(paddr_t phys_addr, vm_prot_t prot);
 void  vm_temp_unmap_page(void* virt_addr);
 

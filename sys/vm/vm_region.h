@@ -20,10 +20,10 @@ typedef struct vm_region {
     vm_prot_t         prot;
     vm_region_flags_t flags;
 
-    rwlock_t lock; // Protects the region's metadata
+    rwlock_t lock;
 
     vm_object_t* object;
-    size_t       offset;
+    vm_ooffset_t offset;
 } vm_region_t;
 
 #define list_node_to_region(nptr)    container_of(nptr, vm_region_t, node)
@@ -50,8 +50,6 @@ static void vm_region_write_unlock(vm_region_t** region)
 
 /* Returns the region that contains the address addr, or NULL if no such region exists */
 vm_region_t* vm_region_lookup(vm_space_t* space, uintptr_t addr, lock_func_t lock_func);
-/* Returns the first region that overlaps with the range [addr, addr + size) */
-vm_region_t* vm_region_lookup_range(vm_space_t* space, uintptr_t addr, size_t size);
 void         vm_region_free_range(vm_space_t* space, uintptr_t addr, size_t size);
 void vm_region_protect_range(vm_space_t* space, uintptr_t addr, size_t size, vm_prot_t new_prot);
 vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_object_t* object,

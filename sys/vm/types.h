@@ -4,11 +4,10 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-#define PAGE_SIZE               4096
-#define PAGE_MASK               (PAGE_SIZE - 1)
-#define PAGE_ALIGN_DOWN(addr)   ((uintptr_t)(addr) & ~PAGE_MASK)
-#define PAGE_ALIGN_UP(addr)     (((addr) + PAGE_MASK) & ~PAGE_MASK)
-#define VM_REGION_ALLOCATE_ADDR ((uintptr_t)-1)
+#define PAGE_SIZE             4096
+#define PAGE_MASK             (PAGE_SIZE - 1)
+#define PAGE_ALIGN_DOWN(addr) ((uintptr_t)(addr) & ~PAGE_MASK)
+#define PAGE_ALIGN_UP(addr)   (((addr) + PAGE_MASK) & ~PAGE_MASK)
 
 typedef uintptr_t vaddr_t;
 typedef uintptr_t paddr_t;
@@ -43,12 +42,11 @@ typedef enum vm_region_flags {
     VM_REG_F_PRIVATE = 0x1, // Default private (COW fork)
     VM_REG_F_SHARED  = 0x2, // Shared mapping (no COW, shared between processes)
 
-    VM_REG_F_WIRED      = 0x4,  // Never pageable
-    VM_REG_F_DEVICE     = 0x8,  // MMIO / physical device memory
-    VM_REG_F_STACK      = 0x10, // Grows downwards
-    VM_REG_F_KERNEL     = 0x20, // Map in kernel space (ignored for user regions)
-    VM_REG_F_NOCACHE    = 0x40, // Don't allow caching of this region
-    VM_REG_F_EARLYENTER = 0x80,
+    VM_REG_F_WIRED   = 0x4,  // Never pageable
+    VM_REG_F_DEVICE  = 0x8,  // MMIO / physical device memory
+    VM_REG_F_STACK   = 0x10, // Grows downwards
+    VM_REG_F_KERNEL  = 0x20, // Map in kernel space (ignored for user regions)
+    VM_REG_F_NOCACHE = 0x40, // Don't allow caching of this region
 } vm_region_flags_t;
 
 typedef enum vm_obj_flags {

@@ -3,23 +3,23 @@
 #include "vm_object.h"
 #include "vm_phys.h"
 #include <kern/errno.h>
-#include <kern/spinlock.h>
+#include <kern/rwlock.h>
 #include <radix.h>
 
 /* Byte offset -> page index, consistent with vm_object.c's add/remove_page. */
-static inline unsigned long vm_page_index(size_t offset)
+static inline unsigned long vm_page_index(vm_ooffset_t offset)
 {
     return (unsigned long)(offset >> 12);
 }
 
-vm_page_t* vm_page_lookup(vm_object_t* obj, size_t offset)
+vm_page_t* vm_page_lookup(vm_object_t* obj, vm_ooffset_t offset)
 {
     if (!obj)
         return NULL;
 
     vm_page_t* page = NULL;
 
-    WITH_SPINLOCK(obj->lock)
+    WITH_READ_LOCK(obj->lock)
     {
         page = (vm_page_t*)radix_tree_lookup(&obj->pages, vm_page_index(offset));
     }
@@ -27,7 +27,7 @@ vm_page_t* vm_page_lookup(vm_object_t* obj, size_t offset)
     return page;
 }
 
-vm_page_t* vm_page_allocate(vm_object_t* obj, size_t offset)
+vm_page_t* vm_page_allocate(vm_object_t* obj, vm_ooffset_t offset)
 {
     if (!obj)
         return ERR_PTR(-EINVAL);
@@ -44,7 +44,7 @@ vm_page_t* vm_page_allocate(vm_object_t* obj, size_t offset)
     page->phys_addr = phys;
     page->offset    = offset;
 
-    WITH_SPINLOCK(obj->lock)
+    WITH_WRITE_LOCK(obj->lock)
     {
         int res = radix_tree_insert(&obj->pages, vm_page_index(offset), page);
 

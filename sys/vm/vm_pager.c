@@ -21,9 +21,9 @@ vm_pager_t* vm_pager_create(vm_pager_ops_t* ops, void* data)
     return pager;
 }
 
-int dead_pager_get_page(vm_object_t* obj, vm_ooffset_t offset, vm_page_t** page)
+int dead_pager_get_page(vm_object_t* obj, vm_ooffset_t offset, vm_page_t* page)
 {
-    return -ENOSYS; // Not implemented
+    return 0; // Dead pager always returns success, but doesn't provide any pages
 }
 
 int dead_pager_put_page(vm_object_t* obj, vm_page_t* page)

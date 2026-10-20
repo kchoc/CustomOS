@@ -14,28 +14,14 @@
 int vm_map(vm_space_t* space, vaddr_t* virt, size_t size, vm_prot_t prot, vm_region_flags_t flags,
            vm_object_t* object, vm_ooffset_t offset, vm_map_flags_t map_flags)
 {
+    if (!space || !virt || size == 0)
+        return -EINVAL;
+
     vm_region_t* region =
         vm_region_create(space, virt, size, object, offset, prot, flags, map_flags);
     if (IS_ERR(region))
-        return (int)region;
+        return PTR_ERR(region);
 
-    if (!(flags & VM_REG_F_EARLYENTER))
-        return 0;
-
-    pmap_flags_t pmap_flags = PMAP_FLAG_NONE;
-    vm_object_t* obj        = region->object;
-    for (size_t offset = region->base; offset < region->end; offset += PAGE_SIZE) {
-        vm_page_t* page = vm_page_allocate(obj, offset);
-        if (IS_ERR(page)) {
-            vm_region_destroy(region);
-            return (int)page;
-        }
-        int ret = pmap_enter(space->pmap, offset, page->phys_addr, prot, pmap_flags);
-        if (IS_ERR(ret)) {
-            vm_region_destroy(region);
-            return ret;
-        }
-    }
     return 0;
 }
 
@@ -47,46 +33,62 @@ int vm_map_anon(vm_space_t* space, uintptr_t* virt, size_t size, vm_prot_t prot,
 
 int vm_unmap(vm_space_t* space, uintptr_t virt, size_t size)
 {
+    if (!space || size == 0)
+        return -EINVAL;
+
     vm_region_free_range(space, virt, size);
-
-    pmap_remove(space->pmap, virt, virt + size);
-
     return 0;
 }
 
 int vm_protect(vm_space_t* space, uintptr_t virt, size_t size, vm_prot_t prot)
 {
+    if (!space || size == 0)
+        return -EINVAL;
+
     vm_region_protect_range(space, virt, size, prot);
-
-    for (size_t offset = 0; offset < size; offset += PAGE_SIZE) {
-        pmap_protect(space->pmap, virt + offset, virt + offset + PAGE_SIZE, prot);
-    }
-
     return 0;
+}
+
+void* kvm_map(size_t size, vm_prot_t prot, vm_region_flags_t flags)
+{
+    if (size == 0)
+        return ERR_PTR(-EINVAL);
+
+    size_t  aligned_size = PAGE_ALIGN_UP(size);
+    vaddr_t virt         = 0;
+    int     ret = vm_map(kvm_space, &virt, aligned_size, prot, VM_REG_F_KERNEL | flags, NULL, 0, 0);
+    if (IS_ERR(ret))
+        return ERR_PTR(ret);
+
+    return (void*)virt;
+}
+
+void kvm_unmap(void* virt, size_t size)
+{
+    if (!virt || size == 0)
+        return;
+
+    size_t aligned_size = PAGE_ALIGN_UP(size);
+    vm_unmap(kvm_space, (uintptr_t)virt, aligned_size);
 }
 
 void* vm_map_device(paddr_t addr, size_t size, vm_prot_t prot, vm_region_flags_t flags)
 {
+    paddr_t end_phys = addr + size;
+    if (size == 0 || end_phys < addr)
+        return ERR_PTR(-EINVAL);
+
     paddr_t aligned_phys = PAGE_ALIGN_DOWN(addr);
-    paddr_t end_phys     = PAGE_ALIGN_UP(addr + size);
+    size_t  aligned_size = end_phys - PAGE_ALIGN_DOWN(addr);
 
-    size_t aligned_size = end_phys - aligned_phys;
-
-    vaddr_t virt = (vaddr_t)kvm_alloc(aligned_size, prot,
-                                      VM_REG_F_DEVICE | VM_REG_F_WIRED |
-                                          (flags & VM_REG_F_NOCACHE ? VM_REG_F_NOCACHE : 0));
+    vaddr_t virt =
+        (vaddr_t)kvm_map(aligned_size, prot, VM_REG_F_DEVICE | VM_REG_F_WIRED | VM_REG_F_NOCACHE);
     if (IS_ERR(virt))
         return ERR_PTR(-ENOMEM);
 
-    int pmap_flags = PMAP_FLAG_WIRED;
-    if (flags & VM_DEV_NOCACHE)
-        pmap_flags |= PMAP_FLAG_NOCACHE;
-
     for (paddr_t phys = aligned_phys; phys < end_phys; phys += PAGE_SIZE) {
-        // TODO: Consider bookkeeping in object for device mappings to allow for proper unmapping
-        // and cleanup
         int ret =
-            pmap_enter(kernel_vm_space.pmap, virt + (phys - aligned_phys), phys, prot, pmap_flags);
+            pmap_enter(kvm_space->pmap, virt + (phys - aligned_phys), phys, prot, PMAP_FLAG_NONE);
         if (IS_ERR(ret)) {
             kvm_unmap((void*)virt, phys - aligned_phys);
             return ERR_PTR(ret);
@@ -101,72 +103,5 @@ void vm_unmap_device(void* virt, size_t size)
     vaddr_t aligned_virt = PAGE_ALIGN_DOWN((vaddr_t)virt);
     vaddr_t end_virt     = PAGE_ALIGN_UP((vaddr_t)virt + size);
 
-    for (vaddr_t offset = 0; offset < end_virt - aligned_virt; offset += PAGE_SIZE) {
-        pmap_remove(kernel_vm_space.pmap, aligned_virt + offset, aligned_virt + offset + PAGE_SIZE);
-    }
-
-    kvm_free((void*)aligned_virt, end_virt - aligned_virt);
-}
-
-void* kvm_alloc(size_t size, vm_prot_t prot, vm_region_flags_t flags)
-{
-    size_t  aligned_size = PAGE_ALIGN_UP(size);
-    vaddr_t virt;
-    int     ret =
-        vm_map(&kernel_vm_space, &virt, aligned_size, prot, VM_REG_F_KERNEL | flags, NULL, 0, 0);
-
-    if (IS_ERR(ret))
-        return ERR_PTR(ret);
-
-    return (void*)virt;
-}
-
-void kvm_free(void* virt, size_t size)
-{
-    size_t aligned_size = PAGE_ALIGN_UP(size);
-    vm_unmap(&kernel_vm_space, (uintptr_t)virt, aligned_size);
-}
-
-void* kvm_map(size_t size, vm_prot_t prot, vm_region_flags_t flags)
-{
-    size_t  aligned_size = PAGE_ALIGN_UP(size);
-    vaddr_t kva          = (vaddr_t)kvm_alloc(aligned_size, prot, flags);
-
-    if (IS_ERR(kva))
-        return ERR_PTR(kva);
-
-    int pmap_flags = PMAP_FLAG_WIRED;
-    if (flags & VM_REG_F_NOCACHE)
-        pmap_flags |= PMAP_FLAG_NOCACHE;
-
-    vm_region_t* region = vm_region_lookup(&kernel_vm_space, kva, rwlock_read_lock);
-    vm_object_t* obj    = region->object;
-
-    for (size_t offset = 0; offset < aligned_size; offset += PAGE_SIZE) {
-        vm_page_t* page = vm_page_allocate(obj, offset);
-        if (IS_ERR(page)) {
-            kvm_unmap((void*)kva, offset);
-            rwlock_read_unlock(&region->lock);
-            return page;
-        }
-        int ret = pmap_enter(kernel_vm_space.pmap, kva + offset, page->phys_addr, prot, pmap_flags);
-        if (IS_ERR(ret)) {
-            kvm_unmap((void*)kva, offset);
-            rwlock_read_unlock(&region->lock);
-            return ERR_PTR(ret);
-        }
-
-        void* page_virt = (void*)(kva + offset);
-        memset(page_virt, 0, PAGE_SIZE);
-    }
-
-    rwlock_read_unlock(&region->lock);
-
-    return (void*)kva;
-}
-
-void kvm_unmap(void* virt, size_t size)
-{
-    size_t aligned_size = PAGE_ALIGN_UP(size);
-    kvm_free(virt, aligned_size);
+    kvm_unmap((void*)aligned_virt, end_virt - aligned_virt);
 }

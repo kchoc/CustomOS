@@ -17,7 +17,7 @@ int pcpu_init(MACHDEP_PARAMS)
     pcpu->current_thread = &idle_thread;
     pcpu->total_priority = 0;
     pcpu->started        = 0;
-    pcpu->vmspace        = &kernel_vm_space;
+    pcpu->vmspace        = kvm_space;
     machdep_init_pcpu(pcpu, MACHDEP_ARGUMENTS);
     return 0;
 }

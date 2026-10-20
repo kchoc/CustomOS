@@ -15,11 +15,30 @@ static size_t    terminal_column = 0;
 static uint16_t* video_memory    = (uint16_t*)VGA_ADDRESS;
 static uint8_t   command_mode    = 0;
 
+#define COM1 0x3F8 // COM1 port address
+
 // Initialize the terminal
 int terminal_init()
 {
     terminal_clear();
+
+    // Enable the serial port (COM1) for output
+    outb(COM1 + 1, 0x00); // Disable all interrupts
+    outb(COM1 + 3, 0x80); // Enable DLAB (set baud rate divisor)
+    outb(COM1 + 0, 0x01); // Set divisor to 1 (lo byte) 115200 baud
+    outb(COM1 + 1, 0x00); //                  (hi byte)
+    outb(COM1 + 3, 0x03); // 8 bits, no parity, one stop bit
+    outb(COM1 + 2, 0xC7); // Enable FIFO, clear them, with 14-byte threshold
+    outb(COM1 + 4, 0x03); // DTR/RTS set
+
     return 0;
+}
+
+void serial_putchar(char c)
+{
+    while (!(inb(COM1 + 5) & 0x20))
+        ; // Wait for the transmit buffer to be empty
+    outb(COM1, c);
 }
 
 // Set the cursor position
@@ -39,6 +58,7 @@ void set_cursor_position(size_t row, size_t column)
 // Put a character on the terminal
 void terminal_putchar(char c)
 {
+    return serial_putchar(c); // Output to serial port
     if (c == '\n') {
         for (size_t i = terminal_column + terminal_row * 80; i < terminal_row * 80 + 80; i++) {
             video_memory[i] = ' ' | 0x0700;

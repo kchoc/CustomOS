@@ -8,6 +8,7 @@
 
 #include <vm/kmalloc.h>
 #include <vm/vm_map.h>
+#include <vm/vm_space.h>
 
 #include <machine/gdt.h>
 
@@ -28,7 +29,7 @@ proc_t        idle_process  = {
     .ppid     = 0,
     .name     = "idle",
     .threads  = LIST_INIT,
-    .vmspace  = &kernel_vm_space,
+    .vmspace  = kvm_space,
     .fd_table = NULL,
     .node     = LIST_NODE_INIT(&all_processes),
 };
@@ -170,7 +171,7 @@ proc_t* create_process(const char* name)
     }
 
     list_init(&p->threads, 0);
-    p->vmspace = vm_space_fork(&kernel_vm_space); // Start with a copy of the kernel VM space
+    p->vmspace = vm_space_create();
 
     // Create file descriptor table
     p->fd_table = fd_table_create();

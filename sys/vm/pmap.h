@@ -1,9 +1,8 @@
 #ifndef PMAP_H
 #define PMAP_H
 
+#include "types.h"
 #include <machine/pmap.h>
-
-#include <vm/types.h>
 
 extern pmap_t kernel_pmap_store;
 #define kernel_pmap (&kernel_pmap_store)

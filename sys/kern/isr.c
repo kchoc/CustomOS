@@ -73,11 +73,10 @@ void isr_page_fault_handler(registers_t* regs)
     paddr_t faulting_address;
     asm volatile("movl %%cr2, %0" : "=r"(faulting_address));
 
-    // Map the page
-    vm_fault(get_proc_from_thread(PCPU_GET(current_thread))->vmspace, faulting_address,
-             VM_PROT_READ | VM_PROT_WRITE | VM_PROT_USER);
+    vm_prot_t fault_type = regs->errorCode & 0x7; // Extract the fault type from the error code
 
-    // printf("Handled page fault for address: %x\n", faulting_address);
+    // Map the page
+    vm_fault(get_proc_from_thread(PCPU_GET(current_thread))->vmspace, faulting_address, fault_type);
 
     // Send an EOI to the LAPIC
     lapic_write(LAPIC_EOI, 0);

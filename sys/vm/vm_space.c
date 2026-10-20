@@ -4,6 +4,7 @@
 #include "types.h"
 #include "vm_map.h"
 #include "vm_region.h"
+#include "vm_temp.h"
 
 #include <sys/pcpu.h>
 
@@ -13,28 +14,25 @@
 
 #include <list.h>
 
-vm_space_t kernel_vm_space = {
+vm_space_t kvm_space_store = {
     .regions = LIST_INIT, .pmap = kernel_pmap, .regions_lock = RWLOCK_INITIALIZER};
 
 int kvm_space_init()
 {
     pmap_init();
 
-    pcpus[0].vmspace = &kernel_vm_space;
+    pcpus[0].vmspace = kvm_space;
 
-    // Since this is the first kvm call, the start is at 0xC0000000, so we can allocate that
+    // Allocate a region for the kernel's virtual address space (1MB for now, can be expanded later)
     vaddr_t virt = KERNEL_BASE;
-    int     ret  = vm_map_anon(&kernel_vm_space, &virt, 0x00400000, VM_PROT_READ | VM_PROT_WRITE,
+    int     res  = vm_map_anon(kvm_space, &virt, 0x00400000, VM_PROT_READ | VM_PROT_WRITE,
                                VM_REG_F_KERNEL, VM_MAP_F_FIXED);
-    if (IS_ERR(ret))
-        return ret;
+    if (res)
+        return res;
 
-    // Allocate temporary pages for the kernel to use for temporary mappings
-    virt = VM_TEMP_START;
-    ret  = vm_map_anon(&kernel_vm_space, &virt, VM_TEMP_PAGES * PAGE_SIZE,
-                       VM_PROT_READ | VM_PROT_WRITE, VM_REG_F_KERNEL, VM_MAP_F_FIXED);
-    if (IS_ERR(ret))
-        return ret;
+    res = vm_temp_init();
+    if (res)
+        return res;
 
     // TODO: Need to bookkeep the vm_pages from the bootloader
     return 0;
@@ -69,7 +67,7 @@ vm_space_t* vm_space_fork(vm_space_t* parent)
 
     WITH_READ_LOCK(parent->regions_lock)
     {
-        // Copy the regions list (shallow copy)
+        // Copy the regions list by forking each region.
         for (list_node_t* node = parent->regions.head; node; node = node->next) {
             vm_region_t* reference_region = list_node_to_region(node);
             vm_region_t* child_region     = vm_region_fork(reference_region);
@@ -92,15 +90,12 @@ void vm_space_destroy(vm_space_t* space)
 
     WITH_WRITE_LOCK(space->regions_lock)
     {
-        // Decrement reference counts for all regions and their objects (this will free them if this
-        // was the last reference)
         while (space->regions.head) {
             vm_region_t* region = list_node_to_region(space->regions.head);
             vm_region_destroy(region);
         }
     }
 
-    // Free architecture-specific data
     pmap_destroy(space->pmap);
 
     kfree(space);
