@@ -49,6 +49,14 @@ typedef enum vm_region_flags {
     VM_REG_F_NOCACHE = 0x40, // Don't allow caching of this region
 } vm_region_flags_t;
 
+typedef enum vm_region_inheritance {
+    VM_REG_INHERIT_NONE   = 0x0, // Region is not inherited by child processes
+    VM_REG_INHERIT_COPY   = 0x1, // Region is copied (COW) to child processes
+    VM_REG_INHERIT_SHARE  = 0x2, // Region is shared with child processes
+    VM_REG_INHERIT_DONATE = 0x3, // Region is donated to child processes (removed from parent)
+    VM_REG_INHERIT_ZERO   = 0x4, // Region is zeroed in child processes
+} vm_region_inheritance_t;
+
 typedef enum vm_obj_flags {
     VM_OBJ_F_KERNEL = 0x1, // Map in kernel space
     VM_OBJ_F_NOSWAP = 0x2, // Don't allow this region to be swapped out

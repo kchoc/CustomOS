@@ -211,9 +211,11 @@ vm_region_t* vm_region_create(vm_space_t* space, vaddr_t* addr, size_t size, vm_
                 *addr = region->base;
         }
 
-        region->end    = region->base + size;
-        region->prot   = prot;
-        region->flags  = flags;
+        region->end   = region->base + size;
+        region->prot  = prot;
+        region->flags = flags;
+        region->inheritance =
+            (flags & VM_REG_F_SHARED) ? VM_REG_INHERIT_SHARE : VM_REG_INHERIT_COPY;
         region->offset = offset;
         region->lock   = RWLOCK_INITIALIZER;
 
@@ -234,17 +236,43 @@ vm_region_t* vm_region_fork(vm_region_t* parent)
     if (!parent)
         return ERR_PTR(-EINVAL);
 
+    if (parent->inheritance == VM_REG_INHERIT_NONE)
+        return NULL; // Not inherited by child processes
+
     vm_region_t* child = kmalloc(sizeof(vm_region_t));
     if (!child)
         return ERR_PTR(-ENOMEM);
 
     *child = *parent; // shallow copy
 
-    bool private     = !(parent->flags & VM_REG_F_SHARED);
-    bool writable    = parent->prot & VM_PROT_WRITE;
-    bool cow_capable = vm_object_supports_cow(parent->object->type);
+    if (parent->inheritance == VM_REG_INHERIT_DONATE) {
+        // Remove the region from the parent
+        // Lock is already held by the caller, so we can safely remove the region from the parent's
+        // list
+        list_remove(&parent->node);
 
-    if (private && writable && cow_capable && !(parent->flags & VM_REG_F_KERNEL)) {
+        return child; // The parent no longer has this region, so we don't need to do anything else
+    }
+
+    if (parent->inheritance == VM_REG_INHERIT_ZERO) {
+        // Create a new anonymous object for the child region
+        vm_object_t* new_object = vm_object_create_anon();
+        if (IS_ERR(new_object)) {
+            kfree(child);
+            return ERR_PTR(-ENOMEM);
+        }
+
+        child->object = new_object; // Assign the new object to the child region
+
+        return child;
+    }
+
+    if (parent->inheritance == VM_REG_INHERIT_SHARE) {
+        vm_object_inc_ref(parent->object);
+        return child;
+    }
+
+    if (parent->inheritance == VM_REG_INHERIT_COPY) {
         vm_object_t* parent_shadow = vm_object_create_shadow(parent->object, 0);
         if (IS_ERR(parent_shadow)) {
             kfree(child);
@@ -265,9 +293,6 @@ vm_region_t* vm_region_fork(vm_region_t* parent)
 
         pmap_protect(vm_space_from_region(parent)->pmap, parent->base, parent->end,
                      parent->prot & ~VM_PROT_WRITE);
-    }
-    else {
-        vm_object_inc_ref(parent->object);
     }
 
     return child;

@@ -75,6 +75,10 @@ vm_space_t* vm_space_fork(vm_space_t* parent)
                 vm_space_destroy(child); // Clean up the child space and all regions created so far
                 return ERR_PTR(-ENOMEM);
             }
+
+            if (!child_region)
+                continue; // Skip if the region is not inherited
+
             // Insert the child region into the child's region list
             list_push_tail(&child->regions, &child_region->node);
         }

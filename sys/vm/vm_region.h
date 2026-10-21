@@ -17,8 +17,9 @@ typedef struct vm_region {
     vaddr_t base;
     vaddr_t end;
 
-    vm_prot_t         prot;
-    vm_region_flags_t flags;
+    vm_prot_t               prot;
+    vm_region_flags_t       flags;
+    vm_region_inheritance_t inheritance;
 
     rwlock_t lock;
 
